@@ -215,7 +215,7 @@ def set_wallpaper(image_path: str) -> str:
                 f'tell application "System Events" to tell every desktop to '
                 f'set picture to POSIX file "{path}"'
             )
-            subprocess.run(["osascript", "-e", script], capture_output=True)
+            subprocess.run(["osascript", "-e", script], capture_output=True, timeout=10)
             return f"Wallpaper set: {path.name}"
 
         else:
