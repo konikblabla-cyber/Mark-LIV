@@ -13,6 +13,8 @@ from tests.test_broad_control import BroadControlTests
 from tests.test_undo import UndoTests
 from tests.test_confirm import ConfirmTests
 from tests.test_computer_control_extra import ComputerControlExtraTests
+from tests.test_computer_settings import ComputerSettingsTests
+from tests.test_close_all_apps import CloseAllAppsTests
 
 
 def suite():
@@ -31,6 +33,8 @@ def suite():
         loader.loadTestsFromTestCase(UndoTests),
         loader.loadTestsFromTestCase(ConfirmTests),
         loader.loadTestsFromTestCase(ComputerControlExtraTests),
+        loader.loadTestsFromTestCase(ComputerSettingsTests),
+        loader.loadTestsFromTestCase(CloseAllAppsTests),
     ])
 
 
