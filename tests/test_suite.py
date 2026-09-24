@@ -8,6 +8,8 @@ from tests.test_computer_control import ComputerControlTests
 from tests.test_llm_client import LlmClientTests
 from tests.test_memory_manager import MemoryManagerTests
 from tests.test_imports import ImportSmokeTests
+from tests.test_desktop_sandbox import DesktopSandboxTests
+from tests.test_broad_control import BroadControlTests
 
 
 def suite():
@@ -21,6 +23,8 @@ def suite():
         loader.loadTestsFromTestCase(LlmClientTests),
         loader.loadTestsFromTestCase(MemoryManagerTests),
         loader.loadTestsFromTestCase(ImportSmokeTests),
+        loader.loadTestsFromTestCase(DesktopSandboxTests),
+        loader.loadTestsFromTestCase(BroadControlTests),
     ])
 
 
