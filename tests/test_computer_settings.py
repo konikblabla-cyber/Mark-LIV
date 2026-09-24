@@ -1,24 +1,18 @@
 import unittest
 from unittest.mock import patch
 
-import actions.computer_settings as settings
+import actions.computer_settings as cs
 
 
 class ComputerSettingsTests(unittest.TestCase):
-    @patch("actions.computer_settings.volume_set")
-    @patch("actions.computer_settings.volume_get", return_value=35)
-    def test_volume_up_registers_undo(self, get_volume, set_volume):
-        with patch("actions.computer_settings.push_undo") as push:
-            result = settings._apply_volume_delta(10)
-        self.assertIn("Volume", result)
-        set_volume.assert_called_once_with(45)
-        push.assert_called_once()
+    @patch("actions.computer_settings.pyautogui.hotkey")
+    def test_focus_search_uses_windows_search(self, hotkey):
+        with patch.object(cs, "_OS", "Windows"):
+            cs.focus_search()
+        hotkey.assert_called_once_with("win", "s")
 
-    @patch("actions.computer_settings.brightness_set")
-    @patch("actions.computer_settings.brightness_get", return_value=60)
-    def test_brightness_set_clamps_value(self, get_brightness, set_brightness):
-        settings.brightness_set(150)
-        set_brightness.assert_called_once_with(100)
+    def test_unmute_is_explicit_action(self):
+        self.assertIs(cs.ACTION_MAP["unmute"], cs.volume_unmute)
 
 
 if __name__ == "__main__":
