@@ -226,6 +226,18 @@ def get_llm_settings() -> tuple[str, str]:
     return url, model
 
 
+def _parse_tool_arguments(raw) -> dict:
+    if isinstance(raw, dict):
+        return raw
+    if not isinstance(raw, str):
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+
+
 def call_llm(
     messages: list,
     tools:    list | None = None,
@@ -263,11 +275,7 @@ def call_llm(
                     "id":       t.get("id", ""),
                     "function": {
                         "name":      t["function"]["name"],
-                        "arguments": (
-                            json.loads(t["function"]["arguments"])
-                            if isinstance(t["function"].get("arguments"), str)
-                            else t["function"].get("arguments", {})
-                        ),
+                        "arguments": _parse_tool_arguments(t["function"].get("arguments", {})),
                     },
                 }
                 for t in raw_tc
