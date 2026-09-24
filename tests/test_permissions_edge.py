@@ -20,6 +20,10 @@ class PermissionEdgeTests(unittest.TestCase):
     def test_admin_flag_requires_confirmation_for_any_action(self):
         self.assertTrue(needs_confirmation("screenshot", admin=True))
 
+    def test_launch_and_open_file_require_confirmation(self):
+        self.assertTrue(needs_confirmation("launch"))
+        self.assertTrue(needs_confirmation("open_file"))
+
     def test_admin_sensitive_actions_require_confirmation(self):
         self.assertTrue(needs_confirmation("format_drive"))
         self.assertTrue(needs_confirmation("change_security_setting"))
