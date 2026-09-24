@@ -6,6 +6,7 @@ from tests.test_action_loader import ActionLoaderTests
 from tests.test_computer_control import ComputerControlTests
 from tests.test_llm_client import LlmClientTests
 from tests.test_memory_manager import MemoryManagerTests
+from tests.test_imports import ImportSmokeTests
 
 
 def suite():
@@ -17,6 +18,7 @@ def suite():
         loader.loadTestsFromTestCase(ComputerControlTests),
         loader.loadTestsFromTestCase(LlmClientTests),
         loader.loadTestsFromTestCase(MemoryManagerTests),
+        loader.loadTestsFromTestCase(ImportSmokeTests),
     ])
 
 
