@@ -166,6 +166,8 @@ def _type(text: str, interval: float = 0.03) -> str:
 
 def _smart_type(text: str, clear_first: bool = True) -> str:
     _require_pyautogui()
+    if len(text) > 10000:
+        raise ValueError("Text too long")
     if clear_first:
         _clear_field()
         time.sleep(0.1)
@@ -293,7 +295,8 @@ def _focus_window(title: str) -> str:
 
     if os_name == "windows":
         try:
-            script = f'(New-Object -ComObject WScript.Shell).AppActivate("{title}")'
+            safe_title = str(title).replace("'", "''")
+            script = f"(New-Object -ComObject WScript.Shell).AppActivate('{safe_title}')"
             subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                 capture_output=True, timeout=5, **_WIN_HIDE,
@@ -304,9 +307,10 @@ def _focus_window(title: str) -> str:
             return f"focus_window (Windows) failed: {e}"
 
     if os_name == "mac":
+        safe_title = str(title).replace("\\", "\\\\").replace('"', '\\"')
         script = (
             f'tell application "System Events" to '
-            f'set frontmost of (first process whose name contains "{title}") to true'
+            f'set frontmost of (first process whose name contains "{safe_title}") to true'
         )
         try:
             subprocess.run(
@@ -531,13 +535,12 @@ def computer_control(
             return result
 
         if action == "user_data":
-            field   = params.get("field", "name")
+            field = str(params.get("field", "name")).strip()
             profile = _user_profile()
-            value   = profile.get(field, "")
+            value = profile.get(field, "")
             if not value:
-                value = _random_data(field)
-                print(f"[ComputerControl] ⚠️ No '{field}' in memory, using random: {value}")
-            return value
+                return f"No '{field}' found in memory."
+            return str(value)
 
         return f"Unknown action: '{action}'"
 
