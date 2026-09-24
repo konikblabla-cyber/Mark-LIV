@@ -156,6 +156,8 @@ def _user_profile() -> dict:
 
 def _type(text: str, interval: float = 0.03) -> str:
     _require_pyautogui()
+    if not isinstance(text, str):
+        raise ValueError("Text must be a string")
     if len(text) > 10000:
         raise ValueError("Text too long")
     interval = max(0.0, min(float(interval), 1.0))
