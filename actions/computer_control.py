@@ -192,6 +192,10 @@ def _validate_coords(x: int, y: int) -> tuple[int, int]:
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
     _require_pyautogui()
     if x is not None and y is not None:
+        x, y = _validate_coords(x, y)
+        if button not in ("left", "right", "middle"):
+            raise ValueError("Invalid mouse button")
+        clicks = max(1, min(int(clicks), 10))
         pyautogui.click(x, y, button=button, clicks=clicks)
         return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
     pyautogui.click(button=button, clicks=clicks)
@@ -200,18 +204,26 @@ def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
 
 def _hotkey(*keys) -> str:
     _require_pyautogui()
+    if not keys or len(keys) > 6:
+        raise ValueError("Hotkey must contain 1-6 keys")
     pyautogui.hotkey(*keys)
     return f"Hotkey: {'+'.join(keys)}"
 
 
 def _press(key: str) -> str:
     _require_pyautogui()
+    if not isinstance(key, str) or not key.strip() or len(key) > 50:
+        raise ValueError("Invalid key")
     pyautogui.press(key)
     return f"Pressed: {key}"
 
 
 def _scroll(direction: str = "down", amount: int = 3) -> str:
     _require_pyautogui()
+    direction = str(direction).lower()
+    if direction not in ("up", "down", "left", "right"):
+        raise ValueError("Invalid scroll direction")
+    amount = max(1, min(abs(int(amount)), 100))
     vertical   = direction in ("up", "down")
     clicks     = amount if direction in ("up", "right") else -amount
     pyautogui.scroll(clicks) if vertical else pyautogui.hscroll(clicks)
@@ -220,12 +232,17 @@ def _scroll(direction: str = "down", amount: int = 3) -> str:
 
 def _move(x: int, y: int, duration: float = 0.3) -> str:
     _require_pyautogui()
+    x, y = _validate_coords(x, y)
+    duration = max(0.0, min(float(duration), 5.0))
     pyautogui.moveTo(x, y, duration=duration)
     return f"Mouse → ({x}, {y})"
 
 
 def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     _require_pyautogui()
+    x1, y1 = _validate_coords(x1, y1)
+    x2, y2 = _validate_coords(x2, y2)
+    duration = max(0.0, min(float(duration), 5.0))
     pyautogui.moveTo(x1, y1, duration=0.2)
     pyautogui.dragTo(x2, y2, duration=duration, button="left")
     return f"Dragged ({x1},{y1}) → ({x2},{y2})"
@@ -359,7 +376,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
 
         match = re.search(r"(\d+)\s*,\s*(\d+)", text)
         if match:
-            return int(match.group(1)), int(match.group(2))
+            return _validate_coords(int(match.group(1)), int(match.group(2)))
 
     except Exception as e:
         print(f"[ComputerControl] ⚠️ screen_find failed: {e}")
