@@ -13,6 +13,7 @@ def suite():
         loader.loadTestsFromTestCase(PermissionEdgeTests),
         loader.loadTestsFromTestCase(ActionLoaderTests),
         loader.loadTestsFromTestCase(ComputerControlTests),
+        loader.loadTestsFromTestCase(LlmClientTests),
     ])
 
 
