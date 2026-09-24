@@ -29,3 +29,7 @@ class ComputerControlExtraTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_type_rejects_oversized_text(self):
+        result = computer_control.computer_control({"action": "type", "text": "x" * 10001})
+        self.assertIn("Text too long", result)
