@@ -61,9 +61,6 @@ class LlmClientTests(unittest.TestCase):
         self.assertEqual(result["tool_calls"][0]["function"]["arguments"], {"x": 10, "y": 20})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     @patch("core.llm_client.get_llm_settings", return_value=("http://localhost:1234", "Luna"))
     @patch("core.llm_client.get_llm_provider", return_value="openai")
     @patch("core.llm_client.requests.post")
@@ -73,3 +70,6 @@ if __name__ == "__main__":
         response.json.return_value = {"choices": [{"message": {"content": "", "tool_calls": [{"function": {"name": "x", "arguments": "{bad"}}]}}]}
         result = llm_client.call_llm([{"role": "user", "content": "x"}])
         self.assertEqual(result["tool_calls"][0]["function"]["arguments"], {})
+
+if __name__ == "__main__":
+    unittest.main()
