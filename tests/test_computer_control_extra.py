@@ -26,6 +26,10 @@ class ComputerControlExtraTests(unittest.TestCase):
             result = computer_control.computer_control({"action": "user_data", "field": "name"})
         self.assertIsInstance(result, str)
 
+    def test_type_rejects_non_string(self):
+        with patch("actions.computer_control._require_pyautogui"):
+            result = computer_control.computer_control({"action": "type", "text": 123})
+        self.assertIn("Text must be a string", result)
 
 if __name__ == "__main__":
     unittest.main()
