@@ -5,12 +5,13 @@ from core.action_loader import ActionRegistry
 
 class ActionLoaderTests(unittest.TestCase):
     def test_empty_registry_is_safe(self):
-        registry = ActionRegistry()
-        self.assertEqual(registry.names(), [])
+        registry = ActionRegistry({}, lambda _message: None)
+        self.assertEqual(registry.names(), set())
         self.assertFalse(registry.has("missing"))
+        self.assertEqual(registry.scheduling("missing"), None)
 
     def test_reserved_context_is_not_exposed_as_tool(self):
-        registry = ActionRegistry()
+        registry = ActionRegistry({}, lambda _message: None)
         self.assertFalse(registry.has("player"))
         self.assertFalse(registry.has("speak"))
         self.assertFalse(registry.has("response"))
