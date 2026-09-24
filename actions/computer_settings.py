@@ -90,6 +90,26 @@ def volume_mute():
         subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"],
             capture_output=True)
 
+def volume_unmute():
+    """Explicitly unmute instead of toggling when supported."""
+    if _OS == "Windows":
+        try:
+            from ctypes import cast, POINTER
+            from comtypes import CLSCTX_ALL
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+            devices = AudioUtilities.GetSpeakers()
+            interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+            vol = cast(interface, POINTER(IAudioEndpointVolume))
+            vol.SetMute(0, None)
+            return
+        except Exception:
+            pyautogui.press("volumemute")
+    elif _OS == "Darwin":
+        subprocess.run(["osascript", "-e", "set volume without output muted"], capture_output=True)
+    else:
+        subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"], capture_output=True)
+
+
 def volume_get() -> int | None:
     """Current master volume 0-100, or None if this platform will not say.
 
