@@ -10,6 +10,9 @@ from tests.test_memory_manager import MemoryManagerTests
 from tests.test_imports import ImportSmokeTests
 from tests.test_desktop_sandbox import DesktopSandboxTests
 from tests.test_broad_control import BroadControlTests
+from tests.test_undo import UndoTests
+from tests.test_confirm import ConfirmTests
+from tests.test_computer_control_extra import ComputerControlExtraTests
 
 
 def suite():
@@ -25,6 +28,9 @@ def suite():
         loader.loadTestsFromTestCase(ImportSmokeTests),
         loader.loadTestsFromTestCase(DesktopSandboxTests),
         loader.loadTestsFromTestCase(BroadControlTests),
+        loader.loadTestsFromTestCase(UndoTests),
+        loader.loadTestsFromTestCase(ConfirmTests),
+        loader.loadTestsFromTestCase(ComputerControlExtraTests),
     ])
 
 
