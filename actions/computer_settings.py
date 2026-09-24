@@ -616,7 +616,7 @@ ACTION_MAP: dict[str, callable] = {
     "volume_up":           volume_up,
     "volume_down":         volume_down,
     "mute":                volume_mute,
-    "unmute":              volume_mute,
+    "unmute":              volume_unmute,
     "toggle_mute":         volume_mute,
     "brightness_up":       brightness_up,
     "brightness_down":     brightness_down,
