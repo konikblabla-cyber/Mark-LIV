@@ -28,5 +28,17 @@ class ComputerControlTests(unittest.TestCase):
         self.assertTrue(result.get("ok", False))
 
 
+    @patch("actions.computer_control.pyautogui.moveTo")
+    @patch("actions.computer_control._screen_size", return_value=(1920, 1080))
+    def test_move_coordinates_are_clamped(self, _size, move_to):
+        result = computer_control.handle({
+            "action": "move",
+            "x": -50,
+            "y": 99999,
+        })
+        move_to.assert_called_once_with(0, 1079, duration=0.15)
+        self.assertTrue(result.get("ok", False))
+
+
 if __name__ == "__main__":
     unittest.main()
