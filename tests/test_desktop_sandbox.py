@@ -22,3 +22,9 @@ class DesktopSandboxTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_dangerous_attribute_escape_is_rejected(self):
+        for code in ("x.__subclasses__()", "x.__globals__"):
+            with self.subTest(code=code):
+                ok, _ = _validate_generated_code(code)
+                self.assertFalse(ok)
