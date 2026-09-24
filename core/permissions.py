@@ -6,6 +6,7 @@ confirmation. If it is removed, actions continue working without this layer.
 
 REQUIRE_CONFIRMATION = {
     "shutdown", "restart", "toggle_wifi", "close_all_apps", "close_active",
+    "launch", "open_file",
     "delete_file", "delete_folder", "kill_process", "terminate_process",
     "format_drive", "change_firewall", "change_security_setting",
     "install_software", "uninstall_software", "run_as_admin",
