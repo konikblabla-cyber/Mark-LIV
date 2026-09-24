@@ -810,12 +810,15 @@ def computer_settings(
     if player:
         player.write_log(f"[Settings] {action}")
 
-    # ── The gate ─────────────────────────────────────────────────────────────
-    # A human presses a button, or this does not happen. The model can no longer
-    # write its own permission slip, and the action itself is handed to the UI
-    # rather than performed here — so returning early is not "declining", it is
-    # "parked until someone says yes".
-    if action in _IRREVERSIBLE:
+    # Central optional permission layer. If core.permissions exists, it decides
+    # which risky actions require the HUD confirmation; if removed, actions still
+    # work normally without this extra layer.
+    try:
+        from core.permissions import needs_confirmation
+    except (ImportError, ModuleNotFoundError):
+        needs_confirmation = lambda _action, **_kwargs: False
+
+    if action in _IRREVERSIBLE and needs_confirmation(action):
         title, detail = _IRREVERSIBLE[action]
         func = ACTION_MAP.get(action)
         if func is None:
