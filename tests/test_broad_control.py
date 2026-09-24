@@ -21,6 +21,14 @@ class BroadControlTests(unittest.TestCase):
         self.assertEqual(result, "ok")
         execute.assert_called_once_with("lock", "")
 
+    @patch("actions.broad_control.subprocess.Popen")
+    @patch("actions.broad_control.shlex.split", return_value=["notepad.exe"])
+    @patch("actions.broad_control._OS", "Windows")
+    @patch("actions.broad_control.needs_confirmation", return_value=False)
+    def test_launch_does_not_use_shell(self, needs, split, popen):
+        result = broad_control.broad_control({"operation": "launch", "target": "notepad.exe"})
+        self.assertIn("Launched", result)
+        self.assertFalse(popen.call_args.kwargs.get("shell", False))
 
 if __name__ == "__main__":
     unittest.main()
