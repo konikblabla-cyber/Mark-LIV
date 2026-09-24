@@ -17,5 +17,13 @@ class PermissionEdgeTests(unittest.TestCase):
         self.assertFalse(needs_confirmation("get_volume"))
 
 
+    def test_admin_flag_requires_confirmation_for_any_action(self):
+        self.assertTrue(needs_confirmation("screenshot", admin=True))
+
+    def test_admin_sensitive_actions_require_confirmation(self):
+        self.assertTrue(needs_confirmation("format_drive"))
+        self.assertTrue(needs_confirmation("change_security_setting"))
+
+
 if __name__ == "__main__":
     unittest.main()
