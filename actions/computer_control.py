@@ -156,6 +156,9 @@ def _user_profile() -> dict:
 
 def _type(text: str, interval: float = 0.03) -> str:
     _require_pyautogui()
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    interval = max(0.0, min(float(interval), 1.0))
     time.sleep(0.3)
     pyautogui.typewrite(text, interval=interval)
     return f"Typed: {text[:60]}{'…' if len(text) > 60 else ''}"
@@ -257,6 +260,8 @@ def _clipboard_get() -> str:
 
 
 def _clipboard_paste(text: str) -> str:
+    if len(text) > 10000:
+        raise ValueError("Text too long")
     if _PYPERCLIP:
         pyperclip.copy(text)
         time.sleep(0.1)
