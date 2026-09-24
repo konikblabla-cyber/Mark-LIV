@@ -25,3 +25,8 @@ class PermissionsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_launch_and_open_file_require_confirmation(self):
+        self.assertTrue(needs_confirmation("launch"))
+        self.assertTrue(needs_confirmation("open_file"))
