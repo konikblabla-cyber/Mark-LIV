@@ -17,6 +17,10 @@ class PermissionsTests(unittest.TestCase):
         self.assertTrue(needs_confirmation("run_as_admin", admin=True))
         self.assertTrue(needs_confirmation("change_firewall", admin=True))
 
+    def test_launch_and_open_file_require_confirmation(self):
+        self.assertTrue(needs_confirmation("launch"))
+        self.assertTrue(needs_confirmation("open_file"))
+
     def test_protected_processes_are_detected(self):
         self.assertTrue(is_protected_process("lsass.exe"))
         self.assertTrue(is_protected_process("System"))
@@ -26,7 +30,3 @@ class PermissionsTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
-
-    def test_launch_and_open_file_require_confirmation(self):
-        self.assertTrue(needs_confirmation("launch"))
-        self.assertTrue(needs_confirmation("open_file"))
