@@ -178,6 +178,17 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
     return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
 
+def _screen_size() -> tuple[int, int]:
+    _require_pyautogui()
+    w, h = pyautogui.size()
+    return int(w), int(h)
+
+
+def _validate_coords(x: int, y: int) -> tuple[int, int]:
+    w, h = _screen_size()
+    return max(0, min(int(x), w - 1)), max(0, min(int(y), h - 1))
+
+
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
     _require_pyautogui()
     if x is not None and y is not None:
@@ -404,7 +415,7 @@ def computer_control(
       user_data     — pull real data from memory
     """
     params = parameters or {}
-    action = params.get("action", "").lower().strip()
+    action = str(params.get("action", "")).lower().strip().replace("-", "_")
 
     if not action:
         return "No action specified for computer_control."
@@ -454,7 +465,7 @@ def computer_control(
         if action == "scroll":
             return _scroll(
                 direction=params.get("direction", "down"),
-                amount=int(params.get("amount", 3)),
+                amount=max(1, min(abs(int(params.get("amount", 3))), 100)),
             )
 
         if action == "copy":
@@ -516,7 +527,7 @@ def computer_control(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "computer_control",
-    "description": "Direct computer control: type, click, hotkeys, scroll, move mouse, screenshots, find elements on screen.",
+    "description": "Direct computer control: type, click, double-click, right-click, hotkeys, press keys, scroll, move/drag mouse, clipboard, screenshots, window focus, AI screen finding/clicking, waits and test data generation.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
