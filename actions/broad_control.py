@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+import shlex
 from core import confirm
 
 # Optional: without core/permissions.py, actions still work normally.
@@ -16,7 +17,7 @@ def _execute(op, value=""):
     if _OS != "Windows":
         return "Windows control is currently supported only on Windows."
     if op == "launch":
-        subprocess.Popen(value, shell=True)
+        subprocess.Popen(shlex.split(value, posix=False), shell=False
         return f"Launched: {value}"
     if op == "open_file":
         os.startfile(value)
