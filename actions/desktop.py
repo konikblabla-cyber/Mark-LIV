@@ -80,6 +80,38 @@ def _build_sandbox() -> dict:
     return sandbox
 
 
+def _validate_generated_code(code: str) -> tuple[bool, str]:
+    """Reject Python escape hatches before executing model-generated desktop code."""
+    import ast
+    try:
+        tree = ast.parse(code, mode="exec")
+    except SyntaxError as e:
+        return False, f"Generated code has invalid syntax: {e.msg}"
+
+    blocked_names = {
+        "__import__", "eval", "exec", "compile", "open", "input",
+        "globals", "locals", "vars", "dir", "setattr", "delattr",
+        "breakpoint", "__builtins__",
+    }
+    blocked_attrs = {
+        "__class__", "__bases__", "__base__", "__subclasses__", "__globals__",
+        "__code__", "__closure__", "__func__", "__self__", "__dict__",
+    }
+    blocked_modules = {"os", "sys", "subprocess", "socket", "ctypes", "winreg"}
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            return False, "Imports are not allowed in generated desktop code."
+        if isinstance(node, ast.Name) and node.id in blocked_names:
+            return False, f"Blocked operation: {node.id}"
+        if isinstance(node, ast.Attribute) and node.attr in blocked_attrs:
+            return False, f"Blocked attribute: {node.attr}"
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if any(mod in node.value for mod in blocked_modules):
+                return False, "Blocked module reference in generated code."
+    return True, ""
+
+
 def _execute_generated_code(code: str, player=None) -> str:
     if not code or code.strip() == "UNSAFE":
         return "This action cannot be performed safely."
@@ -88,6 +120,10 @@ def _execute_generated_code(code: str, player=None) -> str:
     if code.startswith("```"):
         lines = code.split("\n")
         code  = "\n".join(lines[1:-1]).strip()
+
+    valid, reason = _validate_generated_code(code)
+    if not valid:
+        return f"Generated desktop task rejected: {reason}"
 
     sandbox      = _build_sandbox()
     output_lines = []
