@@ -12,6 +12,11 @@ class ComputerControlExtraTests(unittest.TestCase):
         move_to.assert_called_once_with(0, 1079, duration=0.3)
         self.assertIn("Mouse", result)
 
+    def test_smart_type_rejects_oversized_text(self):
+        with patch.object(computer_control, "_require_pyautogui"):
+            result = computer_control.computer_control({"action": "smart_type", "text": "x" * 10001})
+        self.assertIn("Text too long", result)
+
     def test_unknown_action_is_safe(self):
         result = computer_control.computer_control({"action": "definitely_unknown"})
         self.assertIn("Unknown action", result)
