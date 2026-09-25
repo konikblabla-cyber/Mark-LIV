@@ -6,13 +6,13 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate all action sources
+      - name: Install test dependencies\n        run: python -m pip install -r requirements.txt\n      - name: Validate all action sources
         run: python -m unittest tests.test_action_sources -v
       - name: Run regression tests
         run: python -m unittest tests.test_suite -v
