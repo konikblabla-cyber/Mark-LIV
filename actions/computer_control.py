@@ -392,7 +392,8 @@ def _screen_dpi() -> str:
         return f"dpi={int(dpi) if dpi else 96}"
     except Exception:
         return "dpi=96; source=fallback"
-\ndef _screen_find_candidates(description: str):
+
+def _screen_find_candidates(description: str):
     """Return a small set of candidate centers so the caller can avoid one bad coordinate."""
     first = _screen_find(description)
     if first is None:
@@ -407,7 +408,8 @@ def _mouse_move_verified(x: int, y: int) -> str:
     pyautogui.moveTo(x, y, duration=0.15)
     actual = _mouse_position()
     return f"Mouse moved to {actual[0]},{actual[1]} (requested {x},{y})"
-\ndef _screen_find_and_verify(description: str) -> tuple[int, int] | None:
+
+def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
     if coords is None:
         return None
