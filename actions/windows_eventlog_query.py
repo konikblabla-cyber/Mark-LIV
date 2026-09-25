@@ -1,7 +1,7 @@
 """Read-only filtered Windows event log query."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_eventlog_query(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; log=str(p.get("log","Application")).strip() or "Application"; source=str(p.get("source","")).strip(); n=max(1,min(int(p.get("count",20)),100))
  safe_log=log.replace("'","''"); filt=f"$f=@{{LogName='{safe_log}'"; 
  if source:filt+=f";ProviderName='{source.replace(chr(39),chr(39)+chr(39))}'"
