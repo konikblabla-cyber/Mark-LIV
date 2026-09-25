@@ -1,7 +1,7 @@
 """Windows hardware temperature sensors via WMI when available."""
 import platform,subprocess
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def hardware_temperature(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "hardware_temperature is available only on Windows."
  cmd="Get-CimInstance MSAcpi_ThermalZoneTemperature -Namespace root/wmi -ErrorAction SilentlyContinue | Select InstanceName,CurrentTemperature | Format-Table -AutoSize"
  r=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",cmd],capture_output=True,text=True,timeout=15,creationflags=subprocess.CREATE_NO_WINDOW)
  if not r.stdout.strip():return "Windows exposed no thermal-zone temperature sensors."
