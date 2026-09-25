@@ -678,3 +678,20 @@ def windows_maintenance_controls(action, value=None, needs_confirmation=False):
         out=subprocess.run(["schtasks","/Delete","/TN",value,"/F"],capture_output=True,text=True,creationflags=_WIN_HIDE)
         return out.stdout.strip() or out.stderr.strip()
     return None
+
+
+def windows_safe_network_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "network_profiles":
+        return _ps("Get-NetConnectionProfile | Select Name,InterfaceAlias,NetworkCategory,IPv4Connectivity,IPv6Connectivity | Format-Table -AutoSize")
+    if action == "network_profile_set":
+        parts=str(value or "").split("|",1)
+        if len(parts)!=2:return "Use INTERFACE|Private/Public/DomainAuthenticated."
+        if parts[1] not in {"Private","Public","DomainAuthenticated"}:return "Invalid network category."
+        if not needs_confirmation:return "Confirmation is required before changing the network profile."
+        return _ps(f"Set-NetConnectionProfile -InterfaceAlias '{parts[0].replace(chr(39),chr(39)*2)}' -NetworkCategory {parts[1]}; 'Network profile updated.'")
+    if action == "arp_table":
+        return _ps("Get-NetNeighbor -AddressFamily IPv4 | Select IPAddress,LinkLayerAddress,State,InterfaceAlias | Format-Table -AutoSize")
+    if action == "route_table":
+        return _ps("Get-NetRoute -AddressFamily IPv4 | Select DestinationPrefix,NextHop,RouteMetric,InterfaceAlias | Sort-Object RouteMetric | Format-Table -AutoSize")
+    return None
