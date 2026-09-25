@@ -1,7 +1,7 @@
 """Read-only Windows crash diagnostics."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_crash_diagnostics(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; n=max(1,min(int(p.get("count",20)),50))
  cmd=f"Get-WinEvent -FilterHashtable @{{LogName='System';Level=2}} -MaxEvents {n} -ErrorAction SilentlyContinue | Select TimeCreated,Id,ProviderName,Message | Format-List"
  r=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",cmd],capture_output=True,text=True,timeout=20,creationflags=subprocess.CREATE_NO_WINDOW)
