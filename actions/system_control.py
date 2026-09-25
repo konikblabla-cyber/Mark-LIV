@@ -311,3 +311,29 @@ def windows_security_inventory(action, value=None):
         out=subprocess.run(["powershell","-NoProfile","-Command",f'Get-AuthenticodeSignature -LiteralPath "{p.replace(chr(34),chr(96)+chr(34)+chr(96))}" | Select-Object Status,StatusMessage,SignerCertificate | ConvertTo-Json -Compress'],capture_output=True,text=True,creationflags=_WIN_HIDE)
         return out.stdout.strip() or out.stderr.strip()
     return None
+
+
+def windows_control_extra(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "startup_registry_list":
+        cmd='Get-ItemProperty HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run,HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run | Select-Object * | ConvertTo-Json -Compress'
+        out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No registry startup entries found."
+    if action in ("scheduled_task_enable","scheduled_task_disable"):
+        if not value or not needs_confirmation: return "An exact task name and confirmation are required."
+        verb="Enable-ScheduledTask" if action.endswith("enable") else "Disable-ScheduledTask"
+        cmd=f'{verb} -TaskName "{str(value).replace(chr(34),chr(96)+chr(34)+chr(96))}" -ErrorAction Stop'
+        out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "Task command completed."
+    if action in ("service_enable","service_disable"):
+        if not value or not needs_confirmation: return "An exact service name and confirmation are required."
+        mode="Automatic" if action.endswith("enable") else "Disabled"
+        out=subprocess.run(["powershell","-NoProfile","-Command",f'Set-Service -Name "{value}" -StartupType {mode} -ErrorAction Stop'],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "Service startup mode changed."
+    if action == "process_kill_tree":
+        if not value or not needs_confirmation: return "A PID and confirmation are required."
+        try: pid=int(value)
+        except ValueError: return "PID must be an integer."
+        out=subprocess.run(["taskkill","/PID",str(pid),"/T","/F"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    return None
