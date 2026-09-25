@@ -11,4 +11,4 @@ def windows_temp_report(parameters=None,**kwargs):
     except OSError:pass
  except OSError:pass
  return f"Temp: {root}\nFiles: {count}\nApprox size: {total/1073741824:.2f} GB"
-TOOL={"name":"windows_temp_report","description":"Read-only Windows TEMP folder report with file count and approximate disk usage.","parameters":{"type":"OBJECT","properties":{}},"handler=windows_temp_report}
+TOOL={"name":"windows_temp_report","description":"Read-only Windows TEMP folder report with file count and approximate disk usage.","parameters":{"type":"OBJECT","properties":{}},"handler":windows_temp_report}
