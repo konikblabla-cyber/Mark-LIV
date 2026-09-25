@@ -732,6 +732,10 @@ _ALIASES = {
     "sleep_display":   ("screen off", "turn off the screen", "display off"),
     "dark_mode":       ("night mode", "light mode", "toggle theme"),
     "toggle_wifi":     ("wifi", "wi-fi", "internet off", "internet on"),
+    "wifi_on": ("turn wifi on", "enable wifi"), "wifi_off": ("turn wifi off", "disable wifi"),
+    "bluetooth_on": ("turn bluetooth on", "enable bluetooth"), "bluetooth_off": ("turn bluetooth off", "disable bluetooth"),
+    "game_mode_on": ("enable game mode", "gaming mode on"), "game_mode_off": ("disable game mode", "gaming mode off"),
+    "process_list": ("list processes", "show processes", "what is using ram"),
     "task_manager":    ("processes", "task list"),
     "screenshot":      ("capture screen", "take a screenshot", "snip"),
     "refresh_page":    ("refresh", "reload page"),
@@ -851,6 +855,17 @@ def computer_settings(
             run=lambda f=func, a=action: (f(), f"{a} done.")[1],
         )
 
+    if action == "wifi_on": return wifi_set(True)
+    if action == "wifi_off": return wifi_set(False)
+    if action == "bluetooth_on": return bluetooth_set(True)
+    if action == "bluetooth_off": return bluetooth_set(False)
+    if action in ("game_mode_on","game_mode_off"): return game_mode_set(action.endswith("_on"))
+    if action == "power_plan": return power_plan_set(value or "balanced")
+    if action == "process_list": return process_list(int(value or 25))
+    if action == "process_stop":
+        try: return process_stop(int(value))
+        except Exception as e: return f"Could not stop process: {e}"
+
     if action == "volume_set":
         try:
             target = int(value if value is not None else 50)
@@ -964,7 +979,7 @@ TOOL = {
                     "undo | redo | select_all | save | enter | escape | press_key | "
                     "type_text | screenshot | lock_screen | open_settings | "
                     "file_explorer | open_run | dark_mode | toggle_wifi | "
-                    "restart | shutdown"
+                    "restart | shutdown | wifi_on | wifi_off | bluetooth_on | bluetooth_off | game_mode_on | game_mode_off | power_plan | process_list | process_stop"
                 )
             },
             "description": {
