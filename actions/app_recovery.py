@@ -13,4 +13,4 @@ def app_recovery(parameters=None,**kwargs):
   except (psutil.NoSuchProcess,psutil.AccessDenied):pass
  if not bad:return f"{exe} is running normally (PIDs: {', '.join(str(x.pid) for x in matches)})."
  return f"{exe} has unhealthy process state(s): {', '.join(map(str,bad))}. Restart manually if needed."
-TOOL={"name":"app_recovery","description":"Read-only Windows app recovery check using process state; identifies unhealthy process states without killing or restarting anything automatically.","parameters":{"type":"OBJECT","properties":{"exe":{"type":"STRING"}},"required":["exe"]},"handler=app_recovery}
+TOOL={"name":"app_recovery","description":"Read-only Windows app recovery check using process state; identifies unhealthy process states without killing or restarting anything automatically.","parameters":{"type":"OBJECT","properties":{"exe":{"type":"STRING"}},"required":["exe"]},"handler":app_recovery}
