@@ -42,6 +42,8 @@ from typing import Callable, Optional
 
 _continuation: Optional[Callable[[str], None]] = None
 
+_continuation: Optional[Callable[[str], None]] = None
+
 # A pending confirmation is abandoned after this long. Chosen to outlast a
 # normal "hang on, let me look at the screen" pause without leaving a live
 # shutdown button sitting on the HUD for the rest of the day.
@@ -55,6 +57,7 @@ class _Pending:
     detail:  str
     run:     Callable[[], str]
     at:      float
+    continuation: Optional[Callable[[str], None]] = None
     continuation: Optional[Callable[[str], None]] = None
 
 
@@ -80,6 +83,12 @@ def _log(msg: str) -> None:
             _log_cb(msg)
         except Exception:
             pass
+
+
+def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
+    """Set a one-shot callback used by autonomous tasks after confirmation."""
+    global _continuation
+    _continuation = callback
 
 
 def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
@@ -162,6 +171,11 @@ def resolve(accepted: bool) -> None:
         try:
             result = p.run() or "Done."
             _log(f"SYS: Confirmed — {p.title}. {result}")
+            if p.continuation:
+                try:
+                    p.continuation(str(result))
+                except Exception as e:
+                    _log(f"ERR: continuation failed — {e}")
             if p.continuation:
                 try:
                     p.continuation(str(result))
