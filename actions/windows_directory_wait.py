@@ -1,7 +1,7 @@
 """Wait for a Windows directory to appear."""
 import platform,time,os
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_directory_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {};path=str(p.get("path","")).strip();timeout=max(1,min(int(p.get("timeout",30)),300))
  if not path:return "Path is required."
  end=time.time()+timeout
