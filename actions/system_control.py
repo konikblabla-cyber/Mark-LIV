@@ -67,3 +67,41 @@ def system_control(parameters=None,**kwargs):
         return "Bluetooth state change requested."
     return "Use status, power_plan, sleep_timeout, display_timeout, temp_cleanup, dns_flush, network_reset, startup_list, services_list, service_start, service_stop, service_restart, wifi_on, wifi_off or bluetooth."
 TOOL={"name":"system_control","description":"Windows-only direct system controls: power, timeouts, temp cleanup, DNS/network reset, startup/services, Wi-Fi and Bluetooth.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status | power_plan | sleep_timeout | display_timeout | temp_cleanup | dns_flush | network_reset | startup_list | services_list | service_start | service_stop | service_restart | wifi_on | wifi_off | bluetooth"},"value":{"type":"STRING","description":"Minutes, power plan, service name, or Bluetooth on/off."}},"required":["action"]},"handler":system_control}
+
+def _installed_apps():
+    cmd = 'Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,UninstallString | Sort-Object DisplayName | ConvertTo-Json -Compress'
+    out = subprocess.run(["powershell","-NoProfile","-Command",cmd], capture_output=True, text=True, creationflags=_WIN_HIDE)
+    return out.stdout.strip() or "[]"
+
+def _exe_inventory():
+    roots = [os.environ.get("ProgramFiles", ""), os.environ.get("ProgramFiles(x86)", ""), os.environ.get("LOCALAPPDATA", "")]
+    found=[]
+    for root in roots:
+        if not root or not os.path.isdir(root): continue
+        try:
+            for base, dirs, files in os.walk(root):
+                dirs[:] = [d for d in dirs if d.lower() not in {"windowsapps","packages","cache","temp"}]
+                for f in files:
+                    if f.lower().endswith(".exe"):
+                        found.append(os.path.join(base,f))
+        except (PermissionError,OSError): pass
+    return found
+
+def _system_control_extra(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "installed_apps": return _installed_apps()
+    if action == "exe_inventory": return json.dumps(_exe_inventory(), ensure_ascii=False)
+    if action == "app_uninstall":
+        if not needs_confirmation: return "Uninstall requires confirmation."
+        target = str(value or "").strip()
+        if not target: return "Provide the exact installed app name."
+        apps=json.loads(_installed_apps() or "[]")
+        apps = apps if isinstance(apps,list) else [apps]
+        match=next((a for a in apps if str(a.get("DisplayName","")).lower()==target.lower()),None)
+        if not match: return "App not found. Use installed_apps first."
+        cmd=match.get("UninstallString")
+        if not cmd: return "No uninstall command is registered for this app."
+        subprocess.Popen(["cmd","/c",cmd], creationflags=_WIN_HIDE)
+        return f"Started uninstall for {match.get('DisplayName')}."
+    return None
+
