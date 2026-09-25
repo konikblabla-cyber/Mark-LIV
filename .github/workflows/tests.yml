@@ -18,7 +18,9 @@ jobs:
         run: python -m compileall -q .
 
       - name: Smoke import main
-        run: python -c "import main; print('MARK-LIV main import: OK')"
+        shell: pwsh
+        run: |
+          python -c 'import main; print("MARK-LIV main import: OK")'
 
       - name: Validate all action sources
         run: python -m unittest tests.test_action_sources -v
