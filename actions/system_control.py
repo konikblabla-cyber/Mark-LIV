@@ -638,7 +638,25 @@ def windows_device_audio_controls(action, value=None, needs_confirmation=False):
     if action == "network_adapter_enable":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
         return _ps(f"Enable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter enabled.'")
-    if action == "network_adapter_disable":
+    if action == "network_adapter_disable, audio_default_get, camera_status, device_status, device_restart":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
         return _ps(f"Disable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter disabled.'")
+    return None
+
+
+def windows_audio_camera_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value=str(value or "").strip()
+    if action == "audio_default_get":
+        return _ps("Get-CimInstance Win32_SoundDevice | Where-Object Status -eq 'OK' | Select-Object Name,Status | Format-Table -AutoSize")
+    if action == "camera_status":
+        return _ps("Get-PnpDevice -Class Camera -ErrorAction SilentlyContinue | Select-Object Status,FriendlyName | Format-Table -AutoSize")
+    if action == "device_status":
+        if not value:return "Device name required."
+        safe=value.replace("'","''")
+        return _ps(f"Get-PnpDevice | Where-Object {{$_.FriendlyName -like '*{safe}*'}} | Select Status,Class,FriendlyName,InstanceId | Format-List")
+    if action == "device_restart":
+        if not value or not needs_confirmation:return "Device name and confirmation are required."
+        safe=value.replace("'","''")
+        return _ps(f"$d=Get-PnpDevice | Where-Object {{$_.FriendlyName -like '*{safe}*'}} | Select-Object -First 1; if(-not $d){{'Device not found'; exit}}; Disable-PnpDevice -InstanceId $d.InstanceId -Confirm:$false; Start-Sleep -Milliseconds 500; Enable-PnpDevice -InstanceId $d.InstanceId -Confirm:$false; 'Device restarted.'")
     return None
