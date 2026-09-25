@@ -7,4 +7,4 @@ def windows_path_reveal(parameters=None,**kwargs):
  target=path if os.path.isdir(path) else os.path.dirname(path)
  subprocess.Popen(["explorer.exe",f"/select,{path}"] if os.path.isfile(path) else ["explorer.exe",target])
  return f"Revealed in File Explorer: {path}"
-TOOL={"name":"windows_path_reveal","description":"Reveal an existing Windows file or folder in File Explorer and select files when possible.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler=windows_path_reveal}
+TOOL={"name":"windows_path_reveal","description":"Reveal an existing Windows file or folder in File Explorer and select files when possible.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler":windows_path_reveal}
