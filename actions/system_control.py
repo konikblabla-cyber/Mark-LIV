@@ -626,3 +626,19 @@ def windows_performance_info(action, value=None):
     if not cmd: return None
     out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
     return out.stdout.strip() or out.stderr.strip() or "No data returned."
+
+
+def windows_device_audio_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value=str(value or "").strip()
+    if action == "audio_devices":
+        return _ps("Get-CimInstance Win32_SoundDevice | Select Name,Status,PNPDeviceID | Format-Table -AutoSize")
+    if action == "camera_devices":
+        return _ps("Get-PnpDevice -Class Camera -ErrorAction SilentlyContinue | Select Status,Class,FriendlyName,InstanceId | Format-Table -AutoSize")
+    if action == "network_adapter_enable":
+        if not value or not needs_confirmation:return "Adapter name and confirmation are required."
+        return _ps(f"Enable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter enabled.'")
+    if action == "network_adapter_disable":
+        if not value or not needs_confirmation:return "Adapter name and confirmation are required."
+        return _ps(f"Disable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter disabled.'")
+    return None
