@@ -1,7 +1,7 @@
 """Bounded batch rename in one Windows directory."""
 import os,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_batch_rename(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {};root=str(p.get("directory","")).strip();prefix=str(p.get("prefix","")).strip()
  if not root or not prefix:return "Missing directory or prefix."
  if not os.path.isdir(root):return f"Directory not found: {root}"
