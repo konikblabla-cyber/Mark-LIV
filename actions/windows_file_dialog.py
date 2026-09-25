@@ -1,7 +1,8 @@
 """Open standard Windows file dialogs safely."""
 import platform,pyautogui,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_dialog(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "Windows-only action."
     p=parameters or {}; action=str(p.get("action","open")).lower()
     if action=="open":
         pyautogui.hotkey("ctrl","o")
