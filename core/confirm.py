@@ -40,6 +40,8 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+_continuation: Optional[Callable[[str], None]] = None
+
 # A pending confirmation is abandoned after this long. Chosen to outlast a
 # normal "hang on, let me look at the screen" pause without leaving a live
 # shutdown button sitting on the HUD for the rest of the day.
@@ -53,6 +55,7 @@ class _Pending:
     detail:  str
     run:     Callable[[], str]
     at:      float
+    continuation: Optional[Callable[[str], None]] = None
 
 
 _pending: Optional[_Pending] = None
@@ -79,13 +82,21 @@ def _log(msg: str) -> None:
             pass
 
 
+def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
+    """Set a one-shot callback used by autonomous tasks after confirmation."""
+    global _continuation
+    _continuation = callback
+
+
 def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
     """Park an irreversible action behind the on-screen gate.
 
     Returns the sentence the tool should hand back to the model — phrased as an
     instruction so the assistant asks the user out loud in their own language,
     rather than reading an English string verbatim."""
-    global _pending
+    global _pending, _continuation
+    continuation = _continuation
+    _continuation = None
 
     if _show_cb is None:
         # No interface bound (headless, or a very early call). Refuse rather
@@ -102,7 +113,7 @@ def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
                 )
             _pending = None
         _pending = _Pending(key=key, title=title, detail=detail,
-                            run=run, at=time.monotonic())
+                            run=run, at=time.monotonic(), continuation=continuation)
 
     try:
         _show_cb(title, detail)
@@ -151,6 +162,11 @@ def resolve(accepted: bool) -> None:
         try:
             result = p.run() or "Done."
             _log(f"SYS: Confirmed — {p.title}. {result}")
+            if p.continuation:
+                try:
+                    p.continuation(str(result))
+                except Exception as e:
+                    _log(f"ERR: continuation failed — {e}")
         except Exception as e:
             _log(f"ERR: {p.title} failed — {e}")
 
