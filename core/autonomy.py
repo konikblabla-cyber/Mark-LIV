@@ -17,6 +17,7 @@ from core.gemini import as_json, FAST, SMART
 from core.permissions import needs_confirmation
 from core.autonomy_verifier import verify_text, recovery_hint
 from core import confirm
+from core.task_manager import TaskManager
 
 
 @dataclass
@@ -40,10 +41,12 @@ class AutonomyEngine:
     MAX_STEPS = 12
     MAX_REPLANS = 2
 
-    def __init__(self, registry, ctx=None, logger=print):
+    def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
         self.registry = registry
         self.ctx = ctx or {}
         self.logger = logger
+        self.tasks = task_manager or TaskManager()
+        self.task_id = task_id
 
     def _catalog(self) -> str:
         rows = []
@@ -133,8 +136,13 @@ Previous failure:
             result = self.registry.run(step.action, step.parameters, self.ctx)
             elapsed = time.monotonic() - started
             history.append((step.action, result))
+            verified = self._result_ok(result, step.verify)
+            if self.task_id:
+                self.tasks.step(self.task_id, step.action, result, verified)
+                if "[CONFIRMATION_PENDING]" in str(result):
+                    self.tasks.update(self.task_id, status="waiting_confirmation", next_step=index)
 
-            if self._result_ok(result, step.verify):
+            if verified:
                 self.logger(
                     f"[Autonomy] Step {index + 1}/{len(plan.steps)} VERIFIED: "
                     f"{step.action} ({elapsed:.1f}s)"
@@ -144,6 +152,8 @@ Previous failure:
                 continue
 
             failure = self._failure(step.action, result, step.verify)
+            if self.task_id:
+                self.tasks.update(self.task_id, status="recovering", failure=failure)
             self.logger(f"[Autonomy] Recovery required: {failure}")
             recovery = self._plan(goal, failure=failure)
             if recovery and recovery.steps:
@@ -152,8 +162,10 @@ Previous failure:
             return "Recovery failed: " + failure
 
         last = history[-1][1] if history else "Done."
+        if self.task_id:
+            self.tasks.update(self.task_id, status="completed", next_step=len(plan.steps))
         return (
-            f"{plan.summary or 'Goal completed.'}\n"
+            f"{plan.summary or 'Goal completed.'\n"
             f"Executed {len(history)} step(s).\n"
             f"Final result: {last}"
         )
@@ -165,6 +177,8 @@ Previous failure:
 
         history = []
         failure = ""
+        task_id = self.tasks.create(goal)
+        self.task_id = task_id
         for attempt in range(self.MAX_REPLANS + 1):
             plan = self._plan(goal, failure=failure)
             if not plan or not plan.steps:
@@ -174,6 +188,9 @@ Previous failure:
                 )
 
             self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
-            return self._execute_steps(plan, 0, goal, history)
+            result = self._execute_steps(plan, 0, goal, history)
+            if self.task_id and "[CONFIRMATION_PENDING]" not in result and not result.startswith("Recovery failed"):
+                self.tasks.update(self.task_id, status="completed")
+            return result
 
         return "I could not complete the goal safely."
