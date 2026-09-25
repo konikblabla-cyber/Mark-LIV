@@ -1,3 +1,2 @@
-7:browser_control.py: SyntaxError invalid syntax (browser_control.py, line 927)
 21:file_control.py: TOOL missing 'handler'
-30:installed_app_info.py: SyntaxError (unicode error) 'unicodeescape' codec can't decode bytes in position 57-58: truncated \UXXXXXXXX escape (installed_app_info.py, line 7)
+30:installed_app_info.py: SyntaxError f-string: expecting a valid expression after '{' (installed_app_info.py, line 8)
