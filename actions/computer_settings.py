@@ -228,63 +228,35 @@ def volume_set(value: int):
             capture_output=True)
         return
 
+def _linux_xrandr_brightness(delta: float):
+    try:
+        listing = subprocess.run(["xrandr", "--query"], capture_output=True, text=True, timeout=5)
+        output = next((line.split()[0] for line in listing.stdout.splitlines() if " connected" in line), None)
+        if not output: return
+        verbose = subprocess.run(["xrandr", "--verbose"], capture_output=True, text=True, timeout=5)
+        match = re.search(r"Brightness:\s*([0-9.]+)", verbose.stdout)
+        current = float(match.group(1)) if match else 1.0
+        target = max(0.1, min(1.0, current + delta))
+        subprocess.run(["xrandr", "--output", output, "--brightness", f"{target:.3f}"], capture_output=True, timeout=5)
+    except Exception: pass
+
 def brightness_up():
-    if _OS == "Darwin":
-        subprocess.run(["osascript", "-e",
-            'tell application "System Events" to key code 144'],
-            capture_output=True)
+    if _OS == "Darwin": subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 144'], capture_output=True)
     elif _OS == "Linux":
-        if subprocess.run(["which", "brightnessctl"],
-                capture_output=True).returncode == 0:
-            subprocess.run(["brightnessctl", "set", "+10%"], capture_output=True)
-        else:
-            subprocess.run(
-                'xrandr --output $(xrandr | grep " connected" | head -1 | cut -d " " -f1)'
-                ' --brightness $(python3 -c "import subprocess; '
-                'b=float(subprocess.check_output([\"xrandr\",\"--verbose\"]).decode()'
-                '.split(\"Brightness:\")[1].split()[0]); print(min(1.0,b+0.1))")',
-                shell=True, capture_output=True
-            )
+        if subprocess.run(["which", "brightnessctl"], capture_output=True).returncode == 0: subprocess.run(["brightnessctl", "set", "+10%"], capture_output=True)
+        else: _linux_xrandr_brightness(0.1)
     else:
-        try:
-            subprocess.run(
-                ["powershell", "-Command",
-                 "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightnessMethods)"
-                 ".WmiSetBrightness(1, [math]::Min(100, "
-                 "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightness).CurrentBrightness + 10))"],
-                capture_output=True, timeout=5, **_WIN_HIDE
-            )
-        except Exception as e:
-            print(f"[Settings] Brightness up failed on Windows: {e}")
+        try: subprocess.run(["powershell", "-Command", "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, [math]::Min(100, (Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightness).CurrentBrightness + 10))"], capture_output=True, timeout=5, **_WIN_HIDE)
+        except Exception as e: print(f"[Settings] Brightness up failed on Windows: {e}")
 
 def brightness_down():
-    if _OS == "Darwin":
-        subprocess.run(["osascript", "-e",
-            'tell application "System Events" to key code 145'],
-            capture_output=True)
+    if _OS == "Darwin": subprocess.run(["osascript", "-e", 'tell application "System Events" to key code 145'], capture_output=True)
     elif _OS == "Linux":
-        if subprocess.run(["which", "brightnessctl"],
-                capture_output=True).returncode == 0:
-            subprocess.run(["brightnessctl", "set", "10%-"], capture_output=True)
-        else:
-            subprocess.run(
-                'xrandr --output $(xrandr | grep " connected" | head -1 | cut -d " " -f1)'
-                ' --brightness $(python3 -c "import subprocess; '
-                'b=float(subprocess.check_output([\"xrandr\",\"--verbose\"]).decode()'
-                '.split(\"Brightness:\")[1].split()[0]); print(max(0.1,b-0.1))")',
-                shell=True, capture_output=True
-            )
+        if subprocess.run(["which", "brightnessctl"], capture_output=True).returncode == 0: subprocess.run(["brightnessctl", "set", "10%-"], capture_output=True)
+        else: _linux_xrandr_brightness(-0.1)
     else:
-        try:
-            subprocess.run(
-                ["powershell", "-Command",
-                 "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightnessMethods)"
-                 ".WmiSetBrightness(1, [math]::Max(0, "
-                 "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightness).CurrentBrightness - 10))"],
-                capture_output=True, timeout=5, **_WIN_HIDE
-            )
-        except Exception as e:
-            print(f"[Settings] Brightness down failed on Windows: {e}")
+        try: subprocess.run(["powershell", "-Command", "(Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, [math]::Max(0, (Get-WmiObject -Namespace root/wmi -Class WmiMonitorBrightness).CurrentBrightness - 10))"], capture_output=True, timeout=5, **_WIN_HIDE)
+        except Exception as e: print(f"[Settings] Brightness down failed on Windows: {e}")
 
 def close_app():
     if _OS == "Darwin": pyautogui.hotkey("command", "q")
