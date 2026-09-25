@@ -12,5 +12,5 @@ def windows_file_dialog(parameters=None,**kwargs):
     else:
         return "Action must be open, save, or folder."
     time.sleep(.3)
-    return f"Requested Windows {action} workflow."
+    return f"Requested Windows {action} workflow; dialog opened using normal keyboard input."
 TOOL={"name":"windows_file_dialog","description":"Open a standard application open/save dialog, or Windows File Explorer for folder selection, using normal keyboard input.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","enum":["open","save","folder"]}}},"handler":windows_file_dialog}
