@@ -127,3 +127,22 @@ def process_tree():
     cmd='Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath | ConvertTo-Json -Compress'
     out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
     return out.stdout.strip() or "[]"
+
+
+def windows_diagnostics(action):
+    """Read-only Windows diagnostics; no settings are changed."""
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "scheduled_tasks": 'Get-ScheduledTask | Select-Object TaskName,TaskPath,State | ConvertTo-Json -Compress',
+      "event_log": 'Get-WinEvent -LogName System -MaxEvents 30 | Select-Object TimeCreated,Id,LevelDisplayName,ProviderName,Message | ConvertTo-Json -Compress',
+      "installed_drivers": 'Get-CimInstance Win32_PnPSignedDriver | Select-Object DeviceName,DriverVersion,Manufacturer,DriverDate | ConvertTo-Json -Compress',
+      "environment_vars": 'Get-ChildItem Env: | Select-Object Name,Value | Sort-Object Name | ConvertTo-Json -Compress',
+      "gpu_status": 'Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,AdapterRAM,Status | ConvertTo-Json -Compress',
+      "disk_health": 'Get-PhysicalDisk | Select-Object FriendlyName,MediaType,HealthStatus,OperationalStatus,Size | ConvertTo-Json -Compress',
+      "defender_status": 'Get-MpComputerStatus | Select-Object AMServiceEnabled,AntivirusEnabled,RealTimeProtectionEnabled,AntispywareEnabled | ConvertTo-Json -Compress',
+      "windows_updates": '(Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 30 HotFixID,InstalledOn,Description) | ConvertTo-Json -Compress'
+    }
+    cmd=commands.get(action)
+    if not cmd: return None
+    out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+    return out.stdout.strip() or out.stderr.strip() or "No data returned."
