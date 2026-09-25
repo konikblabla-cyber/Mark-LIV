@@ -17,7 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-OS = platform.system()  # "Windows" | "Darwin" | "Linux"
+OS = platform.system()
+if OS != "Windows":
+    raise SystemExit("MARK-LIV is Windows-only.")
 HERE = Path(__file__).resolve().parent
 
 MIN_PY = (3, 11)        # hard floor: below this the syntax used here won't parse
