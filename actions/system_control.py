@@ -163,3 +163,25 @@ def windows_system_info(action):
     if not cmd: return None
     out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
     return out.stdout.strip() or out.stderr.strip() or "No data returned."
+
+
+def windows_network_tools(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "proxy_status":
+        return subprocess.run(["netsh","winhttp","show","proxy"],capture_output=True,text=True,creationflags=_WIN_HIDE).stdout.strip()
+    if action == "hosts_read":
+        p=os.path.join(os.environ.get("SystemRoot",r"C:\\Windows"),"System32","drivers","etc","hosts")
+        try: return open(p,encoding="utf-8",errors="replace").read()
+        except OSError as e: return str(e)
+    if action == "timezone_set":
+        if not value or not needs_confirmation: return "A timezone and confirmation are required."
+        out=subprocess.run(["tzutil","/s",str(value)],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return "Timezone changed." if out.returncode==0 else out.stderr.strip()
+    if action == "dns_servers_set":
+        if not value or not needs_confirmation: return "A DNS configuration and confirmation are required."
+        return "DNS changes require an explicit adapter-specific implementation; no change was made."
+    if action == "proxy_set":
+        if not value or not needs_confirmation: return "A proxy configuration and confirmation are required."
+        out=subprocess.run(["netsh","winhttp","set","proxy",str(value)],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    return None
