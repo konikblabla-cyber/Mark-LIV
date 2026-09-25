@@ -1,18 +1,28 @@
 """Windows-only local clipboard history for Mark-LIV."""
 import platform,ctypes,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 _hist=[]
 def _get():
+ if platform.system()!="Windows":
+  return ""
  u=ctypes.windll.user32
- if not u.OpenClipboard(0): return ""
- h=u.GetClipboardData(13)
- if not h:return ""
- p=ctypes.windll.kernel32.GlobalLock(h)
- try:return ctypes.wstring_at(p) if p else ""
+ if not u.OpenClipboard(0):
+  return ""
+ try:
+  h=u.GetClipboardData(13)
+  if not h:
+   return ""
+  p=ctypes.windll.kernel32.GlobalLock(h)
+  try:
+   return ctypes.wstring_at(p) if p else ""
+  finally:
+   if p:
+    ctypes.windll.kernel32.GlobalUnlock(h)
  finally:
-  if p:ctypes.windll.kernel32.GlobalUnlock(h)
+  u.CloseClipboard()
 def clipboard_history(parameters=None,**kwargs):
- p=parameters or {}; a=str(p.get("action","list")).lower().strip()
+ p=parameters or {}
+ if platform.system()!="Windows": return "clipboard_history is available only on Windows."
+ a=str(p.get("action","list")).lower().strip()
  if a=="capture":
   v=_get()
   if v and (not _hist or _hist[-1]!=v): _hist.append(v); del _hist[:-20]
