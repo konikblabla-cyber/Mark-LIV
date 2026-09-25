@@ -1,6 +1,5 @@
 """Resolve executable names through Windows PATH."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_aliases(parameters=None,**kwargs):
  names=(parameters or {}).get("names",[])
  if isinstance(names,str):names=[names]
@@ -8,7 +7,10 @@ def windows_app_aliases(parameters=None,**kwargs):
  if not names:return "Missing executable names."
  out=[]
  for n in names:
-  r=subprocess.run(["where",n],capture_output=True,text=True,encoding="utf-8",errors="replace",creationflags=0x08000000)
+  try:
+   r=subprocess.run(["where",n],capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=10,creationflags=0x08000000)
+  except (subprocess.TimeoutExpired,OSError) as e:
+   out.append(f"{n}: lookup failed: {e}"); continue
   out.append(f"{n}: {r.stdout.strip() or 'not found'}")
  return "\n".join(out)
 TOOL={"name":"windows_app_aliases","description":"Resolve multiple executable names through the Windows PATH.","parameters":{"type":"OBJECT","properties":{"names":{"type":"ARRAY","items":{"type":"STRING"}}},"required":["names"]},"handler":windows_app_aliases}
