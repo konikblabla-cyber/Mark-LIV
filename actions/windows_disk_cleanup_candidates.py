@@ -1,8 +1,8 @@
 """Read-only Windows cleanup candidate scanner."""
 import platform,os
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_disk_cleanup_candidates(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; roots=[Path(os.environ.get("TEMP",r"C:\Windows\Temp")),Path(r"C:\Windows\Temp")]; rows=[]
  for root in roots:
   if not root.is_dir():continue
