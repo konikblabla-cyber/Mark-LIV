@@ -459,6 +459,29 @@ def _screen_find(description: str) -> tuple[int, int] | None:
 
     return None
 
+def _screen_wait_for(description: str, timeout: float = 30.0, interval: float = 1.0) -> tuple[int, int] | None:
+    """Repeatedly inspect the live Windows screen until an element appears."""
+    _require_pyautogui()
+    end = time.monotonic() + max(1.0, min(float(timeout), 120.0))
+    delay = max(0.25, min(float(interval), 5.0))
+    while time.monotonic() < end:
+        coords = _screen_find_and_verify(description)
+        if coords is not None:
+            return coords
+        time.sleep(delay)
+    return None
+
+
+def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
+    """Watch the live screen and click the requested element when it appears."""
+    coords = _screen_wait_for(description, timeout=timeout, interval=0.8)
+    if coords is None:
+        return f"Timed out waiting for screen element: '{description}'"
+    time.sleep(0.2)
+    _click(x=coords[0], y=coords[1])
+    return f"Found and clicked '{description}' at {coords}"
+
+
 def computer_control(
     parameters: dict,
     response=None,
@@ -596,6 +619,19 @@ def computer_control(
                 return f"Clicked '{desc}' at {coords}"
             return f"Element not found on screen: '{desc}'"
 
+        if action == "screen_wait_for":
+            desc = str(params.get("description", "")).strip()
+            if not desc:
+                return "Screen element description is required."
+            coords = _screen_wait_for(desc, params.get("timeout", 30), params.get("interval", 1))
+            return f"Found '{desc}' at {coords}" if coords else f"Timed out waiting for '{desc}'"
+
+        if action == "screen_watch_click":
+            desc = str(params.get("description", "")).strip()
+            if not desc:
+                return "Screen element description is required."
+            return _screen_watch_click(desc, params.get("timeout", 60))
+
         if action == "wait":
             secs = float(params.get("seconds", 1.0))
             secs = min(secs, 30.0)
@@ -632,13 +668,13 @@ def computer_control(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "computer_control",
-    "description": "Direct computer control: type, click, double-click, right-click, hotkeys, press keys, scroll, move/drag mouse, clipboard, screenshots, window focus, AI screen finding/clicking, waits and test data generation.",
+    "description": "Direct Windows computer control: type, click, double-click, right-click, hotkeys, press keys, scroll, move/drag mouse, clipboard, screenshots, window focus, AI screen finding/clicking, wait-for/watch-and-click screen automation, waits and test data generation.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
