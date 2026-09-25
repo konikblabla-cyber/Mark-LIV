@@ -198,3 +198,28 @@ class SystemMonitor:
             self._record("gpu")
 
         return " ".join(alerts) if alerts else None
+
+
+def system_monitor_action(parameters=None, player=None, speak=None, **kwargs):
+    if platform.system() != "Windows": return "System monitoring is Windows-only."
+    action=str((parameters or {}).get("action","status")).lower().strip()
+    if action in ("status","system_status"): return str(get_system_status())
+    if action in ("processes","process_list","top_processes"):
+        rows=[]
+        for p in psutil.process_iter(["pid","name","memory_info"]):
+            try:
+                m=p.info["memory_info"].rss/1024**2 if p.info["memory_info"] else 0
+                rows.append((m,p.info["pid"],p.info["name"] or "?"))
+            except (psutil.NoSuchProcess,psutil.AccessDenied): pass
+        rows.sort(reverse=True)
+        return "\n".join(f"PID {pid}: {name} | RAM {mem:.0f} MB" for mem,pid,name in rows[:30]) or "No processes found."
+    if action in ("disks","disk_status"):
+        out=[]
+        for d in psutil.disk_partitions(all=False):
+            try:
+                u=psutil.disk_usage(d.mountpoint); out.append(f"{d.device}: {u.percent:.1f}% used, {u.free/1024**3:.1f} GB free")
+            except Exception: pass
+        return "\n".join(out) or "No disks found."
+    return "Use status, processes or disks."
+
+TOOL={"name":"system_monitor","description":"Windows system diagnostics: CPU/RAM/GPU/temperature/uptime, top processes and disk space.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status | processes | disks"}},"required":[]},"handler":system_monitor_action}
