@@ -12,7 +12,8 @@ def drive_space_alert(parameters=None, **kwargs):
     roots.append("/")
     seen = set()
     for root in roots:
-        if root in seen: continue
+        if root in seen:
+            continue
         seen.add(root)
         try:
             total, used, free = shutil.disk_usage(root)
