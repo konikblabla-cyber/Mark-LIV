@@ -1,8 +1,8 @@
 """Request graceful close for one uniquely matched Windows application."""
 import ctypes,platform,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 WM_CLOSE=0x0010
 def windows_app_close_request(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; title=str(p.get("contains") or "").strip().lower()
  if not title:return "Missing window title text."
  u=ctypes.windll.user32;found=[]
