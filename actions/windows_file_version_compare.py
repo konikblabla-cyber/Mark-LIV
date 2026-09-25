@@ -2,6 +2,8 @@
 import platform,subprocess,os
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_version_compare(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "windows_file_version_compare is Windows-only."
  p=parameters or {}; a=str(p.get("file_a","")).strip(); b=str(p.get("file_b","")).strip()
  if not a or not b or not os.path.isfile(a) or not os.path.isfile(b):return "Both file paths must exist."
  def esc(x):return x.replace("'","''")
