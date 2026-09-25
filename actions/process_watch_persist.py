@@ -1,9 +1,9 @@
 """Persistent Windows process watch configuration."""
 import json,platform
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 STORE=Path(__file__).resolve().parents[1]/"memory"/"watched_processes.json"
 def process_watch_persist(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","list")).lower(); STORE.parent.mkdir(parents=True,exist_ok=True)
  try:data=json.loads(STORE.read_text(encoding="utf-8"))
  except Exception:data=[]
