@@ -1,7 +1,7 @@
 """Launch an application and wait for its process."""
 import platform,subprocess,time,shlex,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_launch_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; command=str(p.get("command") or "").strip(); process=str(p.get("process") or "").strip()
  timeout=max(1,min(int(p.get("timeout",30)),120))
  if not command:return "Missing command."
