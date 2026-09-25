@@ -698,6 +698,24 @@ def windows_safe_network_controls(action, value=None, needs_confirmation=False):
     return None
 
 
+def windows_network_config_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value = str(value or "").strip()
+    if action == "dns_servers_get":
+        return _ps("Get-DnsClientServerAddress -AddressFamily IPv4 | Select InterfaceAlias,ServerAddresses | Format-Table -AutoSize")
+    if action == "default_route":
+        return _ps("Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object DestinationPrefix,NextHop,RouteMetric,InterfaceAlias | Format-Table -AutoSize")
+    if action == "network_adapter_status":
+        return _ps("Get-NetAdapter -Physical | Select Name,InterfaceDescription,Status,LinkSpeed,MacAddress | Format-Table -AutoSize")
+    if action == "network_adapter_restart":
+        if not value or not needs_confirmation: return "Adapter name and confirmation are required."
+        safe=value.replace("'", "''")
+        return _ps(f"Restart-NetAdapter -Name '{safe}' -Confirm:$false; 'Network adapter restarted.'")
+    if action == "vpn_status":
+        return _ps("Get-VpnConnection -AllUserConnection -ErrorAction SilentlyContinue | Select Name,ConnectionStatus,ServerAddress,SplitTunneling | Format-Table -AutoSize")
+    return None
+
+
 def windows_update_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action == "update_services_status":
