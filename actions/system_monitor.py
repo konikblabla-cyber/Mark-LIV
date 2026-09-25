@@ -1,7 +1,6 @@
 """Windows-only system monitoring and alert generation."""
 import ctypes, platform, time
 import psutil
-if platform.system()!="Windows": raise RuntimeError("Mark-LIV is Windows-only.")
 
 DEFAULT_THRESHOLDS={"cpu":90.0,"ram":90.0,"temp":85.0,"gpu":95.0}
 _COOLDOWN=300
@@ -93,6 +92,7 @@ class SystemMonitor:
         return " ".join(alerts) if alerts else None
 
 def system_monitor_action(parameters=None,**kwargs):
+    if platform.system()!="Windows": return "Windows-only action."
     action=str((parameters or {}).get("action","status")).strip().lower()
     if action in {"status","system_status"}:return str(get_system_status())
     if action in {"processes","process_list","top_processes"}:
