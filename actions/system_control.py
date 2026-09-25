@@ -712,6 +712,22 @@ def windows_hardware_power_controls(action, value=None, needs_confirmation=False
     return None
 
 
+def windows_vpn_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    name=str(value or "").strip().replace("'", "''")
+    if action == "vpn_list":
+        return _ps("Get-VpnConnection -AllUserConnection -ErrorAction SilentlyContinue | Select Name,ServerAddress,ConnectionStatus,AuthenticationMethod | Format-Table -AutoSize | Out-String")
+    if action == "vpn_connect":
+        if not name: return "VPN connection name is required."
+        if needs_confirmation("vpn_connect"): return "Confirmation required."
+        return _ps(f"rasdial '{name}'",timeout=30).stdout.strip() or f"VPN connect requested: {value}"
+    if action == "vpn_disconnect":
+        if not name: return "VPN connection name is required."
+        if needs_confirmation("vpn_disconnect"): return "Confirmation required."
+        return _ps(f"rasdial '{name}' /disconnect",timeout=30).stdout.strip() or f"VPN disconnect requested: {value}"
+    return None
+
+
 def windows_network_config_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     value = str(value or "").strip()
