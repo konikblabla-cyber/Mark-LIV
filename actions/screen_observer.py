@@ -1,8 +1,10 @@
 """Bounded Windows screen observation helper."""
 import platform,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def screen_observer(parameters=None,**kwargs):
- p=parameters or {}; seconds=max(.2,min(float(p.get("seconds",3)),15)); interval=max(.2,min(float(p.get("interval",1)),3))
+ if platform.system()!="Windows": return "Windows-only action."
+ p=parameters or {}
+ try: seconds=max(.2,min(float(p.get("seconds",3)),15)); interval=max(.2,min(float(p.get("interval",1)),3))
+ except (TypeError,ValueError): return "Invalid observation timing."
  from actions.computer_control import computer_control
  out=[]
  end=time.time()+seconds
