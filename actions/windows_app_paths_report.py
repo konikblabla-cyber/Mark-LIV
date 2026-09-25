@@ -1,7 +1,7 @@
 """Read-only Windows executable path inventory with publisher metadata."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_paths_report(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; pattern=str(p.get("pattern","")).strip(); safe=pattern.replace("'","''")
  filt=f"$_.Name -like '*{safe}*'" if safe else "$true"
  cmd=rf"Get-ChildItem 'C:\Program Files','C:\Program Files (x86)' -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Where-Object {{{filt}}} | Select -First 200 FullName,Length,LastWriteTime,VersionInfo | Format-Table -Wrap -AutoSize"
