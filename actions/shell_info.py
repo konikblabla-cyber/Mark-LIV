@@ -1,7 +1,7 @@
 """Windows shell/environment information for Mark-LIV."""
 import platform,os,subprocess
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def shell_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","env")).lower().strip()
  if a=="env":
   keys=["USERNAME","USERPROFILE","COMPUTERNAME","TEMP","APPDATA","LOCALAPPDATA","PROGRAMFILES","WINDIR"]
