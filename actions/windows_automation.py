@@ -3,8 +3,9 @@ import platform, subprocess, os, json
 from pathlib import Path
 
 def windows_automation(parameters=None, **kwargs):
- if platform.system()!="Windows": return "Windows-only action."
-    p=parameters or {}; a=str(p.get("action","")).lower().strip()
+    if platform.system()!="Windows": return "Windows-only action."
+    p=parameters or {}
+    a=str(p.get("action","")).lower().strip()
     flags=subprocess.CREATE_NO_WINDOW
     if a=="run":
         command=str(p.get("command","")).strip()
@@ -17,7 +18,6 @@ def windows_automation(parameters=None, **kwargs):
         target=str(p.get("target") or p.get("path") or p.get("url") or p.get("name") or "").strip().strip('"')
         if not target: return "Target is required."
         if len(target)>1000: return "Target is too long."
-        # Windows Shell resolves URLs, registered applications, files and folders.
         subprocess.Popen(["powershell.exe","-NoProfile","-NonInteractive","-Command","Start-Process -FilePath $args[0]"],args=[target],creationflags=flags)
         return f"Opened: {target}"
     if a=="run_program":
@@ -29,11 +29,12 @@ def windows_automation(parameters=None, **kwargs):
         try:
             proc=subprocess.Popen([exe,*[str(x) for x in args]],cwd=str(p.get("cwd") or "") or None,creationflags=flags)
             return f"Started program: {exe} (PID {proc.pid})"
-        except Exception as e:return f"Program start failed: {e}"
+        except OSError as e:return f"Program start failed: {e}"
     if a=="run_and_capture":
         command=str(p.get("command","")).strip()
         if not command:return "Command is required."
-        timeout=max(1,min(int(p.get("timeout",60)),180))
+        try: timeout=max(1,min(int(p.get("timeout",60)),180))
+        except (TypeError,ValueError): timeout=60
         rr=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",command],capture_output=True,text=True,timeout=timeout,creationflags=flags)
         return json.dumps({"exit_code":rr.returncode,"stdout":(rr.stdout or "")[:12000],"stderr":(rr.stderr or "")[:12000]},ensure_ascii=False)
     if a=="open_url":
@@ -46,4 +47,4 @@ def windows_automation(parameters=None, **kwargs):
         os.startfile(str(path)); return f"Opened: {path}"
     return "Unknown Windows automation action."
 
-TOOL={"name":"windows_automation","description":"Windows-only automation: universal open for Windows Shell targets (apps, files, folders and URLs), plus PowerShell, URL and local-path opening. Uses normal Windows permissions/UAC; no security bypass.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"open | run | run_program | run_and_capture | open_url | open_path"},"command":{"type":"STRING","description":"PowerShell command"},"url":{"type":"STRING","description":"http/https URL"},"path":{"type":"STRING","description":"Existing Windows path"},"target":{"type":"STRING","description":"Universal Windows Shell target: app, file, folder or URL"},"name":{"type":"STRING","description":"Application or target name"}},"required":["action"]},"handler":windows_automation}
+TOOL={"name":"windows_automation","description":"Windows-only automation: universal open for Windows Shell targets, PowerShell, URL and local-path opening.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING"},"command":{"type":"STRING"},"url":{"type":"STRING"},"path":{"type":"STRING"},"target":{"type":"STRING"},"name":{"type":"STRING"}},"required":["action"]},"handler":windows_automation}
