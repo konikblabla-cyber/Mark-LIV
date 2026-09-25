@@ -7,4 +7,4 @@ def windows_shell_execute(parameters=None,**kwargs):
  if a not in ALLOWED:return "Allowed actions: whoami, hostname, ver, date, time."
  r=subprocess.run(ALLOWED[a],capture_output=True,text=True,timeout=10,creationflags=subprocess.CREATE_NO_WINDOW)
  return (r.stdout or r.stderr or "No output.")[:3000]
-TOOL={"name":"windows_shell_execute","description":"Read-only Windows shell queries limited to identity, hostname, OS version, date and time.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING"}},"required":["action"]},"handler=windows_shell_execute}
+TOOL={"name":"windows_shell_execute","description":"Read-only Windows shell queries limited to identity, hostname, OS version, date and time.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING"}},"required":["action"]},"handler":windows_shell_execute}
