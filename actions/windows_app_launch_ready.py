@@ -1,7 +1,7 @@
 """Launch a Windows executable and wait until its process appears."""
 import platform,subprocess,time,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_launch_ready(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {};cmd=str(p.get("command") or p.get("path") or "").strip();timeout=max(1,min(int(p.get("timeout",30)),120))
  if not cmd:return "Missing command or executable path."
  try: subprocess.Popen(cmd,shell=False)
