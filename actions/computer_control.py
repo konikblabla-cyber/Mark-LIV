@@ -349,6 +349,25 @@ def _focus_window(title: str) -> str:
 
     return f"focus_window: unknown OS '{os_name}'"
 
+def _mouse_position() -> tuple[int, int]:
+    _require_pyautogui()
+    x, y = pyautogui.position()
+    return _validate_coords(x, y)
+
+
+def _screen_geometry() -> str:
+    w, h = _screen_size()
+    x, y = _mouse_position()
+    return f"screen={w}x{h}; mouse={x},{y}; origin=top-left; coordinates=physical screen pixels"
+
+
+def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
+    coords = _screen_find(description)
+    if coords is None:
+        return None
+    return _validate_coords(coords[0], coords[1])
+
+
 def _screen_find(description: str) -> tuple[int, int] | None:
     api_key = _get_api_key()
     if not api_key:
@@ -505,13 +524,20 @@ def computer_control(
         if action == "screenshot":
             return _screenshot(params.get("path"))
 
+        if action == "mouse_position":
+            x, y = _mouse_position()
+            return f"{x},{y}"
+
+        if action == "screen_geometry":
+            return _screen_geometry()
+
         if action == "screen_find":
-            coords = _screen_find(params.get("description", ""))
+            coords = _screen_find_and_verify(params.get("description", ""))
             return f"{coords[0]},{coords[1]}" if coords else "NOT_FOUND"
 
         if action == "screen_click":
             desc   = params.get("description", "")
-            coords = _screen_find(desc)
+            coords = _screen_find_and_verify(desc)
             if coords:
                 time.sleep(0.2)
                 _click(x=coords[0], y=coords[1])
@@ -560,7 +586,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | mouse_position | screen_geometry | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
