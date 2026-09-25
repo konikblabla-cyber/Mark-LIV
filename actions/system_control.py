@@ -255,3 +255,35 @@ def windows_maintenance_extra(action, value=None, needs_confirmation=False):
         rows.sort(reverse=True)
         return json.dumps([{"path":p,"size_mb":round(s/1048576,1)} for s,p in rows[:100]],ensure_ascii=False)
     return None
+
+
+def windows_resource_tools(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "process_details": 'Get-Process | Select-Object Id,ProcessName,CPU,WS,Path | Sort-Object WS -Descending | ConvertTo-Json -Compress',
+      "service_dependencies": 'Get-Service | Select-Object Name,Status,DependentServices,ServicesDependedOn | ConvertTo-Json -Compress',
+      "listening_ports": 'Get-NetTCPConnection -State Listen | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,OwningProcess | Sort-Object LocalPort | ConvertTo-Json -Compress'
+    }
+    if action in commands:
+        out=subprocess.run(["powershell","-NoProfile","-Command",commands[action]],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No data returned."
+    if action == "disk_cleanup_preview":
+        temp=os.environ.get("TEMP",""); rows=[]
+        if temp and os.path.isdir(temp):
+            for base,dirs,files in os.walk(temp):
+                for f in files:
+                    try:
+                        p=os.path.join(base,f); rows.append((os.path.getsize(p),p))
+                    except OSError: pass
+        rows.sort(reverse=True)
+        return json.dumps([{"path":p,"size_mb":round(s/1048576,1)} for s,p in rows[:100]],ensure_ascii=False)
+    if action == "disk_cleanup_execute":
+        if not needs_confirmation: return "Disk cleanup requires confirmation."
+        temp=os.environ.get("TEMP",""); removed=0
+        if temp and os.path.isdir(temp):
+            for base,dirs,files in os.walk(temp,topdown=False):
+                for f in files:
+                    try: os.remove(os.path.join(base,f)); removed+=1
+                    except OSError: pass
+        return f"Removed {removed} temporary files."
+    return None
