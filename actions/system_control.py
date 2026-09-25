@@ -287,3 +287,27 @@ def windows_resource_tools(action, value=None, needs_confirmation=False):
                     except OSError: pass
         return f"Removed {removed} temporary files."
     return None
+
+
+def windows_security_inventory(action, value=None):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "process_command_lines": 'Get-CimInstance Win32_Process | Select-Object ProcessId,Name,CommandLine,ExecutablePath | ConvertTo-Json -Compress',
+      "network_connections": 'Get-NetTCPConnection | Select-Object State,LocalAddress,LocalPort,RemoteAddress,RemotePort,OwningProcess | ConvertTo-Json -Compress',
+      "usb_devices": 'Get-PnpDevice -PresentOnly | Where-Object InstanceId -like "USB*" | Select-Object Status,Class,FriendlyName,InstanceId | ConvertTo-Json -Compress',
+      "bluetooth_devices": 'Get-PnpDevice -PresentOnly | Where-Object Class -eq "Bluetooth" | Select-Object Status,FriendlyName,InstanceId | ConvertTo-Json -Compress'
+    }
+    if action in commands:
+        out=subprocess.run(["powershell","-NoProfile","-Command",commands[action]],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No data returned."
+    if action == "file_hash":
+        p=str(value or "")
+        if not p or not os.path.isfile(p): return "File not found."
+        out=subprocess.run(["powershell","-NoProfile","-Command",f'Get-FileHash -LiteralPath "{p.replace(chr(34),chr(96)+chr(34)+chr(96))}" -Algorithm SHA256 | ConvertTo-Json -Compress'],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "digital_signature":
+        p=str(value or "")
+        if not p or not os.path.isfile(p): return "File not found."
+        out=subprocess.run(["powershell","-NoProfile","-Command",f'Get-AuthenticodeSignature -LiteralPath "{p.replace(chr(34),chr(96)+chr(34)+chr(96))}" | Select-Object Status,StatusMessage,SignerCertificate | ConvertTo-Json -Compress'],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    return None
