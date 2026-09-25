@@ -1,7 +1,7 @@
 """Use the normal Windows task switcher."""
 import platform,pyautogui
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_alt_tab(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; direction=str(p.get("direction","next")).lower()
  if direction=="next": pyautogui.hotkey("alt","tab")
  elif direction=="previous": pyautogui.hotkey("alt","shift","tab")
