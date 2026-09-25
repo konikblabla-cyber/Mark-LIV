@@ -1,7 +1,9 @@
 """Focus a unique visible window belonging to a process."""
 import ctypes,platform,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
+
 def windows_focus_process(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "windows_focus_process is Windows-only."
  p=parameters or {}; target=str(p.get("process") or "").strip().lower()
  if not target:return "Missing process name."
  u=ctypes.windll.user32; matches=[]
