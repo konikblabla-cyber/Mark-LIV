@@ -1,6 +1,11 @@
 """Windows-only file operations for Mark-LIV."""
 import os, platform, shutil
 from pathlib import Path
+from core import confirm
+try:
+    from send2trash import send2trash
+except Exception:
+    send2trash = None
 WIN=platform.system()=="Windows"
 
 def _path(v):
@@ -74,9 +79,26 @@ def file_control(parameters=None, **kwargs):
         if a in ("file_rename","rename_file"):
             src.rename(dst); return f"Renamed: {src} -> {dst}"
         if a in ("file_delete","delete_file"):
-            src.unlink(); return f"Deleted: {src}"
+            if not src.is_file(): return f"File not found: {src}"
+            detail = f"{src} ({src.stat().st_size/1048576:.1f} MB)"
+            def run():
+                if send2trash:
+                    send2trash(str(src))
+                else:
+                    src.unlink()
+                return f"Deleted: {src}"
+            return confirm.request("file_control:delete_file", f"Usuń plik {src.name}?", detail, run)
         if a in ("folder_delete","delete_folder"):
-            shutil.rmtree(src); return f"Deleted folder: {src}"
+            if not src.is_dir(): return f"Folder not found: {src}"
+            if any(part.lower() in {"windows", "program files", "program files (x86)", "system volume information"} for part in src.parts):
+                return "Odmowa: chroniony folder systemowy."
+            def run():
+                if send2trash:
+                    send2trash(str(src))
+                else:
+                    shutil.rmtree(src)
+                return f"Deleted folder: {src}"
+            return confirm.request("file_control:delete_folder", f"Usuń folder {src.name}?", str(src), run)
         if a in ("file_read","read_file"):
             if not src.exists(): return f"File not found: {src}"
             if src.stat().st_size > 2_000_000: return "File is too large for direct reading."
