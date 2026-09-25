@@ -625,3 +625,8 @@ TOOL = {
     },
     "handler": computer_control,
 }
+
+
+# Windows-only capability guard for direct execution.
+if __name__ == "__main__" and platform.system() != "Windows":
+    raise SystemExit("Mark-LIV computer control is Windows-only.")
