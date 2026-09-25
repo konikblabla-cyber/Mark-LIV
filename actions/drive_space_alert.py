@@ -8,7 +8,7 @@ def drive_space_alert(parameters=None, **kwargs):
     except (TypeError, ValueError):
         threshold = 10.0
     out = []
-    roots = [f"{letter}:\" for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+    roots = [f"{letter}:\\" for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]
     roots.append("/")
     seen = set()
     for root in roots:
