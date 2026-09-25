@@ -638,7 +638,7 @@ def windows_device_audio_controls(action, value=None, needs_confirmation=False):
     if action == "network_adapter_enable":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
         return _ps(f"Enable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter enabled.'")
-    if action == "network_adapter_disable, audio_default_get, camera_status, device_status, device_restart":
+    if action == "network_adapter_disable, audio_default_get, camera_status, device_status, device_restart, recycle_bin_empty, update_check, defender_scan, scheduled_task_delete":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
         return _ps(f"Disable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter disabled.'")
     return None
@@ -659,4 +659,22 @@ def windows_audio_camera_controls(action, value=None, needs_confirmation=False):
         if not value or not needs_confirmation:return "Device name and confirmation are required."
         safe=value.replace("'","''")
         return _ps(f"$d=Get-PnpDevice | Where-Object {{$_.FriendlyName -like '*{safe}*'}} | Select-Object -First 1; if(-not $d){{'Device not found'; exit}}; Disable-PnpDevice -InstanceId $d.InstanceId -Confirm:$false; Start-Sleep -Milliseconds 500; Enable-PnpDevice -InstanceId $d.InstanceId -Confirm:$false; 'Device restarted.'")
+    return None
+
+
+def windows_maintenance_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value=str(value or "").strip()
+    if action == "recycle_bin_empty":
+        if not needs_confirmation:return "Confirmation is required before emptying the Recycle Bin."
+        return _ps("Clear-RecycleBin -Force; 'Recycle Bin emptied.'")
+    if action == "update_check":
+        return _ps("Get-Service wuauserv | Select Status,Name,DisplayName | Format-List; Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10 HotFixID,InstalledOn | Format-Table -AutoSize")
+    if action == "defender_scan":
+        if not needs_confirmation:return "Confirmation is required before starting a Defender scan."
+        return _ps("Start-MpScan -ScanType QuickScan; 'Microsoft Defender quick scan started.'")
+    if action == "scheduled_task_delete":
+        if not value or not needs_confirmation:return "Task name and confirmation are required."
+        out=subprocess.run(["schtasks","/Delete","/TN",value,"/F"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
     return None
