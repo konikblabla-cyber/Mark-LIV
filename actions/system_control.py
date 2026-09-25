@@ -337,3 +337,18 @@ def windows_control_extra(action, value=None, needs_confirmation=False):
         out=subprocess.run(["taskkill","/PID",str(pid),"/T","/F"],capture_output=True,text=True,creationflags=_WIN_HIDE)
         return out.stdout.strip() or out.stderr.strip()
     return None
+
+
+def windows_performance_info(action, value=None):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "memory_pressure": 'Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize,FreePhysicalMemory,TotalVirtualMemorySize,FreeVirtualMemory | ConvertTo-Json -Compress',
+      "pagefile_status": 'Get-CimInstance Win32_PageFileUsage | Select-Object Name,AllocatedBaseSize,CurrentUsage,PeakUsage | ConvertTo-Json -Compress',
+      "reboot_required": 'Test-Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Component Based Servicing\\RebootPending"',
+      "defrag_status": 'Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystem,SizeRemaining,Size | ConvertTo-Json -Compress',
+      "disk_space_by_folder": 'Get-ChildItem $env:USERPROFILE -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object { $s=(Get-ChildItem $_.FullName -File -Recurse -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; [pscustomobject]@{Folder=$_.FullName;SizeGB=[math]::Round($s/1GB,2)} } | Sort-Object SizeGB -Descending | ConvertTo-Json -Compress'
+    }
+    cmd=commands.get(action)
+    if not cmd: return None
+    out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+    return out.stdout.strip() or out.stderr.strip() or "No data returned."
