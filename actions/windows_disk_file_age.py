@@ -1,8 +1,8 @@
 """Read-only Windows file age report for a directory."""
 import platform,os,time
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_disk_file_age(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; root=Path(str(p.get("root","")).strip()); days=max(1,min(int(p.get("days",30)),3650))
  if not root.is_dir():return "Directory is required."
  cutoff=time.time()-days*86400; rows=[]
