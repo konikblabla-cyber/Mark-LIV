@@ -1,7 +1,7 @@
 """Bounded batch file operations on Windows."""
 import platform,os,shutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_batch_file_ops(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; op=str(p.get("operation","")).lower(); items=p.get("items") or []
  if op not in ("copy","move","delete") or not isinstance(items,list) or not items:return "Use copy, move or delete with items."
  if len(items)>50:return "Batch limited to 50 items."
