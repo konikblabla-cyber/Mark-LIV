@@ -634,7 +634,7 @@ class JarvisLive:
         # _awake gates the mic (see _listen_audio) and the background speakers.
         # It is True whenever wake word is OFF, so default behaviour is unchanged.
         self._wake_enabled     = get_wake_word_enabled()
-        self._awake            = not self._wake_enabled
+        self._awake            = True  # Direct commands are accepted without a wake phrase; Live proactivity filters background speech.
         self._wake_detector: WakeWordDetector | None = None
         self._wake_sleep_timeout = WAKE_SLEEP_TIMEOUT
         # Strict mode: every user turn must begin with the local wake phrase.
@@ -1322,16 +1322,13 @@ class JarvisLive:
             # only a queue push, so the audio path is never slowed. When wake word
             # is off (default) or we're awake, this is a single boolean check.
             if self._wake_enabled and not self._awake:
-                # Keep a tiny local pre-roll; on detection it is replayed to Gemini.
-                try:
-                    frame = indata[:, 0].copy() if getattr(indata, "ndim", 1) > 1 else indata.copy()
-                    self._wake_preroll.append(frame.tobytes())
-                except Exception:
-                    pass
+                # Direct commands are still allowed without the wake phrase.
+                # Keep the optional detector running, but do not gate Gemini:
+                # Live proactivity decides whether speech is addressed to JARVIS
+                # or is merely background conversation.
                 det = self._wake_detector
                 if det is not None:
                     det.feed(indata)
-                return
             with self._speaking_lock:
                 jarvis_speaking = self._is_speaking
 
