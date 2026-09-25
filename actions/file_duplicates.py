@@ -1,8 +1,8 @@
 """Windows duplicate-file finder using size and SHA-256."""
 import platform,hashlib,os
 from pathlib import Path
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def file_duplicates(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "file_duplicates is available only on Windows."
  p=parameters or {}; root=Path(str(p.get("path","."))); max_files=max(1,min(int(p.get("max_files",2000)),10000))
  if not root.is_dir():return "Folder not found."
  by_size={}; seen=0
