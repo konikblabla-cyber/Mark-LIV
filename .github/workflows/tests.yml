@@ -1,12 +1,12 @@
 name: Mark-LIV tests
+
 on:
   push:
   pull_request:
+
 jobs:
   tests:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,10 +16,3 @@ jobs:
         run: python -m unittest tests.test_action_sources -v
       - name: Run regression tests
         run: python -m unittest tests.test_suite -v
-      - name: Save validation report
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/action_validation_report.txt
-          git diff --cached --quiet || (git commit -m "chore: action validation report [skip ci]" && git push)
