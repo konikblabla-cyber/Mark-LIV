@@ -1,7 +1,7 @@
 """Windows physical display inventory."""
 import platform,subprocess
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def windows_displays_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  cmd="Get-CimInstance Win32_DesktopMonitor | Select Name,MonitorType,ScreenWidth,ScreenHeight,PNPDeviceID,Status | Format-List"
  r=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",cmd],capture_output=True,text=True,timeout=20,creationflags=subprocess.CREATE_NO_WINDOW)
  return (r.stdout or r.stderr or "No display information.")[:10000]
