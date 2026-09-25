@@ -6,4 +6,4 @@ def windows_file_properties(parameters=None,**kwargs):
  if not p:return "Missing path."
  if not os.path.exists(p):return f"Path does not exist: {p}"
  s=os.stat(p);return f"Path: {p}\nType: {'directory' if os.path.isdir(p) else 'file'}\nSize: {s.st_size} bytes\nCreated: {s.st_ctime}\nModified: {s.st_mtime}"
-TOOL={"name":"windows_file_properties","description":"Read-only Windows file or folder basic metadata.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler=windows_file_properties}
+TOOL={"name":"windows_file_properties","description":"Read-only Windows file or folder basic metadata.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler":windows_file_properties}
