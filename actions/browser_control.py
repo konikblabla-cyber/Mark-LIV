@@ -924,13 +924,13 @@ class _SessionRegistry:
 _registry = _SessionRegistry()
 
 def browser_control(
-    if _OS != "Windows":
-        return "This action is Windows-only."
-    parameters:    dict = None,
+    parameters: dict = None,
     response=None,
     player=None,
     session_memory=None,
 ) -> str:
+    if _OS != "Windows":
+        return "This action is Windows-only."
     params  = parameters or {}
     action  = params.get("action", "").lower().strip()
     browser = params.get("browser", "").lower().strip() or None
