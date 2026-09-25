@@ -1,8 +1,8 @@
 """Read-only Windows application installation inventory."""
 import platform,winreg
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 ROOTS=[(winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),(winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),(winreg.HKEY_CURRENT_USER,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")]
 def windows_app_install_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  out=[]
  for root,path in ROOTS:
   try:k=winreg.OpenKey(root,path)
