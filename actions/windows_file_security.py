@@ -1,7 +1,8 @@
 """Read-only Windows file security metadata."""
 import platform,subprocess,os
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_security(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "Windows-only action."
  p=parameters or {}; path=str(p.get("path","")).strip()
  if not path or not os.path.exists(path):return "Path is required and must exist."
  safe=path.replace("'","''"); cmd=f"Get-Acl -LiteralPath '{safe}' | Select Owner,AccessToString,AreAccessRulesProtected | Format-List"
