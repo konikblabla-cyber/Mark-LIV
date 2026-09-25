@@ -1,8 +1,8 @@
 """Windows-only bounded directory change snapshot."""
 import platform,os
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def file_watch(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "file_watch is available only on Windows."
  p=parameters or {}; root=Path(str(p.get("path","")).strip()).expanduser()
  if not root.is_dir():return "Directory not found."
  try:
