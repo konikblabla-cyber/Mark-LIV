@@ -65,8 +65,8 @@ def system_control(parameters=None,**kwargs):
         cmd="Enable-PnpDevice" if on else "Disable-PnpDevice"
         ps(f"Get-PnpDevice -Class Bluetooth | {cmd} -Confirm:$false")
         return "Bluetooth state change requested."
-    extra = _system_control_extra(a, v, bool(p.get("needs_confirmation", False)))\n    if extra is not None: return extra\n    acct = windows_account_device_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if acct is not None: return acct\n    policy = windows_policy_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if policy is not None: return policy\n    acl = windows_acl_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if acl is not None: return acl\n    priv = windows_privilege_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if priv is not None: return priv\n    extra2 = windows_extra_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if extra2 is not None: return extra2\n    perf = windows_performance_info(a, v)\n    if perf is not None: return perf\n    return "Unknown system_control action."
-TOOL={"name":"system_control","description":"Windows-only direct system controls: power, timeouts, temp cleanup, DNS/network reset, startup/services, Wi-Fi and Bluetooth.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status, power_plan, sleep_timeout, display_timeout, temp_cleanup, dns_flush, network_reset, startup_list, services_list, service_start, service_stop, service_restart, wifi_on, wifi_off, bluetooth, installed_apps, exe_inventory, analyze_exe, process_tree, scheduled_tasks, event_log, installed_drivers, environment_vars, gpu_status, disk_health, defender_status, windows_updates, network_adapters, wifi_networks, ip_config, firewall_status, bitlocker_status, battery_status, windows_service_info, proxy_status, hosts_read, timezone_set, dns_servers_set, proxy_set, user_accounts, local_groups, installed_software_paths, recycle_bin_size, restore_point_create, optional_features, startup_registry_list, startup_disable, startup_enable, feature_enable, feature_disable, large_files, process_details, service_dependencies, listening_ports, disk_cleanup_preview, disk_cleanup_execute, process_command_lines, network_connections, usb_devices, bluetooth_devices, file_hash, digital_signature, scheduled_task_enable, scheduled_task_disable, service_enable, service_disable, process_kill_tree, memory_pressure, pagefile_status, reboot_required, defrag_status, disk_space_by_folder", service_status, scheduled_task_run, environment_set, environment_delete, admin_status, access_check, run_elevated, token_privileges, admin_group_members, acl_read, acl_grant, firewall_rule_list, firewall_rule_add, firewall_rule_remove, registry_read, mapped_drives, local_user_disable, local_group_add, device_disable"},"value":{"type":"STRING","description":"Minutes, power plan, service name, or Bluetooth on/off."}},"required":["action"]},"handler":system_control}
+    extra = _system_control_extra(a, v, bool(p.get("needs_confirmation", False)))\n    if extra is not None: return extra\n    admin = windows_admin_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if admin is not None: return admin\n    acct = windows_account_device_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if acct is not None: return acct\n    policy = windows_policy_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if policy is not None: return policy\n    acl = windows_acl_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if acl is not None: return acl\n    priv = windows_privilege_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if priv is not None: return priv\n    extra2 = windows_extra_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if extra2 is not None: return extra2\n    perf = windows_performance_info(a, v)\n    if perf is not None: return perf\n    return "Unknown system_control action."
+TOOL={"name":"system_control","description":"Windows-only direct system controls: power, timeouts, temp cleanup, DNS/network reset, startup/services, Wi-Fi and Bluetooth.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status, power_plan, sleep_timeout, display_timeout, temp_cleanup, dns_flush, network_reset, startup_list, services_list, service_start, service_stop, service_restart, wifi_on, wifi_off, bluetooth, installed_apps, exe_inventory, analyze_exe, process_tree, scheduled_tasks, event_log, installed_drivers, environment_vars, gpu_status, disk_health, defender_status, windows_updates, network_adapters, wifi_networks, ip_config, firewall_status, bitlocker_status, battery_status, windows_service_info, proxy_status, hosts_read, timezone_set, dns_servers_set, proxy_set, user_accounts, local_groups, installed_software_paths, recycle_bin_size, restore_point_create, optional_features, startup_registry_list, startup_disable, startup_enable, feature_enable, feature_disable, large_files, process_details, service_dependencies, listening_ports, disk_cleanup_preview, disk_cleanup_execute, process_command_lines, network_connections, usb_devices, bluetooth_devices, file_hash, digital_signature, scheduled_task_enable, scheduled_task_disable, service_enable, service_disable, process_kill_tree, memory_pressure, pagefile_status, reboot_required, defrag_status, disk_space_by_folder", service_status, scheduled_task_run, environment_set, environment_delete, admin_status, access_check, run_elevated, token_privileges, admin_group_members, acl_read, acl_grant, firewall_rule_list, firewall_rule_add, firewall_rule_remove, registry_read, mapped_drives, local_user_disable, local_group_add, device_disable, local_user_enable, local_group_remove, device_enable, registry_write"},"value":{"type":"STRING","description":"Minutes, power plan, service name, or Bluetooth on/off."}},"required":["action"]},"handler":system_control}
 
 def _installed_apps():
     cmd = 'Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,UninstallString | Sort-Object DisplayName | ConvertTo-Json -Compress'
@@ -343,6 +343,34 @@ def windows_control_extra(action, value=None, needs_confirmation=False):
 
 
 
+
+
+def windows_admin_actions(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value=str(value or "").strip()
+    if action == "local_user_enable":
+        if not value or not needs_confirmation:return "Username and confirmation are required."
+        out=subprocess.run(["net","user",value,"/active:yes"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "local_group_remove":
+        parts=value.split("|",1)
+        if len(parts)!=2 or not all(parts):return "Use GROUP|USERNAME."
+        if not needs_confirmation:return "Confirmation is required before changing local group membership."
+        out=subprocess.run(["net","localgroup",parts[0],parts[1],"/delete"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "device_enable":
+        if not value or not needs_confirmation:return "Device instance ID and confirmation are required."
+        safe=value.replace("'","''")
+        out=subprocess.run(["powershell","-NoProfile","-Command",f'Enable-PnpDevice -InstanceId \'{safe}\' -Confirm:$false'],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "registry_write":
+        parts=value.split("|",3)
+        if len(parts)!=4 or not all(parts):return "Use PATH|NAME|TYPE|DATA."
+        path,name,typ,data=parts
+        if not needs_confirmation:return "Confirmation is required before changing the registry."
+        out=subprocess.run(["reg","add",path,"/v",name,"/t",typ,"/d",data,"/f"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    return None
 
 def windows_account_device_actions(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
