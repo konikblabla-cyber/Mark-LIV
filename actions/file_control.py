@@ -44,9 +44,27 @@ def file_control(parameters=None, **kwargs):
             dst.parent.mkdir(parents=True,exist_ok=True)
             dst.write_text(str(p.get("content","")),encoding="utf-8")
             return f"Written: {dst}"
+        if a in ("zip_create","archive_create"):
+            if not src.exists(): return f"Path not found: {src}"
+            base=str(dst or src.with_suffix(""))
+            shutil.make_archive(base,"zip",root_dir=str(src.parent),base_dir=src.name)
+            return f"Archive created: {base}.zip"
+        if a in ("zip_extract","archive_extract"):
+            if not src.is_file(): return f"Archive not found: {src}"
+            target=dst or src.with_suffix("")
+            target.mkdir(parents=True,exist_ok=True)
+            shutil.unpack_archive(str(src),str(target),"zip")
+            return f"Archive extracted to: {target}"
+        if a in ("file_hash","hash_file"):
+            import hashlib
+            if not src.is_file(): return f"File not found: {src}"
+            h=hashlib.sha256()
+            with src.open("rb") as f:
+                for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+            return h.hexdigest()
         if a in ("file_info","file_metadata"):
             s=src.stat(); return f"path={src}\nsize={s.st_size}\nmodified={s.st_mtime}\nreadonly={not os.access(src,os.W_OK)}"
         return "Unknown file action."
     except Exception as e: return f"File operation failed: {e}"
 
-TOOL={"name":"file_control","description":"Windows file operations: search, create folder, copy, move, rename, delete, read and write files, inspect metadata.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"}},"required":["action"]}}
+TOOL={"name":"file_control","description":"Windows file operations: search, create folder, copy, move, rename, delete, read and write files, inspect metadata, create/extract ZIP archives, and calculate SHA-256 hashes.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"},"content":{"type":"string"}},"required":["action"]}}
