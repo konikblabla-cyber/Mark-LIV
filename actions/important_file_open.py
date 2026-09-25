@@ -1,8 +1,8 @@
 """Open a file resolved from Mark-LIV's important-file index."""
 import platform,os
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def important_file_open(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "important_file_open is available only on Windows."
  p=parameters or {}; needle=str(p.get("name") or p.get("query") or "").strip().casefold()
  if not needle:return "File name is required."
  idx=Path(__file__).resolve().parent.parent/"memory"/"important_files.txt"
