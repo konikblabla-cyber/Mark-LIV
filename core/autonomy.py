@@ -16,6 +16,7 @@ from typing import Any
 from core.gemini import as_json, FAST, SMART
 from core.permissions import needs_confirmation
 from core.autonomy_verifier import verify_text, recovery_hint
+from core import confirm
 
 
 @dataclass
@@ -117,6 +118,46 @@ Previous failure:
             f" Expected verification: {expectation}" if expectation else ""
         )
 
+    def _execute_steps(self, plan: Plan, start: int, goal: str, history: list) -> str:
+        """Execute remaining steps; a human confirmation resumes at the next step."""
+        for index in range(start, len(plan.steps)):
+            step = plan.steps[index]
+            if needs_confirmation(step.action):
+                self.logger(f"[Autonomy] Confirmation-gated step: {step.action}")
+
+            def resume(_result: str, next_index=index + 1, current_plan=plan):
+                self._execute_steps(current_plan, next_index, goal, history)
+
+            confirm.set_continuation(resume)
+            started = time.monotonic()
+            result = self.registry.run(step.action, step.parameters, self.ctx)
+            elapsed = time.monotonic() - started
+            history.append((step.action, result))
+
+            if self._result_ok(result, step.verify):
+                self.logger(
+                    f"[Autonomy] Step {index + 1}/{len(plan.steps)} VERIFIED: "
+                    f"{step.action} ({elapsed:.1f}s)"
+                )
+                if "[CONFIRMATION_PENDING]" in str(result):
+                    return str(result)
+                continue
+
+            failure = self._failure(step.action, result, step.verify)
+            self.logger(f"[Autonomy] Recovery required: {failure}")
+            recovery = self._plan(goal, failure=failure)
+            if recovery and recovery.steps:
+                self.logger(f"[Autonomy] Recovery plan: {recovery.summary}")
+                return self._execute_steps(recovery, 0, goal, history)
+            return "Recovery failed: " + failure
+
+        last = history[-1][1] if history else "Done."
+        return (
+            f"{plan.summary or 'Goal completed.'}\n"
+            f"Executed {len(history)} step(s).\n"
+            f"Final result: {last}"
+        )
+
     def run(self, goal: str) -> str:
         goal = str(goal or "").strip()
         if not goal:
@@ -127,39 +168,12 @@ Previous failure:
         for attempt in range(self.MAX_REPLANS + 1):
             plan = self._plan(goal, failure=failure)
             if not plan or not plan.steps:
-                return ("I could not build a safe executable plan for that goal "
-                        "with the actions currently available.")
-
-            self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
-            for index, step in enumerate(plan.steps, 1):
-                # A model-produced action can never bypass the normal permission
-                # layer. This is deliberately informational; confirmation is
-                # enforced by the action implementation itself.
-                if needs_confirmation(step.action):
-                    self.logger(f"[Autonomy] Confirmation-gated step: {step.action}")
-
-                started = time.monotonic()
-                result = self.registry.run(step.action, step.parameters, self.ctx)
-                elapsed = time.monotonic() - started
-                history.append((step.action, result))
-
-                if self._result_ok(result, step.verify):
-                    self.logger(f"[Autonomy] Step {index}/{len(plan.steps)} VERIFIED: "
-                                 f"{step.action} ({elapsed:.1f}s)")
-                    if "[CONFIRMATION_PENDING]" in str(result):
-                        return str(result)
-                    continue
-
-                failure = self._failure(step.action, result, step.verify)
-                self.logger(f"[Autonomy] {failure}")
-                break
-            else:
-                last = history[-1][1] if history else "Done."
                 return (
-                    f"{plan.summary or 'Goal completed.'}\n"
-                    f"Executed {len(plan.steps)} step(s).\n"
-                    f"Final result: {last}"
+                    "I could not build a safe executable plan for that goal "
+                    "with the actions currently available."
                 )
 
-        return ("I attempted the goal, verified the failed step, and replanned "
-                "but could not complete it safely. Last failure: " + failure)
+            self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
+            return self._execute_steps(plan, 0, goal, history)
+
+        return "I could not complete the goal safely."
