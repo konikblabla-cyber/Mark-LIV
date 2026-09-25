@@ -19,6 +19,7 @@ from core.autonomy_verifier import verify_text, recovery_hint
 from core import confirm
 from core.task_manager import TaskManager
 from core.autonomy_guard import audit_plan
+from core.autonomy_policy import classify
 
 
 @dataclass
@@ -131,7 +132,9 @@ Previous failure:
         """Execute remaining steps; a human confirmation resumes at the next step."""
         for index in range(start, len(plan.steps)):
             step = plan.steps[index]
-            if needs_confirmation(step.action):
+            risk = classify(step.action, step.parameters)
+            self.logger(f"[Autonomy] Risk={risk.level}: {step.action} — {risk.reason}")
+            if risk.level == "high":
                 self.logger(f"[Autonomy] Confirmation-gated step: {step.action}")
 
             def resume(_result: str, next_index=index + 1, current_plan=plan):
