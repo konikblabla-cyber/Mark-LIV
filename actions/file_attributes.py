@@ -1,8 +1,8 @@
 """Windows file attribute inspection."""
 import platform,os
 from pathlib import Path
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def file_attributes(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "file_attributes is available only on Windows."
  p=parameters or {}; path=Path(str(p.get("path","")))
  if not path.exists():return "Path not found."
  st=path.stat(); attrs=[]
