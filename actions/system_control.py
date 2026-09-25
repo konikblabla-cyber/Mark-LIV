@@ -738,6 +738,19 @@ def windows_display_audio_set_controls(action, value=None, needs_confirmation=Fa
     return None
 
 
+def windows_process_start_control(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action != "process_start": return None
+    command=str(value or "").strip()
+    if not command: return "Executable or command is required."
+    if needs_confirmation("launch"): return "Confirmation required."
+    try:
+        subprocess.Popen(command, shell=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW)
+        return f"Started: {command}"
+    except Exception as e:
+        return f"Process start failed: {e}"
+
+
 def windows_audio_display_extra(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action == "volume_get":
