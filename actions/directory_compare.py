@@ -14,4 +14,4 @@ def directory_compare(parameters=None,**kwargs):
   return d
  x,y=snap(a),snap(b); added=sorted(set(y)-set(x));removed=sorted(set(x)-set(y));changed=sorted(k for k in set(x)&set(y) if x[k]!=y[k])
  return f"Only left: {len(removed)}\nOnly right: {len(added)}\nChanged: {len(changed)}\n\n"+("\n".join(changed[:100]) or "No differing common files.")
-TOOL={"name":"directory_compare","description":"Read-only Windows comparison of two directories by relative paths, sizes and modification times.","parameters":{"type":"OBJECT","properties":{"left":{"type":"STRING"},"right":{"type":"STRING"}},"required":["left","right"]},"handler=directory_compare}
+TOOL={"name":"directory_compare","description":"Read-only Windows comparison of two directories by relative paths, sizes and modification times.","parameters":{"type":"OBJECT","properties":{"left":{"type":"STRING"},"right":{"type":"STRING"}},"required":["left","right"]},"handler":directory_compare}
