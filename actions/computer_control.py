@@ -497,6 +497,29 @@ def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8)
         if attempt < attempts: time.sleep(delay)
     return f"Element not found after {attempts} screen checks: '{desc}'"
 
+def handle(parameters: dict):
+    """Backward-compatible wrapper used by legacy callers/tests."""
+    try:
+        params = parameters or {}
+        action = str(params.get("action", "")).lower().strip().replace("-", "_")
+        if action in ("click", "left_click"):
+            button = str(params.get("button", "left")).lower()
+            if button not in ("left", "right", "middle"):
+                return {"ok": False, "error": "Invalid mouse button"}
+            _require_pyautogui()
+            x, y = _validate_coords(int(params.get("x", 0)), int(params.get("y", 0)))
+            pyautogui.click(x, y, button=button, clicks=1, interval=0.0)
+            return {"ok": True, "result": f"Clicked ({x}, {y})"}
+        if action == "move":
+            _require_pyautogui()
+            x, y = _validate_coords(int(params.get("x", 0)), int(params.get("y", 0)))
+            pyautogui.moveTo(x, y, duration=0.15)
+            return {"ok": True, "result": f"Mouse moved to {x},{y}"}
+        result = computer_control(params)
+        return {"ok": not str(result).lower().startswith("unknown action") and " failed:" not in str(result).lower(), "result": result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 def computer_control(
     parameters: dict,
     response=None,
