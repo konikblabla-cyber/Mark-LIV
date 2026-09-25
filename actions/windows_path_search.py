@@ -11,4 +11,4 @@ def windows_path_search(parameters=None,**kwargs):
   p=os.path.join(d,name)
   if os.path.isfile(p):found.append(p)
  return "\n".join(found[:100]) if found else f"Not found in PATH: {name}"
-TOOL={"name":"windows_path_search","description":"Find an executable by exact filename in the current Windows PATH.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING"}},"required":["name"]},"handler=windows_path_search}
+TOOL={"name":"windows_path_search","description":"Find an executable by exact filename in the current Windows PATH.","parameters":{"type":"OBJECT","properties":{"name":{"type":"STRING"}},"required":["name"]},"handler":windows_path_search}
