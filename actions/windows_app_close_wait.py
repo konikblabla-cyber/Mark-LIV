@@ -1,7 +1,7 @@
 """Request an application window close and wait for its process to exit."""
 import ctypes,platform,time,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_close_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; name=str(p.get("process") or "").strip().lower(); timeout=max(1,min(int(p.get("timeout",20)),120))
  if not name:return "Missing process name."
  targets=[x for x in psutil.process_iter(["name","pid"]) if (x.info["name"] or "").lower()==name]
