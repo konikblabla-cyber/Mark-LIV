@@ -1,7 +1,7 @@
 """Minimize a uniquely matched Windows window."""
 import ctypes,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_minimize(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; needle=str(p.get("contains") or "").strip().lower()
  if not needle:return "Missing window title text."
  u=ctypes.windll.user32;matches=[];W=ctypes.WINFUNCTYPE(ctypes.c_bool,ctypes.c_void_p,ctypes.c_long)
