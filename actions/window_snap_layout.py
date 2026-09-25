@@ -1,9 +1,9 @@
 """Windows snap-style window arrangement for Mark-LIV."""
 import platform,ctypes
 from ctypes import wintypes
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 u=ctypes.windll.user32
 def window_snap_layout(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; mode=str(p.get("mode","left")).lower(); title=str(p.get("title","")).strip()
  targets=[]
  if title:
