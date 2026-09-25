@@ -146,3 +146,20 @@ def windows_diagnostics(action):
     if not cmd: return None
     out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
     return out.stdout.strip() or out.stderr.strip() or "No data returned."
+
+
+def windows_system_info(action):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "network_adapters": 'Get-NetAdapter | Select-Object Name,InterfaceDescription,Status,LinkSpeed,MacAddress | ConvertTo-Json -Compress',
+      "wifi_networks": 'netsh wlan show networks mode=bssid',
+      "ip_config": 'Get-NetIPConfiguration | Select-Object InterfaceAlias,IPv4Address,IPv6Address,DNSServer | ConvertTo-Json -Compress',
+      "firewall_status": 'Get-NetFirewallProfile | Select-Object Name,Enabled,DefaultInboundAction,DefaultOutboundAction | ConvertTo-Json -Compress',
+      "bitlocker_status": 'Get-BitLockerVolume | Select-Object MountPoint,VolumeStatus,ProtectionStatus,EncryptionPercentage | ConvertTo-Json -Compress',
+      "battery_status": 'Get-CimInstance Win32_Battery | Select-Object Name,EstimatedChargeRemaining,BatteryStatus | ConvertTo-Json -Compress',
+      "windows_service_info": 'Get-Service | Select-Object Name,DisplayName,Status,StartType | Sort-Object Name | ConvertTo-Json -Compress'
+    }
+    cmd=commands.get(action)
+    if not cmd: return None
+    out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+    return out.stdout.strip() or out.stderr.strip() or "No data returned."
