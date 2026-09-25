@@ -1,7 +1,7 @@
 """Read-only Windows clipboard availability."""
 import ctypes,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_clipboard_state(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  u=ctypes.windll.user32
  if not u.OpenClipboard(0): return "Clipboard is currently unavailable or locked."
  try:
