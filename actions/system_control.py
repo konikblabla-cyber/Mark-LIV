@@ -692,6 +692,20 @@ def windows_safe_network_controls(action, value=None, needs_confirmation=False):
         return _ps(f"Set-NetConnectionProfile -InterfaceAlias '{parts[0].replace(chr(39),chr(39)*2)}' -NetworkCategory {parts[1]}; 'Network profile updated.'")
     if action == "arp_table":
         return _ps("Get-NetNeighbor -AddressFamily IPv4 | Select IPAddress,LinkLayerAddress,State,InterfaceAlias | Format-Table -AutoSize")
-    if action == "route_table":
+    if action == "route_table, update_services_status, update_pending, windows_update_cache_size, windows_update_cache_clear":
         return _ps("Get-NetRoute -AddressFamily IPv4 | Select DestinationPrefix,NextHop,RouteMetric,InterfaceAlias | Sort-Object RouteMetric | Format-Table -AutoSize")
+    return None
+
+
+def windows_update_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "update_services_status":
+        return _ps("Get-Service wuauserv,bits,cryptsvc | Select Status,Name,StartType | Format-Table -AutoSize")
+    if action == "update_pending":
+        return _ps("$p=Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'; [pscustomobject]@{RebootRequired=$p} | Format-List")
+    if action == "windows_update_cache_size":
+        return _ps("$p=$env:SystemRoot+'\\SoftwareDistribution\\Download'; $s=(Get-ChildItem $p -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; [math]::Round($s/1GB,2)")
+    if action == "windows_update_cache_clear":
+        if not needs_confirmation:return "Confirmation is required before clearing the Windows Update download cache."
+        return _ps("Stop-Service wuauserv,bits -Force -ErrorAction SilentlyContinue; Remove-Item ($env:SystemRoot+'\\SoftwareDistribution\\Download\\*') -Recurse -Force -ErrorAction SilentlyContinue; Start-Service bits,wuauserv; 'Windows Update download cache cleared.'")
     return None
