@@ -1,7 +1,7 @@
 """Wait for a Windows application process to exit."""
 import platform,time,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_exit_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; name=str(p.get("process") or "").strip().lower(); timeout=max(1,min(int(p.get("timeout",30)),120))
  if not name:return "Missing process name."
  end=time.time()+timeout
