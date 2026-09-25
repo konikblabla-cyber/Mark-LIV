@@ -1,7 +1,7 @@
 """Direct Windows display power control."""
 import platform,ctypes
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_display_power(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
     p=parameters or {}; action=str(p.get("action","off")).lower()
     if action not in ("off","on"): return "Supported actions: off, on."
     u=ctypes.windll.user32
