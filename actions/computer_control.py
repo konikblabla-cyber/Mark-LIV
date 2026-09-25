@@ -484,6 +484,19 @@ def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
     return f"Found and clicked '{description}' at {coords}"
 
 
+def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8) -> str:
+    _require_pyautogui()
+    desc = str(description or "").strip()
+    if not desc: return "Element description is required."
+    attempts = max(1, min(int(attempts), 12)); delay = max(0.2, min(float(delay), 5.0))
+    for attempt in range(1, attempts + 1):
+        coords = _screen_find_and_verify(desc)
+        if coords is not None:
+            time.sleep(0.15); _click(x=coords[0], y=coords[1]); actual=_mouse_position()
+            return f"Clicked '{desc}' at {coords} on attempt {attempt}; cursor={actual}"
+        if attempt < attempts: time.sleep(delay)
+    return f"Element not found after {attempts} screen checks: '{desc}'"
+
 def computer_control(
     parameters: dict,
     response=None,
@@ -621,6 +634,9 @@ def computer_control(
                 return f"Clicked '{desc}' at {coords}"
             return f"Element not found on screen: '{desc}'"
 
+        if action == "screen_click_retry":
+            return _screen_click_retry(params.get("description",""), params.get("attempts",5), params.get("interval",0.8))
+
         if action == "screen_wait_for":
             desc = str(params.get("description", "")).strip()
             if not desc:
@@ -676,7 +692,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
