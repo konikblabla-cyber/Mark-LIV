@@ -405,9 +405,8 @@ def _screen_find_candidates(description: str):
 
 def _mouse_move_verified(x: int, y: int) -> str:
     x, y = _validate_coords(x, y)
-    pyautogui.moveTo(x, y, duration=0.15)
-    actual = _mouse_position()
-    return (pyautogui.moveTo(x, y, duration=0.3) or f"Mouse moved to {x},{y} (requested {x},{y})")
+    pyautogui.moveTo(x, y, duration=0.3)
+    return f"Mouse moved to {x},{y}"
 
 def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
@@ -457,7 +456,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
             return _validate_coords(int(match.group(1)), int(match.group(2)))
 
     except Exception as e:
-        print(f"[ComputerControl] ⚠️ screen_find failed: {e}")
+        print(f"[ComputerControl] screen_find failed: {e}")
 
     return None
 
@@ -711,7 +710,7 @@ def computer_control(
         return f"Unknown action: '{action}'"
 
     except Exception as e:
-        print(f"[ComputerControl] ❌ {action}: {e}")
+        print(f"[ComputerControl] {action} failed: {e}")
         return f"computer_control '{action}' failed: {e}"
 
 
