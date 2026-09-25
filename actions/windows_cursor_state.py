@@ -1,11 +1,10 @@
 """Read-only Windows cursor state."""
 import ctypes, platform
 from ctypes import wintypes
-if platform.system() != "Windows":
-    raise RuntimeError("Windows-only.")
 class _CURSORINFO(ctypes.Structure):
     _fields_=[("cbSize",ctypes.c_uint),("flags",ctypes.c_uint),("hCursor",ctypes.c_void_p),("ptScreenPos",wintypes.POINT)]
 def windows_cursor_state(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
     u=ctypes.windll.user32; pos=wintypes.POINT()
     u.GetCursorPos(ctypes.byref(pos))
     ci=_CURSORINFO(ctypes.sizeof(_CURSORINFO)); u.GetCursorInfo(ctypes.byref(ci))
