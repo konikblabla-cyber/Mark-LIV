@@ -1,7 +1,7 @@
 """Windows DNS diagnostics."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_dns_diagnostics(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; host=str(p.get("host","example.com")).strip() or "example.com"
  if len(host)>253 or any(c in host for c in "\r\n;&|<>"): return "Invalid host."
  cmd=f"Resolve-DnsName -Name '{host}' -ErrorAction SilentlyContinue | Select Name,Type,IPAddress,NameHost | Format-Table -AutoSize"
