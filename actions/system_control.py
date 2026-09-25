@@ -105,3 +105,25 @@ def _system_control_extra(action, value=None, needs_confirmation=False):
         return f"Started uninstall for {match.get('DisplayName')}."
     return None
 
+
+
+def analyze_exe_inventory():
+    """Return metadata useful for deciding whether an EXE is likely unnecessary; never deletes anything."""
+    rows=[]
+    for p in _exe_inventory():
+        try:
+            st=os.stat(p)
+            rows.append({"path":p,"size_mb":round(st.st_size/1048576,2),"modified":int(st.st_mtime)})
+        except OSError: pass
+    return rows
+
+def analyze_exe(action):
+    if action != "analyze_exe": return None
+    rows=analyze_exe_inventory()
+    return json.dumps({"count":len(rows),"executables":rows},ensure_ascii=False)
+
+def process_tree():
+    if platform.system() != "Windows": return "This action is Windows-only."
+    cmd='Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,ExecutablePath | ConvertTo-Json -Compress'
+    out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+    return out.stdout.strip() or "[]"
