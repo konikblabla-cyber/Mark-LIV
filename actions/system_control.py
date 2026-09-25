@@ -65,8 +65,8 @@ def system_control(parameters=None,**kwargs):
         cmd="Enable-PnpDevice" if on else "Disable-PnpDevice"
         ps(f"Get-PnpDevice -Class Bluetooth | {cmd} -Confirm:$false")
         return "Bluetooth state change requested."
-    extra = _system_control_extra(a, v, bool(p.get("needs_confirmation", False)))\n    if extra is not None: return extra\n    perf = windows_performance_info(a, v)\n    if perf is not None: return perf\n    return "Unknown system_control action."
-TOOL={"name":"system_control","description":"Windows-only direct system controls: power, timeouts, temp cleanup, DNS/network reset, startup/services, Wi-Fi and Bluetooth.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status, power_plan, sleep_timeout, display_timeout, temp_cleanup, dns_flush, network_reset, startup_list, services_list, service_start, service_stop, service_restart, wifi_on, wifi_off, bluetooth, installed_apps, exe_inventory, analyze_exe, process_tree, scheduled_tasks, event_log, installed_drivers, environment_vars, gpu_status, disk_health, defender_status, windows_updates, network_adapters, wifi_networks, ip_config, firewall_status, bitlocker_status, battery_status, windows_service_info, proxy_status, hosts_read, timezone_set, dns_servers_set, proxy_set, user_accounts, local_groups, installed_software_paths, recycle_bin_size, restore_point_create, optional_features, startup_registry_list, startup_disable, startup_enable, feature_enable, feature_disable, large_files, process_details, service_dependencies, listening_ports, disk_cleanup_preview, disk_cleanup_execute, process_command_lines, network_connections, usb_devices, bluetooth_devices, file_hash, digital_signature, scheduled_task_enable, scheduled_task_disable, service_enable, service_disable, process_kill_tree, memory_pressure, pagefile_status, reboot_required, defrag_status, disk_space_by_folder"},"value":{"type":"STRING","description":"Minutes, power plan, service name, or Bluetooth on/off."}},"required":["action"]},"handler":system_control}
+    extra = _system_control_extra(a, v, bool(p.get("needs_confirmation", False)))\n    if extra is not None: return extra\n    extra2 = windows_extra_actions(a, v, bool(p.get("needs_confirmation", False)))\n    if extra2 is not None: return extra2\n    perf = windows_performance_info(a, v)\n    if perf is not None: return perf\n    return "Unknown system_control action."
+TOOL={"name":"system_control","description":"Windows-only direct system controls: power, timeouts, temp cleanup, DNS/network reset, startup/services, Wi-Fi and Bluetooth.","parameters":{"type":"OBJECT","properties":{"action":{"type":"STRING","description":"status, power_plan, sleep_timeout, display_timeout, temp_cleanup, dns_flush, network_reset, startup_list, services_list, service_start, service_stop, service_restart, wifi_on, wifi_off, bluetooth, installed_apps, exe_inventory, analyze_exe, process_tree, scheduled_tasks, event_log, installed_drivers, environment_vars, gpu_status, disk_health, defender_status, windows_updates, network_adapters, wifi_networks, ip_config, firewall_status, bitlocker_status, battery_status, windows_service_info, proxy_status, hosts_read, timezone_set, dns_servers_set, proxy_set, user_accounts, local_groups, installed_software_paths, recycle_bin_size, restore_point_create, optional_features, startup_registry_list, startup_disable, startup_enable, feature_enable, feature_disable, large_files, process_details, service_dependencies, listening_ports, disk_cleanup_preview, disk_cleanup_execute, process_command_lines, network_connections, usb_devices, bluetooth_devices, file_hash, digital_signature, scheduled_task_enable, scheduled_task_disable, service_enable, service_disable, process_kill_tree, memory_pressure, pagefile_status, reboot_required, defrag_status, disk_space_by_folder", service_status, scheduled_task_run, environment_set, environment_delete"},"value":{"type":"STRING","description":"Minutes, power plan, service name, or Bluetooth on/off."}},"required":["action"]},"handler":system_control}
 
 def _installed_apps():
     cmd = 'Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,UninstallString | Sort-Object DisplayName | ConvertTo-Json -Compress'
@@ -338,6 +338,29 @@ def windows_control_extra(action, value=None, needs_confirmation=False):
         return out.stdout.strip() or out.stderr.strip()
     return None
 
+
+
+def windows_extra_actions(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value = str(value or "").strip()
+    if action == "service_status":
+        if not value: return "Service name required."
+        return subprocess.run(["powershell","-NoProfile","-Command",f'Get-Service -Name "{value}" -ErrorAction Stop | Select Status,Name,DisplayName,StartType | Format-List'],capture_output=True,text=True,creationflags=_WIN_HIDE).stdout.strip()
+    if action == "scheduled_task_run":
+        if not value or not needs_confirmation: return "Task name and confirmation are required."
+        out=subprocess.run(["schtasks","/Run","/TN",value],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "environment_set":
+        if "=" not in value: return "Use NAME=VALUE."
+        name,val=value.split("=",1)
+        if not name.strip(): return "Variable name required."
+        subprocess.run(["setx",name.strip(),val],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return f"User environment variable {name.strip()} updated for new processes."
+    if action == "environment_delete":
+        if not value or not needs_confirmation: return "Variable name and confirmation are required."
+        subprocess.run(["reg","delete",r"HKCU\\Environment","/v",value,"/f"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return f"User environment variable {value} deleted."
+    return None
 
 def windows_performance_info(action, value=None):
     if platform.system() != "Windows": return "This action is Windows-only."
