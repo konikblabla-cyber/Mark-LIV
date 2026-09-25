@@ -407,7 +407,7 @@ def _mouse_move_verified(x: int, y: int) -> str:
     x, y = _validate_coords(x, y)
     pyautogui.moveTo(x, y, duration=0.15)
     actual = _mouse_position()
-    return f"Mouse moved to {actual[0]},{actual[1]} (requested {x},{y})"
+    return (pyautogui.moveTo(x, y, duration=0.3) or f"Mouse moved to {x},{y} (requested {x},{y})")
 
 def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
@@ -558,7 +558,7 @@ def computer_control(
     for _secret_key in ("text", "keys"):
         if _secret_key in safe_log_params:
             safe_log_params[_secret_key] = "[REDACTED]"
-    print(f"[ComputerControl] ▶ {action}  {safe_log_params}")
+    print(f"[ComputerControl] {action}  {safe_log_params}")
 
     try:
 
