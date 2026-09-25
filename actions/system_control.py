@@ -698,6 +698,20 @@ def windows_safe_network_controls(action, value=None, needs_confirmation=False):
     return None
 
 
+def windows_hardware_power_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value = str(value or "").strip()
+    if action == "display_power_off":
+        return _ps("Add-Type -AssemblyName System.Windows.Forms; (Add-Type '[DllImport(\"user32.dll\")] public static extern int SendMessage(int hWnd,int hMsg,int wParam,int lParam);' -Name a -Pas)::SendMessage(-1,0x0112,0xF170,2); 'Display power-off requested.'")
+    if action == "display_power_on":
+        return _ps("powershell.exe -NoProfile -Command '[void][System.Windows.Forms.SendKeys]::SendWait(\"{ESC}\");'; 'Display wake requested.'")
+    if action == "audio_volume_set":
+        try: level=max(0,min(100,int(value)))
+        except ValueError: return "Volume must be 0-100."
+        return _ps(f"$v=New-Object -ComObject WScript.Shell; 1..50 | ForEach-Object {{$v.SendKeys([char]174)}}; 1..{max(0,level//2)} | ForEach-Object {{$v.SendKeys([char]175)}}; 'Volume set requested: {level}%'")
+    return None
+
+
 def windows_network_config_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     value = str(value or "").strip()
