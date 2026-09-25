@@ -1,7 +1,7 @@
 """Read-only Windows display scaling information."""
 import platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_display_scaling_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  try:
   import winreg
   k=winreg.OpenKey(winreg.HKEY_CURRENT_USER,r"Control Panel\Desktop");v,_=winreg.QueryValueEx(k,"LogPixels");winreg.CloseKey(k)
