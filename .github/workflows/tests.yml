@@ -12,5 +12,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validate all action sources
+        run: python -m unittest tests.test_action_sources -v
       - name: Run regression tests
         run: python -m unittest tests.test_suite -v
