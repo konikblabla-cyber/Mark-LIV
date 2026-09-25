@@ -5,14 +5,39 @@ on:
   pull_request:
 
 jobs:
-  tests:
+  action-source-validation:
+    strategy:
+      fail-fast: false
+      matrix:
+        range:
+          - { start: 0, end: 40 }
+          - { start: 40, end: 80 }
+          - { start: 80, end: 120 }
+          - { start: 120, end: 160 }
+          - { start: 160, end: 200 }
+          - { start: 200, end: 240 }
+          - { start: 240, end: 280 }
+          - { start: 280, end: 320 }
+    runs-on: ubuntu-latest
+    name: Action validation ${{ matrix.range.start }}-${{ matrix.range.end }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate action sources
+        env:
+          ACTION_START: ${{ matrix.range.start }}
+          ACTION_END: ${{ matrix.range.end }}
+        run: python -m unittest tests.test_action_sources -v
+
+  regression:
+    needs: action-source-validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate all action sources
-        run: python -m unittest tests.test_action_sources -v
       - name: Run regression tests
         run: python -m unittest tests.test_suite -v
