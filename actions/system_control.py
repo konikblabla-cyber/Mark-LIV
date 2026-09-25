@@ -1,12 +1,13 @@
 """Windows-only direct system controls for Mark-LIV."""
-import json, os, platform, shutil, subprocess, tempfile
+import json, os, platform, shutil, subprocess, tempfile, shlex
 from core import confirm
 try:
     from core.permissions import needs_confirmation
 except Exception:
     def needs_confirmation(action: str, *, admin: bool=False): return admin
 WIN=platform.system()=="Windows"
-HIDE={"creationflags":subprocess.CREATE_NO_WINDOW} if WIN else {}\n_WIN_HIDE=HIDE
+HIDE={"creationflags":subprocess.CREATE_NO_WINDOW} if WIN else {}
+_WIN_HIDE=HIDE
 def ps(cmd,timeout=20):
     return subprocess.run(["powershell","-NoProfile","-NonInteractive","-Command",cmd],capture_output=True,text=True,timeout=timeout,**HIDE)
 def _reset():
