@@ -31,4 +31,6 @@ class ActionSourceTests(unittest.TestCase):
                 for required in ("name", "description", "parameters", "handler"):
                     if required not in keys:
                         failures.append(f"{index}:{path.name}: TOOL missing '{required}'")
-        report = "\n".join(failures) if failures else "ALL_ACTION_SOURCES_VALID"\n        (root.parent / "tests" / "action_validation_report.txt").write_text(report + "\n", encoding="utf-8")\n        self.assertFalse(failures, report)
+        report = "\n".join(failures) if failures else "ALL_ACTION_SOURCES_VALID"
+        (root.parent / "tests" / "action_validation_report.txt").write_text(report + "\n", encoding="utf-8")
+        self.assertFalse(failures, report)
