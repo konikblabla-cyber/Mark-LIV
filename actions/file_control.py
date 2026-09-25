@@ -34,9 +34,19 @@ def file_control(parameters=None, **kwargs):
             src.unlink(); return f"Deleted: {src}"
         if a in ("folder_delete","delete_folder"):
             shutil.rmtree(src); return f"Deleted folder: {src}"
+        if a in ("file_read","read_file"):
+            if not src.exists(): return f"File not found: {src}"
+            if src.stat().st_size > 2_000_000: return "File is too large for direct reading."
+            return src.read_text(encoding="utf-8",errors="replace")
+        if a in ("file_write","write_file"):
+            if not dst and src: dst=src
+            if not dst: return "Destination path is required."
+            dst.parent.mkdir(parents=True,exist_ok=True)
+            dst.write_text(str(p.get("content","")),encoding="utf-8")
+            return f"Written: {dst}"
         if a in ("file_info","file_metadata"):
             s=src.stat(); return f"path={src}\nsize={s.st_size}\nmodified={s.st_mtime}\nreadonly={not os.access(src,os.W_OK)}"
         return "Unknown file action."
     except Exception as e: return f"File operation failed: {e}"
 
-TOOL={"name":"file_control","description":"Windows file operations: search, create folder, copy, move, rename, delete files/folders, inspect metadata.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"}},"required":["action"]}}
+TOOL={"name":"file_control","description":"Windows file operations: search, create folder, copy, move, rename, delete, read and write files, inspect metadata.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"}},"required":["action"]}}
