@@ -43,6 +43,7 @@ import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
+from collections import deque
 
 import sounddevice as sd
 import numpy as np
@@ -636,6 +637,8 @@ class JarvisLive:
         self._awake            = not self._wake_enabled
         self._wake_detector: WakeWordDetector | None = None
         self._wake_sleep_timeout = WAKE_SLEEP_TIMEOUT
+        # Strict mode: every user turn must begin with the local wake phrase.
+        self._wake_preroll = deque(maxlen=24)  # ~1.5 s of 16 kHz mic audio
 
         # Restore the saved push-to-talk preference. Doing it here rather than
         # in __init__ means the hotkey thread only exists once there is a
@@ -675,6 +678,19 @@ class JarvisLive:
     def _on_wake_detected(self) -> None:
         """Called from the detector thread when 'Hey Jarvis' is heard."""
         self.wake(reason="wake word")
+        # Replay a short local pre-roll so "Hey Jarvis, do X" is not truncated.
+        loop = self._loop
+        out = self.out_queue
+        if loop and out is not None:
+            buffered = list(self._wake_preroll)
+            self._wake_preroll.clear()
+            for frame in buffered:
+                try:
+                    asyncio.run_coroutine_threadsafe(
+                        out.put({"data": frame, "mime_type": "audio/pcm"}), loop
+                    )
+                except Exception:
+                    break
 
     def wake(self, reason: str = "wake word") -> None:
         if self._awake:
@@ -726,13 +742,13 @@ class JarvisLive:
             return "disabled"
 
     def _ui_wake_manual(self) -> None:
-        """Manual sleep/wake button in the UI."""
+        """Manual control for strict wake-word mode: sleep only."""
         if not self._wake_enabled:
             return
         if self._awake:
             self.sleep(reason="you tapped sleep")
         else:
-            self.wake(reason="you tapped wake")
+            self.ui.write_log("SYS: Strict wake-word mode — say 'Hey Jarvis' to wake me.")
 
     def _ui_wake_install(self) -> tuple[bool, str]:
         """Download openwakeword + the model (runs in a UI worker thread)."""
@@ -904,8 +920,8 @@ class JarvisLive:
             # Holding the key is also a way to wake it, so push-to-talk works
             # without having to say the wake word first.
             if self._wake_enabled and not self._awake:
-                self._awake = True
-                self._last_user_speech = time.monotonic()
+                # PTT does not bypass strict wake-word mode.
+                pass
         try:
             self.ui.set_state("LISTENING" if held else "SLEEPING")
         except Exception:
@@ -1306,6 +1322,12 @@ class JarvisLive:
             # only a queue push, so the audio path is never slowed. When wake word
             # is off (default) or we're awake, this is a single boolean check.
             if self._wake_enabled and not self._awake:
+                # Keep a tiny local pre-roll; on detection it is replayed to Gemini.
+                try:
+                    frame = indata[:, 0].copy() if getattr(indata, "ndim", 1) > 1 else indata.copy()
+                    self._wake_preroll.append(frame.tobytes())
+                except Exception:
+                    pass
                 det = self._wake_detector
                 if det is not None:
                     det.feed(indata)
@@ -1541,6 +1563,10 @@ class JarvisLive:
                                         "ts": datetime.now().isoformat(),
                                     }))
                             in_buf = []
+
+                            # One wake phrase unlocks one user turn.
+                            if full_in and self._wake_enabled:
+                                self.sleep(reason="strict wake-word turn complete")
 
                             full_out = " ".join(out_buf).strip()
                             # Second line of defence: even if a repeat slips
