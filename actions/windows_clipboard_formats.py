@@ -1,7 +1,7 @@
 """Windows clipboard format inspection without reading clipboard contents."""
 import platform,ctypes
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def windows_clipboard_formats(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  u=ctypes.windll.user32; out=[]
  if not u.OpenClipboard(0):return "Clipboard is unavailable."
  try:
