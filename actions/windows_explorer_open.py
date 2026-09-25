@@ -1,8 +1,8 @@
 """Open Windows Explorer at a path."""
 import platform,subprocess
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_explorer_open(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; path=Path(str(p.get("path") or Path.home())).expanduser()
  if not path.exists():return f"Path not found: {path}"
  subprocess.Popen(["explorer.exe",str(path)],shell=False)
