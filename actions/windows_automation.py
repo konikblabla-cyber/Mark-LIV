@@ -1,10 +1,9 @@
 """Windows-only high-level automation helpers for Mark-LIV."""
 import platform, subprocess, os, json
 from pathlib import Path
-if platform.system() != "Windows":
-    raise RuntimeError("Mark-LIV Windows automation is Windows-only.")
 
 def windows_automation(parameters=None, **kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
     p=parameters or {}; a=str(p.get("action","")).lower().strip()
     flags=subprocess.CREATE_NO_WINDOW
     if a=="run":
