@@ -1,7 +1,8 @@
 """Launch a Windows program and wait until its process appears."""
 import platform,subprocess,time,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
+
 def windows_launch_and_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; cmd=str(p.get("command") or "").strip(); proc=str(p.get("process") or "").strip()
  timeout=max(1,min(int(p.get("timeout",30)),120))
  if not cmd or not proc:return "command and process are required."
