@@ -554,7 +554,11 @@ def computer_control(
     if player:
         player.write_log(f"[Computer] {action}")
 
-    print(f"[ComputerControl] ▶ {action}  {params}")
+    safe_log_params = dict(params)
+    for _secret_key in ("text", "keys"):
+        if _secret_key in safe_log_params:
+            safe_log_params[_secret_key] = "[REDACTED]"
+    print(f"[ComputerControl] ▶ {action}  {safe_log_params}")
 
     try:
 
@@ -651,7 +655,12 @@ def computer_control(
             return _screen_watch_click(desc, params.get("timeout", 60))
 
         if action == "wait":
-            secs = float(params.get("seconds", 1.0))
+            try:
+                secs = float(params.get("seconds", 1.0))
+            except (TypeError, ValueError):
+                return "Invalid wait duration."
+            if secs < 0:
+                return "Wait duration cannot be negative."
             secs = min(secs, 30.0)
             time.sleep(secs)
             return f"Waited {secs}s"
