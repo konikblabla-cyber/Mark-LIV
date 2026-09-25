@@ -1,7 +1,7 @@
 """Wait for Windows disk free space to exceed a threshold."""
 import platform,time,shutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_disk_space_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {};path=str(p.get("path") or p.get("drive") or "C:\\").strip();minimum=max(0,min(float(p.get("minimum_gb",5)),100000));timeout=max(1,min(int(p.get("timeout",60)),300));end=time.time()+timeout
  while time.time()<end:
   try:free=shutil.disk_usage(path).free/1073741824
