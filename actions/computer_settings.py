@@ -373,6 +373,7 @@ def open_task_manager():
 
 def focus_search():
     if _OS == "Darwin": pyautogui.hotkey("command", "l")
+    elif _OS == "Windows": pyautogui.hotkey("win", "s")
     else:               pyautogui.hotkey("ctrl", "l")
 
 def pause_video():      pyautogui.press("space")
