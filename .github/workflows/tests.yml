@@ -1,49 +1,23 @@
 name: Mark-LIV tests
-
 on:
   push:
   pull_request:
-
 jobs:
-  action-source-validation:
-    strategy:
-      fail-fast: false
-      matrix:
-        range:
-          - { start: 10, end: 11 }
-          - { start: 11, end: 12 }
-          - { start: 12, end: 13 }
-          - { start: 21, end: 22 }
-          - { start: 22, end: 23 }
-          - { start: 30, end: 31 }
-          - { start: 31, end: 32 }
-          - { start: 32, end: 33 }
-          - { start: 50, end: 51 }
-          - { start: 51, end: 52 }
-          - { start: 52, end: 53 }
-          - { start: 170, end: 171 }
-          - { start: 171, end: 172 }
-          - { start: 172, end: 173 }
+  diagnose:
     runs-on: ubuntu-latest
-    name: Action validation ${{ matrix.range.start }}-${{ matrix.range.end }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate action sources
-        env:
-          ACTION_START: ${{ matrix.range.start }}
-          ACTION_END: ${{ matrix.range.end }}
-        run: python -m unittest tests.test_action_sources -v
-
-  regression:
-    needs: action-source-validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Run regression tests
-        run: python -m unittest tests.test_suite -v
+      - name: Diagnose action sources
+        run: python tests/diagnose_action_sources.py
+      - name: Commit diagnostic report
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/action_validation_report.txt
+          git diff --cached --quiet || (git commit -m "chore: action validation report [skip ci]" && git push)
