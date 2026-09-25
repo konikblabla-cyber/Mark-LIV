@@ -1,4 +1,8 @@
 import platform as _platform
+
+if _platform.system() != "Windows":
+    raise RuntimeError("MARK-LIV is Windows-only.")
+
 import subprocess as _subprocess
 
 # ── Nuclear: force CREATE_NO_WINDOW on EVERY subprocess call on Windows ───────
