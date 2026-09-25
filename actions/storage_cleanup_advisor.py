@@ -104,11 +104,3 @@ TOOL = {
     }},
     "handler":storage_cleanup_advisor,
 }
-TOOL_DELETE = {
-    "name":"storage_cleanup_execute",
-    "description":"Delete a user-approved list of files. Always uses the real UI confirmation gate before deletion.",
-    "parameters":{"type":"OBJECT","properties":{
-        "paths":{"type":"ARRAY","items":{"type":"STRING"},"description":"Exact file paths selected by the user after review."}
-    },"required":["paths"]},
-    "handler":storage_cleanup_execute,
-}
