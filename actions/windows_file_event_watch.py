@@ -1,7 +1,8 @@
 """Bounded Windows directory event watcher using PowerShell Register-ObjectEvent."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_event_watch(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "Windows-only action."
  p=parameters or {}; root=str(p.get("path","")).strip(); seconds=max(.5,min(float(p.get("seconds",10)),30))
  if not root:return "Directory path is required."
  ps=f"$p=Join-Path $env:TEMP 'markliv_watch_$([guid]::NewGuid().ToString()).log'; $w=New-Object IO.FileSystemWatcher; $w.Path='{root.replace("'","''")}'; $w.IncludeSubdirectories=$true; $w.EnableRaisingEvents=$true; $a={{Add-Content $p ('{0}|' -f $Event.SourceEventArgs.ChangeType + $Event.SourceEventArgs.FullPath)}}; Register-ObjectEvent $w Created -Action $a | Out-Null; Register-ObjectEvent $w Changed -Action $a | Out-Null; Register-ObjectEvent $w Deleted -Action $a | Out-Null; Register-ObjectEvent $w Renamed -Action $a | Out-Null; Start-Sleep -Seconds {seconds}; Get-Content $p -ErrorAction SilentlyContinue; Remove-Item $p -Force -ErrorAction SilentlyContinue; $w.Dispose()"
