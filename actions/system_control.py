@@ -712,6 +712,15 @@ def windows_hardware_power_controls(action, value=None, needs_confirmation=False
     return None
 
 
+def windows_update_install_control(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action != "windows_update_install": return None
+    if needs_confirmation("windows_update_install"):
+        return "Confirmation required."
+    r=ps("Install-Module PSWindowsUpdate -Force -Confirm:\$false -Scope CurrentUser; Import-Module PSWindowsUpdate; Install-WindowsUpdate -AcceptAll -IgnoreReboot -Confirm:\$false",timeout=120)
+    return (r.stdout or r.stderr).strip() or "Windows Update installation completed."
+
+
 def windows_vpn_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     name=str(value or "").strip().replace("'", "''")
