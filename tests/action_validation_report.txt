@@ -1,0 +1,3 @@
+actions/computer_control.py: SyntaxError line 395, col 2: unexpected character after line continuation character
+actions/system_control.py: SyntaxError line 68, col 83: unexpected character after line continuation character
+actions/windows_notification_action.py: SyntaxError line 8, col 275: invalid syntax
