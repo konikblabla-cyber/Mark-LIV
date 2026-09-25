@@ -824,7 +824,7 @@ def windows_service_task_extra(a, v, needs_confirm):
         return r.stdout.strip() or r.stderr.strip() or "Firewall rule not found."
     if a=="windows_search_rebuild":
         if needs_confirm("change_security_setting"): return "Confirmation required."
-        r=ps("Restart-Service WSearch -Force -ErrorAction Stop; & $env:windir\System32\SearchIndexer.exe /reset")
+        r=ps(r"Restart-Service WSearch -Force -ErrorAction Stop; & $env:windir\System32\SearchIndexer.exe /reset")
         return r.stdout.strip() or r.stderr.strip() or "Windows Search index reset requested."
 
 def windows_network_route_controls(a, v, needs_confirm):
@@ -1036,7 +1036,7 @@ def windows_display_audio_set_controls(action, value=None, needs_confirmation=Fa
         try: scale=max(100,min(500,int(str(value).strip())))
         except ValueError: return "Display scale must be 100-500."
         if needs_confirmation("display_scale_set"): return "Confirmation required."
-        return _ps(f"Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name LogPixels -Value {round(scale/100*96)}; 'Display scale registry value set to {scale}%. Sign out/in may be required.'").stdout.strip()
+        return _ps(f"Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name LogPixels -Value {round(scale/100*96)}; 'Display scale registry value set to {scale}%. Sign out/in may be required.'").stdout.strip()
     if action == "audio_default_set":
         if not value: return "Audio device name is required."
         return _ps("if(Get-Command Set-DefaultAudioDevice -ErrorAction SilentlyContinue){ Set-DefaultAudioDevice -Name '"+str(value).replace("'","''")+"' } else { 'Audio default-device command is not installed; device selection remains unchanged.' }").stdout.strip()
@@ -1050,7 +1050,7 @@ def windows_process_start_control(action, value=None, needs_confirmation=False):
     if not command: return "Executable or command is required."
     if needs_confirmation("launch"): return "Confirmation required."
     try:
-        subprocess.Popen(command, shell=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW)
+        subprocess.Popen(shlex.split(command, posix=False), shell=False, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP|subprocess.CREATE_NO_WINDOW)
         return f"Started: {command}"
     except Exception as e:
         return f"Process start failed: {e}"
@@ -1082,7 +1082,7 @@ def windows_update_install_control(action, value=None, needs_confirmation=False)
     if action != "windows_update_install": return None
     if needs_confirmation("windows_update_install"):
         return "Confirmation required."
-    r=ps("Install-Module PSWindowsUpdate -Force -Confirm:\$false -Scope CurrentUser; Import-Module PSWindowsUpdate; Install-WindowsUpdate -AcceptAll -IgnoreReboot -Confirm:\$false",timeout=120)
+    r=ps("Install-Module PSWindowsUpdate -Force -Confirm:$false -Scope CurrentUser; Import-Module PSWindowsUpdate; Install-WindowsUpdate -AcceptAll -IgnoreReboot -Confirm:\$false",timeout=120)
     return (r.stdout or r.stderr).strip() or "Windows Update installation completed."
 
 
