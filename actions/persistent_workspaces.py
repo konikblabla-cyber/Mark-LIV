@@ -1,7 +1,6 @@
 """Persistent Windows workspace configuration."""
 import json,os,platform
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 ROOT=Path(__file__).resolve().parents[1]; STORE=ROOT/"memory"/"workspaces.json"
 DEFAULT={"gaming":["steam.exe"],"school":["notepad.exe"],"coding":["code.exe"]}
 def _load():
@@ -9,6 +8,7 @@ def _load():
  try:return {**DEFAULT,**json.loads(STORE.read_text(encoding="utf-8"))}
  except Exception:return dict(DEFAULT)
 def persistent_workspaces(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","list")).lower(); data=_load()
  if a=="list": return json.dumps(data,ensure_ascii=False,indent=2)
  name=str(p.get("name","")).strip().lower()
