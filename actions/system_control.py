@@ -738,6 +738,18 @@ def windows_display_audio_set_controls(action, value=None, needs_confirmation=Fa
     return None
 
 
+def windows_audio_display_extra(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "volume_get":
+        return _ps("(Get-AudioDevice -Playback | Select-Object -ExpandProperty Volume) 2>$null")
+    if action == "audio_default_set":
+        name=str(value or "").replace("'","''")
+        if not name: return "Audio device name is required."
+        if needs_confirmation("audio_default_set"): return "Confirmation required."
+        return _ps(f"Set-AudioDevice -Playback -Name '{name}' -ErrorAction Stop; 'Default playback device set.'")
+    return None
+
+
 def windows_input_device_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action == "keyboard_devices":
