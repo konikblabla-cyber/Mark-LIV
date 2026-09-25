@@ -1,7 +1,7 @@
 """Wait for a Windows process to become ready."""
 import platform,subprocess,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; name=str(p.get("process","")).strip(); timeout=max(.5,min(float(p.get("timeout",20)),60))
  if not name:return "Process executable name is required."
  base=name.rsplit(".",1)[0].replace("'","''"); end=time.time()+timeout
