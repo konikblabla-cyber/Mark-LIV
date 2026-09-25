@@ -1,8 +1,8 @@
 """Windows application inventory based on visible windows."""
 import platform,ctypes
 from ctypes import wintypes
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def windows_apps_running(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  out=[]; cbtype=ctypes.WINFUNCTYPE(ctypes.c_bool,wintypes.HWND,wintypes.LPARAM); u=ctypes.windll.user32
  def cb(hwnd,_):
   if u.IsWindowVisible(hwnd):
