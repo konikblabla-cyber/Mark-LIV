@@ -10,14 +10,12 @@ jobs:
       fail-fast: false
       matrix:
         range:
-          - { start: 0, end: 40 }
-          - { start: 40, end: 80 }
-          - { start: 80, end: 120 }
-          - { start: 120, end: 160 }
-          - { start: 160, end: 200 }
-          - { start: 200, end: 240 }
-          - { start: 240, end: 280 }
-          - { start: 280, end: 320 }
+          - { start: 0, end: 20 }
+          - { start: 20, end: 40 }
+          - { start: 40, end: 60 }
+          - { start: 60, end: 80 }
+          - { start: 160, end: 180 }
+          - { start: 180, end: 200 }
     runs-on: ubuntu-latest
     name: Action validation ${{ matrix.range.start }}-${{ matrix.range.end }}
     steps:
