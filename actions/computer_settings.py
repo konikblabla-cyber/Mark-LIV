@@ -110,6 +110,28 @@ def volume_unmute():
         subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"], capture_output=True)
 
 
+# Additional Windows system actions (only added when not already present).
+def _new_system_action(action, value=None):
+    if platform.system() != "Windows":
+        return "This action is Windows-only."
+    if action == "clear_temp":
+        p=Path(os.environ.get("TEMP", "")); removed=0
+        if p.exists():
+            for x in p.iterdir():
+                try:
+                    if x.is_file() or x.is_symlink(): x.unlink(); removed+=1
+                    elif x.is_dir(): shutil.rmtree(x, ignore_errors=True); removed+=1
+                except Exception: pass
+        return f"Cleared {removed} temporary items."
+    if action == "empty_recycle_bin":
+        subprocess.run(["powershell","-NoProfile","-Command","Clear-RecycleBin -Force -ErrorAction SilentlyContinue"], creationflags=_WIN_HIDE)
+        return "Recycle Bin emptied."
+    if action == "startup_list":
+        out=subprocess.run(["powershell","-NoProfile","-Command","Get-CimInstance Win32_StartupCommand | Select-Object Name,Command,Location | ConvertTo-Json -Compress"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or "No startup entries found."
+    return "Use the existing computer_settings action handler for this action."
+
+
 def volume_get() -> int | None:
     """Current master volume 0-100, or None if this platform will not say.
 
