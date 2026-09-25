@@ -1,7 +1,8 @@
 """Read-only Windows file metadata."""
 import os,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_properties(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "Windows-only action."
  p=str((parameters or {}).get("path") or "").strip()
  if not p:return "Missing path."
  if not os.path.exists(p):return f"Path does not exist: {p}"
