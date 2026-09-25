@@ -1,5 +1,6 @@
 """High-level autonomous task runner exposed to JARVIS."""
 from core.autonomy import AutonomyEngine
+from core.task_manager import TaskManager
 
 def autonomous_task(parameters, player=None, speak=None, response=None,
                     session_memory=None, action_registry=None, **kwargs):
@@ -18,7 +19,7 @@ def autonomous_task(parameters, player=None, speak=None, response=None,
         "session_memory": session_memory,
         "action_registry": registry,
     }
-    engine = AutonomyEngine(registry, ctx=ctx)
+    engine = AutonomyEngine(registry, ctx=ctx, task_manager=TaskManager())
     return engine.run(goal)
 
 TOOL = {
