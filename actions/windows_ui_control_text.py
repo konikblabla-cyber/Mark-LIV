@@ -10,4 +10,4 @@ def windows_ui_control_text(parameters=None,**kwargs):
         if not c.exists(timeout=2): return f"Control not found: {title}"
         c.set_edit_text(value); return f"Text entered into: {title}"
     except Exception as e:return f"UI text entry failed: {e}"
-TOOL={"name":"windows_ui_control_text","description":"Set text in a uniquely identified editable Windows UI Automation control.","parameters":{"type":"OBJECT","properties":{"title":{"type":"STRING"},"text":{"type":"STRING"}},"required":["title","text"]},"handler=windows_ui_control_text}
+TOOL={"name":"windows_ui_control_text","description":"Set text in a uniquely identified editable Windows UI Automation control.","parameters":{"type":"OBJECT","properties":{"title":{"type":"STRING"},"text":{"type":"STRING"}},"required":["title","text"]},"handler":windows_ui_control_text}
