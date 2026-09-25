@@ -1,11 +1,11 @@
 """Bounded Windows process monitoring for Mark-LIV."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 _WATCH=set()
 def _exists(name):
  r=subprocess.run(["tasklist","/FI",f"IMAGENAME eq {name}"],capture_output=True,text=True,creationflags=subprocess.CREATE_NO_WINDOW,timeout=10)
  return name.lower() in r.stdout.lower()
 def process_watch(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","status")).lower().strip(); name=str(p.get("process","")).strip()
  if a=="status": return "\n".join(f"{k}: {'running' if _exists(k) else 'not running'}" for k in _WATCH) or "No watched processes."
  if a=="add":
