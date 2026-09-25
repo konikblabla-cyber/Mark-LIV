@@ -4,9 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-if platform.system() != "Windows":
-    raise RuntimeError("Mark-LIV is Windows-only.")
-
 _HIDDEN={"creationflags": subprocess.CREATE_NO_WINDOW}
 _MAX_MESSAGE=500
 
@@ -77,6 +74,8 @@ def _schedule_windows(target_dt,task_name,script_path):
     return task_name
 
 def reminder(parameters, response=None, player=None, session_memory=None):
+    if platform.system() != "Windows":
+        return "Windows-only action."
     p=parameters or {}
     date_str=str(p.get("date","")).strip()
     time_str=str(p.get("time","")).strip()
