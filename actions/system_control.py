@@ -227,3 +227,31 @@ def windows_task_and_startup(action, value=None, needs_confirmation=False):
             os.rename(target,target[:-9]); return f"Enabled startup item: {value}"
         return "Startup item is already enabled."
     return None
+
+
+def windows_maintenance_extra(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "windows_update_search":
+        cmd='Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 30 HotFixID,InstalledOn,Description | ConvertTo-Json -Compress'
+        out=subprocess.run(["powershell","-NoProfile","-Command",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No update history returned."
+    if action in ("feature_enable","feature_disable"):
+        if not value or not needs_confirmation: return "An exact Windows feature name and confirmation are required."
+        state="Enabled" if action=="feature_enable" else "Disabled"
+        cmd=f'Dism /Online /Enable-Feature /FeatureName:"{value}" /NoRestart' if state=="Enabled" else f'Dism /Online /Disable-Feature /FeatureName:"{value}" /NoRestart'
+        out=subprocess.run(["cmd","/c",cmd],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action == "large_files":
+        root=str(value or os.environ.get("USERPROFILE",r"C:\Users"))
+        if not os.path.isdir(root): return "Directory not found."
+        rows=[]
+        for base,dirs,files in os.walk(root):
+            dirs[:]=[d for d in dirs if d.lower() not in {"appdata","windows","program files","program files (x86)"}]
+            for f in files:
+                try:
+                    p=os.path.join(base,f); s=os.path.getsize(p)
+                    if s>=500*1024*1024: rows.append((s,p))
+                except OSError: pass
+        rows.sort(reverse=True)
+        return json.dumps([{"path":p,"size_mb":round(s/1048576,1)} for s,p in rows[:100]],ensure_ascii=False)
+    return None
