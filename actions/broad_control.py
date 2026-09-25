@@ -12,6 +12,7 @@ except (ImportError, ModuleNotFoundError):
         return False
 
 _HIDDEN={"creationflags":subprocess.CREATE_NO_WINDOW}
+_OS = platform.system()
 _PROTECTED={"system","registry","smss","csrss","wininit","winlogon","services","lsass","svchost","dwm","explorer"}
 _ALLOWED={"launch","open_file","open_folder","close_active","lock","sleep","shutdown","restart","logoff","task_manager","device_manager","services","settings","control_panel","network_connections","process_list","process_stop"}
 
