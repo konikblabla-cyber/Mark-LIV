@@ -7,11 +7,54 @@ def _path(v):
     p=Path(str(v or "").strip().strip('"')).expanduser()
     return p
 
+
+def _important_index_path() -> Path:
+    p = Path(__file__).resolve().parent.parent / "memory" / "important_files.txt"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _score_important_file(path: Path) -> int:
+    name, suffix = path.name.lower(), path.suffix.lower()
+    score = 40 if any(k in name for k in ("important","backup","project","school","work","document","invoice","config","save")) else 0
+    return score + (15 if suffix in {".docx",".xlsx",".pptx",".pdf",".txt",".md",".json",".py",".ps1",".zip",".7z",".rar"} else 0)
+
+def _build_important_index(root: Path, max_files=1000, max_scan_gb=50.0) -> str:
+    max_files=max(1,min(int(max_files),10000)); max_bytes=max(1.0,min(float(max_scan_gb),200.0))*1024**3
+    found=[]; scanned=0
+    for base,dirs,files in os.walk(root,topdown=True):
+        dirs[:]=[d for d in dirs if d not in {"$Recycle.Bin","System Volume Information"}]
+        for name in files:
+            try:
+                p=Path(base)/name; size=p.stat().st_size; scanned+=size; found.append((_score_important_file(p),str(p),size))
+            except (OSError,PermissionError): continue
+            if scanned>=max_bytes: break
+        if scanned>=max_bytes: break
+    found.sort(key=lambda x:(-x[0],x[1].casefold())); found=found[:max_files]
+    lines=["# Mark-LIV important file index","# Paths only; file contents are not stored here.",f"# Root: {root}",f"# Scan limit: {max_scan_gb:g} GB",""]
+    lines.extend(f"{a}\t{b}\t{c} bytes" for a,b,c in found)
+    out=_important_index_path(); out.write_text("\n".join(lines)+"\n",encoding="utf-8")
+    return f"Indexed {len(found)} important file paths in {out}; scanned {scanned/1024**3:.2f} GB."
+
+def _important_lookup(name: str) -> str:
+    idx=_important_index_path()
+    if not idx.exists(): return "Important file index does not exist yet. Run important_files_index first."
+    needle=str(name).strip().casefold()
+    if not needle: return "File name is required."
+    matches=[x for x in idx.read_text(encoding="utf-8",errors="replace").splitlines() if "\t" in x and needle in x.casefold()]
+    return "\n".join(matches[:50]) or f"No indexed important file matches '{name}'."
+
 def file_control(parameters=None, **kwargs):
     if not WIN: return "This action is Windows-only."
     p=parameters or {}; a=str(p.get("action","")).lower().strip()
     src=_path(p.get("source") or p.get("path")); dst=_path(p.get("destination") or p.get("target"))
     try:
+        if a in ("important_files_index","index_important_files"):
+            root=_path(p.get("root") or p.get("directory") or str(Path.home()))
+            return _build_important_index(root,p.get("max_files",1000),p.get("max_scan_gb",50)) if root.is_dir() else f"Directory not found: {root}"
+
+        if a in ("important_file_lookup","lookup_important_file"):
+            return _important_lookup(p.get("name") or p.get("query") or "")
+
         if a in ("file_search","search_files"):
             root=_path(p.get("root") or p.get("directory") or ".")
             pattern=str(p.get("pattern") or "*")
@@ -67,4 +110,4 @@ def file_control(parameters=None, **kwargs):
         return "Unknown file action."
     except Exception as e: return f"File operation failed: {e}"
 
-TOOL={"name":"file_control","description":"Windows file operations: search, create folder, copy, move, rename, delete, read and write files, inspect metadata, create/extract ZIP archives, and calculate SHA-256 hashes.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"},"content":{"type":"string"}},"required":["action"]}}
+TOOL={"name":"file_control","description":"Windows file operations plus important file indexing: build a ranked important_files.txt path index (up to 200 GB scan limit) and look up indexed paths by name.","input_schema":{"type":"object","properties":{"action":{"type":"string"},"path":{"type":"string"},"source":{"type":"string"},"destination":{"type":"string"},"root":{"type":"string"},"pattern":{"type":"string"},"name":{"type":"string"},"max_files":{"type":"integer"},"max_scan_gb":{"type":"number"},"content":{"type":"string"}},"required":["action"]}}
