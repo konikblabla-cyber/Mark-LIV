@@ -363,7 +363,36 @@ def _screen_geometry() -> str:
 
 
 
-def _screen_find_candidates(description: str):
+
+
+def _active_window_info() -> str:
+    if platform.system() != "Windows":
+        raise RuntimeError("Mark-LIV computer control is Windows-only.")
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return "window=unknown; hwnd=0"
+    title = ctypes.create_unicode_buffer(512)
+    user32.GetWindowTextW(hwnd, title, len(title))
+    rect = wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        return f"window={title.value or 'untitled'}; hwnd={hwnd}"
+    return f"window={title.value or 'untitled'}; hwnd={hwnd}; rect={rect.left},{rect.top},{rect.right},{rect.bottom}"
+
+
+def _screen_dpi() -> str:
+    if platform.system() != "Windows":
+        raise RuntimeError("Mark-LIV computer control is Windows-only.")
+    import ctypes
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+        return f"dpi={int(dpi) if dpi else 96}"
+    except Exception:
+        return "dpi=96; source=fallback"
+\ndef _screen_find_candidates(description: str):
     """Return a small set of candidate centers so the caller can avoid one bad coordinate."""
     first = _screen_find(description)
     if first is None:
@@ -541,6 +570,12 @@ def computer_control(
         if action == "screenshot":
             return _screenshot(params.get("path"))
 
+        if action == "active_window_info":
+            return _active_window_info()
+
+        if action == "screen_dpi":
+            return _screen_dpi()
+
         if action == "mouse_position":
             x, y = _mouse_position()
             return f"{x},{y}"
@@ -603,7 +638,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | mouse_position | screen_geometry | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
