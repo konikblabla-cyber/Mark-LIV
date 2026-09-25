@@ -638,9 +638,10 @@ def windows_device_audio_controls(action, value=None, needs_confirmation=False):
     if action == "network_adapter_enable":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
         return _ps(f"Enable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter enabled.'")
-    if action == "network_adapter_disable, audio_default_get, camera_status, device_status, device_restart, recycle_bin_empty, update_check, defender_scan, scheduled_task_delete":
+    if action == "network_adapter_disable":
         if not value or not needs_confirmation:return "Adapter name and confirmation are required."
-        return _ps(f"Disable-NetAdapter -Name '{value.replace(chr(39),chr(39)*2)}' -Confirm:$false; 'Network adapter disabled.'")
+        safe=value.replace(chr(39),chr(39)*2)
+        return _ps(f"Disable-NetAdapter -Name '{safe}' -Confirm:$false; 'Network adapter disabled.'")
     return None
 
 
@@ -692,7 +693,7 @@ def windows_safe_network_controls(action, value=None, needs_confirmation=False):
         return _ps(f"Set-NetConnectionProfile -InterfaceAlias '{parts[0].replace(chr(39),chr(39)*2)}' -NetworkCategory {parts[1]}; 'Network profile updated.'")
     if action == "arp_table":
         return _ps("Get-NetNeighbor -AddressFamily IPv4 | Select IPAddress,LinkLayerAddress,State,InterfaceAlias | Format-Table -AutoSize")
-    if action == "route_table, update_services_status, update_pending, windows_update_cache_size, windows_update_cache_clear":
+    if action == "route_table":
         return _ps("Get-NetRoute -AddressFamily IPv4 | Select DestinationPrefix,NextHop,RouteMetric,InterfaceAlias | Sort-Object RouteMetric | Format-Table -AutoSize")
     return None
 
