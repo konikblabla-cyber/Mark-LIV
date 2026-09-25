@@ -206,3 +206,24 @@ def windows_maintenance(action, value=None, needs_confirmation=False):
         out=subprocess.run(["powershell","-NoProfile","-Command","Get-WindowsOptionalFeature -Online | Select-Object FeatureName,State | ConvertTo-Json -Compress"],capture_output=True,text=True,creationflags=_WIN_HIDE)
         return out.stdout.strip() or out.stderr.strip() or "No data returned."
     return None
+
+
+def windows_task_and_startup(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "scheduled_tasks":
+        out=subprocess.run(["powershell","-NoProfile","-Command","Get-ScheduledTask | Select-Object TaskName,TaskPath,State | ConvertTo-Json -Compress"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip()
+    if action in ("startup_disable","startup_enable"):
+        if not value or not needs_confirmation: return "An exact startup entry name and confirmation are required."
+        # Only operate on the user's startup folder shortcut, not arbitrary registry entries.
+        p=os.path.join(os.environ.get("APPDATA",""),r"Microsoft\Windows\Start Menu\Programs\Startup")
+        matches=[os.path.join(p,x) for x in os.listdir(p)] if os.path.isdir(p) else []
+        target=next((x for x in matches if os.path.basename(x).lower()==str(value).lower()),None)
+        if not target: return "Startup shortcut not found in the user Startup folder."
+        if action=="startup_disable":
+            disabled=target+".disabled"
+            os.rename(target,disabled); return f"Disabled startup item: {value}"
+        if target.endswith(".disabled"):
+            os.rename(target,target[:-9]); return f"Enabled startup item: {value}"
+        return "Startup item is already enabled."
+    return None
