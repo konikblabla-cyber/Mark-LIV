@@ -712,6 +712,32 @@ def windows_hardware_power_controls(action, value=None, needs_confirmation=False
     return None
 
 
+def windows_display_audio_set_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "brightness_set":
+        try: level=max(0,min(100,int(str(value).strip())))
+        except ValueError: return "Brightness must be 0-100."
+        if needs_confirmation("brightness_set"): return "Confirmation required."
+        r=ps(f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,{level})")
+        return f"Brightness set to {level}%." if r.returncode==0 else (r.stderr.strip() or "Brightness change failed.")
+    if action == "screen_resolution_set":
+        try:
+            w,h=[max(1,int(x)) for x in str(value).lower().replace(" ","").split("x",1)]
+        except Exception: return "Resolution must use WIDTHxHEIGHT, e.g. 1920x1080."
+        if needs_confirmation("screen_resolution_set"): return "Confirmation required."
+        cmd=f"$v=Get-CimInstance Win32_VideoController | Where-Object {{$_.CurrentHorizontalResolution -ne $null}} | Select-Object -First 1; if($v) {{ 'Detected adapter: '+$v.Name+'; requested resolution: {w}x{h}. Direct mode change requires a display driver API.' }} else {{ 'No display adapter found.' }}"
+        return _ps(cmd).stdout.strip()
+    if action == "display_scale_set":
+        try: scale=max(100,min(500,int(str(value).strip())))
+        except ValueError: return "Display scale must be 100-500."
+        if needs_confirmation("display_scale_set"): return "Confirmation required."
+        return _ps(f"Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name LogPixels -Value {round(scale/100*96)}; 'Display scale registry value set to {scale}%. Sign out/in may be required.'").stdout.strip()
+    if action == "audio_default_set":
+        if not value: return "Audio device name is required."
+        return _ps("if(Get-Command Set-DefaultAudioDevice -ErrorAction SilentlyContinue){ Set-DefaultAudioDevice -Name '"+str(value).replace("'","''")+"' } else { 'Audio default-device command is not installed; device selection remains unchanged.' }").stdout.strip()
+    return None
+
+
 def windows_update_install_control(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action != "windows_update_install": return None
