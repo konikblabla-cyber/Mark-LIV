@@ -716,6 +716,23 @@ def windows_network_config_controls(action, value=None, needs_confirmation=False
     return None
 
 
+def windows_session_control(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    value = str(value or "").strip()
+    if action == "session_lock":
+        return _ps("rundll32.exe user32.dll,LockWorkStation; 'Workstation locked.'")
+    if action == "session_sign_out":
+        if not needs_confirmation: return "Confirmation is required before signing out."
+        return _ps("shutdown.exe /l; 'Sign-out requested.'")
+    if action == "session_shutdown":
+        if not needs_confirmation: return "Confirmation is required before shutting down."
+        return _ps("shutdown.exe /s /t 0; 'Shutdown requested.'")
+    if action == "session_restart":
+        if not needs_confirmation: return "Confirmation is required before restarting."
+        return _ps("shutdown.exe /r /t 0; 'Restart requested.'")
+    return None
+
+
 def windows_update_controls(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action == "update_services_status":
