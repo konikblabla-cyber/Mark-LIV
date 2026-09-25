@@ -1,106 +1,114 @@
-"""Autonomous storage advisor: find likely removable files, then delete only after UI confirmation."""
+"""Advanced, conservative storage analysis for Mark-LIV.
+Scans the selected drive/folder, explains why files are candidates, and never
+deletes anything by itself.
+"""
 from __future__ import annotations
-import json
 import os
 import platform
-from collections import defaultdict
 from pathlib import Path
-from core import confirm
+from datetime import datetime, timezone
+import psutil
 
 SKIP_DIRS = {
     "AppData", "Windows", "Program Files", "Program Files (x86)",
     "$Recycle.Bin", "System Volume Information", ".git", "node_modules",
-    "__pycache__", "venv", ".venv"
+    "__pycache__", "venv", ".venv", "site-packages"
 }
-SAFE_EXTS = {".tmp", ".log", ".bak", ".old", ".dmp", ".crdownload", ".part"}
+DISPOSABLE_EXTS = {".tmp", ".log", ".bak", ".old", ".dmp", ".crdownload", ".part", ".cache"}
 INSTALLER_EXTS = {".exe", ".msi", ".iso"}
+USER_DOC_EXTS = {".doc",".docx",".pdf",".txt",".xlsx",".pptx",".py",".ps1",".json",".zip",".7z",".rar"}
 MEDIA_EXTS = {".jpg",".jpeg",".png",".webp",".gif",".mp4",".mov",".mkv",".avi"}
-DOC_EXTS = {".doc",".docx",".pdf",".txt",".xlsx",".pptx",".py",".ps1",".zip",".7z",".rar"}
 
-def _candidate_score(p: Path, size: int) -> int:
-    n = p.name.lower()
-    ext = p.suffix.lower()
-    score = min(50, int(size / (1024**3) * 10))
-    if ext in SAFE_EXTS: score += 70
-    if any(x in n for x in ("temp","cache","crash","dump","old","backup")): score += 25
-    if ext in INSTALLER_EXTS: score += 18
-    if ext in MEDIA_EXTS: score += 5
-    if ext in DOC_EXTS: score -= 35
-    if any(x in n for x in ("important","school","project","work","invoice","config","save")): score -= 100
-    return score
+def _reason(path: Path, size: int, age_days: float) -> tuple[int, list[str]]:
+    n, ext = path.name.lower(), path.suffix.lower()
+    score = min(35, int(size / (1024**3) * 8))
+    reasons = []
+    if ext in DISPOSABLE_EXTS:
+        score += 70; reasons.append("plik tymczasowy/log/kopia techniczna")
+    if any(x in n for x in ("temp", "cache", "crash", "dump")):
+        score += 28; reasons.append("nazwa wskazuje na dane tymczasowe")
+    if any(x in n for x in ("old", "backup", "bak")):
+        score += 20; reasons.append("wygląda na starą kopię")
+    if age_days >= 180 and ext in DISPOSABLE_EXTS:
+        score += 25; reasons.append(f"niezmieniany od {int(age_days)} dni")
+    if ext in INSTALLER_EXTS:
+        score += 12; reasons.append("instalator/obraz ISO")
+    if ext in MEDIA_EXTS:
+        score -= 8
+    if ext in USER_DOC_EXTS:
+        score -= 45
+    if any(x in n for x in ("important","school","project","work","invoice","config","save")):
+        score -= 140; reasons.append("nazwa sugeruje ważne dane")
+    if not reasons:
+        reasons.append("duży plik, ale brak mocnego sygnału że jest zbędny")
+    return score, reasons
 
-def _scan(root: Path, limit: int = 30000):
-    rows=[]; seen=0
+def _scan(root: Path, max_files: int = 50000, min_mb: float = 5.0):
+    rows = []
+    seen = 0
+    cutoff = 5 * 1024 * 1024
     for base, dirs, files in os.walk(root, topdown=True):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
         for name in files:
-            if seen >= limit: return rows
+            if seen >= max_files:
+                return rows
             seen += 1
             try:
-                p=Path(base)/name
-                if not p.is_file(): continue
-                s=p.stat()
-                if s.st_size < 5*1024*1024: continue
-                score=_candidate_score(p,s.st_size)
-                if score >= 15:
-                    rows.append({"path":str(p),"size_mb":round(s.st_size/1048576,1),"score":score})
-            except (OSError,PermissionError): pass
+                p = Path(base) / name
+                s = p.stat()
+                if not p.is_file() or s.st_size < max(cutoff, int(min_mb * 1048576)):
+                    continue
+                age = max(0.0, (datetime.now(timezone.utc).timestamp() - s.st_mtime) / 86400)
+                score, reasons = _reason(p, s.st_size, age)
+                if score >= 35:
+                    rows.append({"path": str(p), "size_mb": round(s.st_size/1048576, 1),
+                                 "age_days": int(age), "score": score, "reasons": reasons})
+            except (OSError, PermissionError):
+                continue
     return rows
 
 def storage_cleanup_advisor(parameters=None, **kwargs):
-    if platform.system() != "Windows": return "Windows-only action."
-    p=parameters or {}
-    root=Path(str(p.get("root") or Path.home())).expanduser()
-    if not root.is_dir(): return f"Directory not found: {root}"
-    try: limit=max(1000,min(int(p.get("limit",30)),100))
-    except (TypeError,ValueError): limit=30
-    rows=_scan(root)
-    rows.sort(key=lambda x:(-x["score"],-x["size_mb"]))
-    top=rows[:limit]
-    if not top: return "Nie znalazłem oczywistych kandydatów do bezpiecznego usunięcia."
-    total=sum(x["size_mb"] for x in top)
-    lines=[f"Znalazłem {len(top)} kandydatów, razem około {total:.1f} MB:"]
-    for i,x in enumerate(top,1):
-        lines.append(f"{i}. {x['path']} ({x['size_mb']} MB, score={x['score']})")
+    if platform.system() != "Windows":
+        return "Windows-only action."
+    p = parameters or {}
+    raw_root = str(p.get("root") or "")
+    if raw_root:
+        root = Path(raw_root).expanduser()
+    else:
+        root = Path(os.environ.get("SystemDrive", "C:") + "\")
+    if not root.is_dir():
+        return f"Directory not found: {root}"
+    try:
+        limit = max(1, min(int(p.get("limit", 30)), 100))
+    except (TypeError, ValueError):
+        limit = 30
+    try:
+        min_mb = max(1.0, min(float(p.get("min_mb", 5)), 10240))
+    except (TypeError, ValueError):
+        min_mb = 5.0
+    usage = psutil.disk_usage(str(root))
+    rows = _scan(root, min_mb=min_mb)
+    rows.sort(key=lambda x: (-x["score"], -x["size_mb"]))
+    top = rows[:limit]
+    lines = [
+        f"Dysk: {root}",
+        f"Zajęte: {usage.percent:.1f}% | wolne: {usage.free/1073741824:.1f} GB | razem: {usage.total/1073741824:.1f} GB",
+        f"Znalazłem {len(top)} kandydatów (to rekomendacje, nie automatyczne usuwanie)."
+    ]
+    for i, x in enumerate(top, 1):
+        why = "; ".join(x["reasons"])
+        lines.append(f"{i}. {x['path']} | {x['size_mb']:.1f} MB | {x['age_days']} dni | {why}")
+    if not top:
+        lines.append("Brak wystarczająco mocnych kandydatów.")
     return "\n".join(lines)
 
-def storage_cleanup_execute(parameters=None, **kwargs):
-    if platform.system() != "Windows": return "Windows-only action."
-    p=parameters or {}
-    raw=p.get("paths") or []
-    if isinstance(raw,str):
-        try: raw=json.loads(raw)
-        except Exception: raw=[x.strip() for x in raw.splitlines() if x.strip()]
-    paths=[Path(str(x)).expanduser() for x in raw if str(x).strip()]
-    if not paths: return "No files selected."
-    safe=[]
-    for path in paths[:100]:
-        try:
-            if path.is_file() and path.stat().st_size >= 0:
-                safe.append(path)
-        except OSError: pass
-    if not safe: return "No valid files selected."
-    total=sum(x.stat().st_size for x in safe)
-    detail="\n".join(f"- {x} ({x.stat().st_size/1048576:.1f} MB)" for x in safe)
-    def run():
-        deleted=0
-        for x in safe:
-            try: x.unlink(); deleted += 1
-            except OSError: pass
-        return f"Usunięto {deleted}/{len(safe)} plików, zwolniono około {total/1048576:.1f} MB."
-    return confirm.request(
-        key="storage_cleanup:delete",
-        title=f"Usuń {len(safe)} wybranych plików?",
-        detail=detail,
-        run=run,
-    )
-
 TOOL = {
-    "name":"storage_cleanup_advisor",
-    "description":"Autonomicznie analizuje dysk i wybiera prawdopodobnie zbędne duże pliki; nigdy nie usuwa ich bez osobnego potwierdzenia.",
-    "parameters":{"type":"OBJECT","properties":{
-        "root":{"type":"STRING","description":"Folder to analyze; default is the user's home folder."},
-        "limit":{"type":"INTEGER","description":"Maximum number of candidates to report."}
+    "name": "storage_cleanup_advisor",
+    "description": "Zaawansowanie analizuje zajętość dysku i wybiera tylko mocne, wyjaśnione kandydatury do czyszczenia; niczego nie usuwa.",
+    "parameters": {"type":"OBJECT","properties":{
+        "root":{"type":"STRING","description":"Dysk/folder do analizy; domyślnie dysk systemowy."},
+        "limit":{"type":"INTEGER","description":"Maksymalnie 100 kandydatów, domyślnie 30."},
+        "min_mb":{"type":"NUMBER","description":"Minimalny rozmiar pliku w MB, domyślnie 5."}
     }},
-    "handler":storage_cleanup_advisor,
+    "handler": storage_cleanup_advisor,
 }
