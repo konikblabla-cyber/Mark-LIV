@@ -20,4 +20,4 @@ def windows_file_wait(parameters=None, **kwargs):
         time.sleep(0.5)
     return f"Path did not appear within {timeout}s: {path}"
 
-TOOL={"name":"windows_file_wait","description":"Wait for a Windows file or folder to appear, useful in multi-step tasks.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"},"timeout":{"type":"INTEGER"}},"required":["path"]},"handler=windows_file_wait}
+TOOL={"name":"windows_file_wait","description":"Wait for a Windows file or folder to appear, useful in multi-step tasks.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"},"timeout":{"type":"INTEGER"}},"required":["path"]},"handler":windows_file_wait}
