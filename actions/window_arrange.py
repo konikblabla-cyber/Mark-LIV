@@ -1,9 +1,9 @@
 """Windows-only simple window arrangement."""
 import platform,ctypes
 from ctypes import wintypes
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 u=ctypes.windll.user32
 def window_arrange(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","tile")).lower().strip()
  if a not in ("tile","cascade","minimize_all"):return "Use tile, cascade or minimize_all."
  if a=="minimize_all":
