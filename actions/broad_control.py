@@ -17,7 +17,7 @@ def _execute(op, value=""):
     if _OS != "Windows":
         return "Windows control is currently supported only on Windows."
     if op == "launch":
-        subprocess.Popen(shlex.split(value, posix=False), shell=False
+        subprocess.Popen(shlex.split(value, posix=False), shell=False)
         return f"Launched: {value}"
     if op == "open_file":
         os.startfile(value)
