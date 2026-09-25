@@ -1,8 +1,8 @@
 """Keep Windows display/system awake temporarily."""
 import ctypes,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 ES_CONTINUOUS=0x80000000;ES_DISPLAY_REQUIRED=0x2;ES_SYSTEM_REQUIRED=0x1
 def windows_display_awake(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; enable=bool(p.get("enable",True))
  flags=ES_CONTINUOUS|ES_DISPLAY_REQUIRED|ES_SYSTEM_REQUIRED if enable else ES_CONTINUOUS
  ctypes.windll.kernel32.SetThreadExecutionState(flags)
