@@ -1,7 +1,7 @@
 """Read-only Windows executable metadata analysis."""
 import platform,subprocess,os
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_exe_analysis(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; path=str(p.get("path","")).strip()
  if not path or not os.path.isfile(path):return "Executable file path is required."
  safe=path.replace("'","''")
