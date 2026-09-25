@@ -185,3 +185,24 @@ def windows_network_tools(action, value=None, needs_confirmation=False):
         out=subprocess.run(["netsh","winhttp","set","proxy",str(value)],capture_output=True,text=True,creationflags=_WIN_HIDE)
         return out.stdout.strip() or out.stderr.strip()
     return None
+
+
+def windows_maintenance(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    commands={
+      "user_accounts": 'Get-LocalUser | Select-Object Name,Enabled,LastLogon,Description | ConvertTo-Json -Compress',
+      "local_groups": 'Get-LocalGroup | Select-Object Name,Description | ConvertTo-Json -Compress',
+      "installed_software_paths": 'Get-ItemProperty HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*,HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\* | Where-Object DisplayName | Select-Object DisplayName,InstallLocation | ConvertTo-Json -Compress',
+      "recycle_bin_size": '(Get-ChildItem -LiteralPath "$env:SystemDrive\\$Recycle.Bin" -Force -Recurse -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum'
+    }
+    if action in commands:
+        out=subprocess.run(["powershell","-NoProfile","-Command",commands[action]],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No data returned."
+    if action == "restore_point_create":
+        if not needs_confirmation: return "Creating a restore point requires confirmation."
+        out=subprocess.run(["powershell","-NoProfile","-Command","Checkpoint-Computer -Description 'Mark-LIV restore point' -RestorePointType MODIFY_SETTINGS"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "Restore point command completed."
+    if action == "optional_features":
+        out=subprocess.run(["powershell","-NoProfile","-Command","Get-WindowsOptionalFeature -Online | Select-Object FeatureName,State | ConvertTo-Json -Compress"],capture_output=True,text=True,creationflags=_WIN_HIDE)
+        return out.stdout.strip() or out.stderr.strip() or "No data returned."
+    return None
