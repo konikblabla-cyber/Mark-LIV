@@ -1,7 +1,7 @@
 """Read-only Windows file association lookup."""
 import platform,winreg
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_association_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  ext=str((parameters or {}).get("extension") or "").strip().lower()
  if not ext:return "Missing extension, e.g. .pdf"
  if not ext.startswith("."):ext="."+ext
