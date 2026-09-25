@@ -15,6 +15,7 @@ from tests.test_confirm import ConfirmTests
 from tests.test_computer_control_extra import ComputerControlExtraTests
 from tests.test_computer_settings import ComputerSettingsTests
 from tests.test_close_all_apps import CloseAllAppsTests
+from tests.test_action_sources import ActionSourceTests
 
 
 def suite():
@@ -35,6 +36,7 @@ def suite():
         loader.loadTestsFromTestCase(ComputerControlExtraTests),
         loader.loadTestsFromTestCase(ComputerSettingsTests),
         loader.loadTestsFromTestCase(CloseAllAppsTests),
+        loader.loadTestsFromTestCase(ActionSourceTests),
     ])
 
 
