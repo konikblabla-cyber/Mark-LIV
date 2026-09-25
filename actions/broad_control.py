@@ -66,9 +66,9 @@ def _execute(op: str, value: str = "") -> str:
 
 def broad_control(parameters=None,response=None,player=None,session_memory=None):
     if platform.system()!="Windows":return "Windows-only action."
-    p=parameters or {};op=str(p.get("operation","")).strip().lower();value=str(p.get("value","")).strip()
+    p=parameters or {};op=str(p.get("operation","")).strip().lower();value=str(p.get("target", p.get("value",""))).strip()
     if op not in _ALLOWED:return "Unsupported operation."
-    if op in {"launch","open_file","open_folder","process_stop"} and not value:return "A value is required."
+    if op in {"launch","open_file","open_folder","process_stop"} and not value:return "A target is required."
     if needs_confirmation(op):
         if confirm.pending_title():return "There is already a confirmation waiting on screen."
         return confirm.request(key=f"broad_control:{op}",title="Allow JARVIS to perform this computer action?",detail=f"Operation: {op}\nTarget: {value or '(current computer)'}",run=lambda:_execute(op,value))
