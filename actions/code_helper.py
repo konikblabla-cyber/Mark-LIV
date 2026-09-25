@@ -92,9 +92,14 @@ def _preview(code: str, lines: int = 10) -> str:
 
 
 def _has_error(output: str) -> bool:
-    error_signals = ["error", "exception", "traceback", "syntaxerror",
-                     "nameerror", "typeerror", "stderr", "failed", "crash"]
-    return any(s in output.lower() for s in error_signals)
+    # Prefer the real process exit code so normal output containing "error"
+    # does not trigger an unnecessary repair cycle.
+    match = re.search(r"\[PROCESS_EXIT_CODE:(-?\d+)\]", output or "")
+    if match:
+        return int(match.group(1)) != 0
+    error_signals = ["traceback", "syntaxerror", "nameerror", "typeerror",
+                     "stderr:", "execution error:", "timed out", "failed", "crash"]
+    return any(s in (output or "").lower() for s in error_signals)
 
 
 def _take_screenshot() -> Path | None:
@@ -231,10 +236,14 @@ def _run_file(path: Path, args: list, timeout: int) -> str:
         )
         output = result.stdout.strip()
         error  = result.stderr.strip()
-        parts  = []
-        if output: parts.append(f"Output:\n{output}")
-        if error:  parts.append(f"Stderr:\n{error}")
-        return "\n\n".join(parts) if parts else "Executed with no output."
+        parts  = [f"[PROCESS_EXIT_CODE:{result.returncode}]"]
+        if output:
+            parts.append(f"Output:\n{output}")
+        if error:
+            parts.append(f"Stderr:\n{error}")
+        if result.returncode == 0 and not output and not error:
+            parts.append("Executed with no output.")
+        return "\n\n".join(parts)
 
     except subprocess.TimeoutExpired:
         return f"Timed out after {timeout}s."
@@ -550,7 +559,21 @@ def code_helper(
     file_path   = p.get("file_path", "").strip()
     code        = p.get("code", "").strip()
     args        = p.get("args", [])
-    timeout     = int(p.get("timeout", 30))
+    if isinstance(args, str):
+        import shlex
+        try:
+            args = shlex.split(args, posix=(sys.platform != "win32"))
+        except ValueError:
+            return "Invalid command arguments: unmatched quotes."
+    elif not isinstance(args, (list, tuple)):
+        return "Invalid command arguments: expected a list or string."
+    args = [str(arg) for arg in args]
+
+    try:
+        timeout = int(p.get("timeout", 30))
+    except (TypeError, ValueError):
+        timeout = 30
+    timeout = max(1, min(timeout, 300))
 
     if action == "auto":
         action = _detect_intent(description, file_path, code)
