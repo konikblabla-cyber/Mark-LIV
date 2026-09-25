@@ -1,7 +1,7 @@
 """Read-only foreground Windows process identity."""
 import platform,ctypes,psutil
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_active_window_process(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  u=ctypes.windll.user32;h=u.GetForegroundWindow();pid=ctypes.c_ulong();u.GetWindowThreadProcessId(h,ctypes.byref(pid))
  try:
   p=psutil.Process(pid.value);return f"Foreground process: {p.name()} PID={p.pid} path={p.exe()}"
