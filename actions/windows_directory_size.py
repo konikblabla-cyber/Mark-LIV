@@ -1,7 +1,7 @@
 """Calculate bounded Windows directory size."""
 import os,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_directory_size(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  root=str((parameters or {}).get("directory","")).strip()
  if not root or not os.path.isdir(root):return "Directory not found."
  total=count=0
