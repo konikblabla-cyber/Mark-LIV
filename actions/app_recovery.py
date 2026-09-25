@@ -1,10 +1,14 @@
 """Windows app health and controlled restart helper."""
 import platform,subprocess,psutil,os
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def app_recovery(parameters=None,**kwargs):
- p=parameters or {}; exe=os.path.basename(str(p.get("exe","")).strip())
+ p=parameters or {}
+ if platform.system()!="Windows": return "app_recovery is available only on Windows."
+ exe=os.path.basename(str(p.get("exe","")).strip())
  if not exe:return "Executable name required."
- matches=[x for x in psutil.process_iter(["pid","name","status"]) if (x.info.get("name") or "").casefold()==exe.casefold()]
+ try:
+  matches=[x for x in psutil.process_iter(["pid","name","status"]) if (x.info.get("name") or "").casefold()==exe.casefold()]
+ except (psutil.Error,OSError) as e:
+  return f"Could not inspect processes: {e}"
  if not matches:return f"{exe} is not running."
  bad=[]
  for x in matches:
