@@ -1,7 +1,7 @@
 """Read-only Windows environment variable inspector."""
 import platform,os
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_environment_variables(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; prefix=str(p.get("prefix","")).strip().upper()
  rows=[]
  for k,v in sorted(os.environ.items()):
