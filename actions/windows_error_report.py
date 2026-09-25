@@ -1,7 +1,7 @@
 """Windows application error event report."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_error_report(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; n=max(1,min(int(p.get("count",30)),100))
  cmd=f"Get-WinEvent -FilterHashtable @{{LogName='Application';Level=2}} -MaxEvents {n} -ErrorAction SilentlyContinue | Select TimeCreated,Id,ProviderName,Message | Format-List"
  r=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",cmd],capture_output=True,text=True,timeout=20,creationflags=subprocess.CREATE_NO_WINDOW)
