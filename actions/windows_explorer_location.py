@@ -1,7 +1,7 @@
 """Navigate the focused Windows File Explorer window to a folder."""
 import ctypes,platform,os,pyautogui,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_explorer_location(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; path=os.path.abspath(os.path.expandvars(os.path.expanduser(str(p.get("path") or ""))))
  if not os.path.isdir(path): return f"Folder does not exist: {path}"
  u=ctypes.windll.user32; h=u.GetForegroundWindow(); n=u.GetWindowTextLengthW(h); b=ctypes.create_unicode_buffer(n+1); u.GetWindowTextW(h,b,n+1)
