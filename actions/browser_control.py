@@ -924,6 +924,8 @@ class _SessionRegistry:
 _registry = _SessionRegistry()
 
 def browser_control(
+    if _OS != "Windows":
+        return "This action is Windows-only."
     parameters:    dict = None,
     response=None,
     player=None,
