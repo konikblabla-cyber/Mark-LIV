@@ -18,6 +18,7 @@ from core.permissions import needs_confirmation
 from core.autonomy_verifier import verify_text, recovery_hint
 from core import confirm
 from core.task_manager import TaskManager
+from core.autonomy_guard import audit_plan
 
 
 @dataclass
@@ -110,7 +111,12 @@ Previous failure:
                 reason=str(raw.get("reason") or ""),
                 verify=str(raw.get("verify") or ""),
             ))
-        return Plan(goal=goal, steps=steps[:self.MAX_STEPS],
+        steps = steps[:self.MAX_STEPS]
+        problems = audit_plan(steps)
+        if problems:
+            self.logger("[Autonomy] Plan rejected by safety guard: " + "; ".join(problems))
+            return None
+        return Plan(goal=goal, steps=steps,
                     summary=str(data.get("summary") or ""))
 
     def _result_ok(self, result: Any, expectation: str = "") -> bool:
