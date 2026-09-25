@@ -361,7 +361,24 @@ def _screen_geometry() -> str:
     return f"screen={w}x{h}; mouse={x},{y}; origin=top-left; coordinates=physical screen pixels"
 
 
-def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
+
+
+def _screen_find_candidates(description: str):
+    """Return a small set of candidate centers so the caller can avoid one bad coordinate."""
+    first = _screen_find(description)
+    if first is None:
+        return []
+    x, y = first
+    w, h = _screen_size()
+    return [(x, y), (max(0, x-8), y), (min(w-1, x+8), y), (x, max(0, y-8)), (x, min(h-1, y+8))]
+
+
+def _mouse_move_verified(x: int, y: int) -> str:
+    x, y = _validate_coords(x, y)
+    pyautogui.moveTo(x, y, duration=0.15)
+    actual = _mouse_position()
+    return f"Mouse moved to {actual[0]},{actual[1]} (requested {x},{y})"
+\ndef _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
     if coords is None:
         return None
@@ -493,7 +510,7 @@ def computer_control(
             return _click(params.get("x"), params.get("y"), "right", 1)
 
         if action == "move":
-            return _move(int(params.get("x", 0)), int(params.get("y", 0)))
+            return _mouse_move_verified(int(params.get("x", 0)), int(params.get("y", 0)))
 
         if action == "drag":
             return _drag(
