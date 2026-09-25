@@ -738,6 +738,15 @@ def windows_display_audio_set_controls(action, value=None, needs_confirmation=Fa
     return None
 
 
+def windows_input_device_controls(action, value=None, needs_confirmation=False):
+    if platform.system() != "Windows": return "This action is Windows-only."
+    if action == "keyboard_devices":
+        return _ps("Get-CimInstance Win32_Keyboard | Select Name,Status,PNPDeviceID | Format-List | Out-String")
+    if action == "mouse_devices":
+        return _ps("Get-CimInstance Win32_PointingDevice | Select Name,Status,PNPDeviceID | Format-List | Out-String")
+    return None
+
+
 def windows_update_install_control(action, value=None, needs_confirmation=False):
     if platform.system() != "Windows": return "This action is Windows-only."
     if action != "windows_update_install": return None
