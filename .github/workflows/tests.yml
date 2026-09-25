@@ -10,18 +10,20 @@ jobs:
       fail-fast: false
       matrix:
         range:
-          - { start: 5, end: 7 }
-          - { start: 7, end: 10 }
-          - { start: 10, end: 13 }
-          - { start: 13, end: 15 }
-          - { start: 20, end: 23 }
-          - { start: 23, end: 25 }
-          - { start: 30, end: 33 }
-          - { start: 33, end: 35 }
-          - { start: 50, end: 53 }
-          - { start: 53, end: 55 }
-          - { start: 170, end: 173 }
-          - { start: 173, end: 175 }
+          - { start: 10, end: 11 }
+          - { start: 11, end: 12 }
+          - { start: 12, end: 13 }
+          - { start: 21, end: 22 }
+          - { start: 22, end: 23 }
+          - { start: 30, end: 31 }
+          - { start: 31, end: 32 }
+          - { start: 32, end: 33 }
+          - { start: 50, end: 51 }
+          - { start: 51, end: 52 }
+          - { start: 52, end: 53 }
+          - { start: 170, end: 171 }
+          - { start: 171, end: 172 }
+          - { start: 172, end: 173 }
     runs-on: ubuntu-latest
     name: Action validation ${{ matrix.range.start }}-${{ matrix.range.end }}
     steps:
