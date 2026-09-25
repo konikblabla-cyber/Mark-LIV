@@ -1,8 +1,6 @@
 """Windows window inventory and targeted window management for Mark-LIV."""
 import ctypes, platform
 from ctypes import wintypes
-if platform.system() != "Windows":
-    raise RuntimeError("Mark-LIV window manager is Windows-only.")
 user32=ctypes.windll.user32
 
 def _windows():
@@ -19,6 +17,7 @@ def _windows():
     return out
 
 def window_manager(parameters=None, response=None, player=None, session_memory=None):
+    if platform.system()!="Windows": return "Windows-only action."
     p=parameters or {}; a=str(p.get("action","list")).lower().strip()
     if a=="list":
         return "\n".join(f"{h}: {t}" for h,t in _windows()) or "No visible windows."
