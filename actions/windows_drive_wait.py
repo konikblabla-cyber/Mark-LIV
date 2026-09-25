@@ -1,7 +1,7 @@
 """Wait for a Windows drive or path to become available."""
 import platform,time,os
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_drive_wait(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {};path=str(p.get("path") or p.get("drive") or "").strip();timeout=max(1,min(int(p.get("timeout",30)),300))
  if not path:return "Drive or path is required."
  end=time.time()+timeout
