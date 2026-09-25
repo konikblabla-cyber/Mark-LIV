@@ -1,7 +1,7 @@
 """Switch Windows virtual desktops using normal keyboard shortcuts."""
 import platform,pyautogui
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_desktop_switch(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; direction=str(p.get("direction","right")).lower()
  if direction not in ("left","right"): return "Direction must be left or right."
  pyautogui.hotkey("win","ctrl","right" if direction=="right" else "left")
