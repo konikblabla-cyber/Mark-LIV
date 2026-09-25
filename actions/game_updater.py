@@ -935,6 +935,8 @@ def _get_schedule_status() -> str:
 
 
 def game_updater(parameters: dict, player=None, speak=None) -> str:
+    if platform.system() != "Windows":
+        return "This action is Windows-only."
     p         = parameters or {}
     action    = p.get("action",    "update").lower().strip()
     platform  = p.get("platform",  "both").lower().strip()
@@ -1062,7 +1064,7 @@ if __name__ == "__main__":
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "game_updater",
-    "description": "THE ONLY tool for ANY Steam or Epic Games request. Use for: installing, downloading, updating games, listing installed games, checking download status, scheduling updates. ALWAYS call directly for any Steam/Epic/game request. NEVER use browser_control or web_search for Steam/Epic.",
+    "description": "Windows-only: THE ONLY tool for ANY Steam or Epic Games request. Use for: installing, downloading, updating games, listing installed games, checking download status, scheduling updates. ALWAYS call directly for any Steam/Epic/game request. NEVER use browser_control or web_search for Steam/Epic.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
