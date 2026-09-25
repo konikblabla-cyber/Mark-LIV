@@ -1,7 +1,7 @@
 """Launch a Windows executable and wait for its process to appear."""
 import platform,subprocess,time,shlex
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_ready(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; command=str(p.get("command","")).strip(); process=str(p.get("process","")).strip(); seconds=max(1,min(int(p.get("seconds",30)),120))
  if not command or not process:return "command and process are required."
  subprocess.Popen(command,shell=True,creationflags=subprocess.CREATE_NO_WINDOW)
