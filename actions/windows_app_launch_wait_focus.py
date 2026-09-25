@@ -1,7 +1,7 @@
 """Launch a Windows application, wait for its process, then focus a matching window."""
 import platform,subprocess,time,psutil,ctypes
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_app_launch_wait_focus(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; cmd=str(p.get("command") or "").strip(); needle=str(p.get("window_contains") or "").strip().lower()
  if not cmd:return "Missing command."
  subprocess.Popen(cmd,shell=True)
