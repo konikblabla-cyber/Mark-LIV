@@ -11,4 +11,4 @@ def windows_recent_files(parameters=None,**kwargs):
   except OSError:pass
  rows.sort(reverse=True)
  return "\n".join(x[1] for x in rows[:n]) or "No recent items."
-TOOL={"name":"windows_recent_files","description":"Read-only list of recent Windows shell items from the current user's Recent folder.","parameters":{"type":"OBJECT","properties":{"count":{"type":"INTEGER"}},"required":["count"]},"handler=windows_recent_files}
+TOOL={"name":"windows_recent_files","description":"Read-only list of recent Windows shell items from the current user's Recent folder.","parameters":{"type":"OBJECT","properties":{"count":{"type":"INTEGER"}},"required":["count"]},"handler":windows_recent_files}
