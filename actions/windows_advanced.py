@@ -9,6 +9,7 @@ HIDE = {"creationflags": subprocess.CREATE_NO_WINDOW} if WIN else {}
 
 
 def _ps(command, timeout=30):
+    timeout = max(1, min(int(timeout), 60))
     if not WIN:
         return "This action is Windows-only."
     try:
