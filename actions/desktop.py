@@ -96,6 +96,8 @@ def _validate_generated_code(code: str) -> tuple[bool, str]:
     blocked_attrs = {
         "__class__", "__bases__", "__base__", "__subclasses__", "__globals__",
         "__code__", "__closure__", "__func__", "__self__", "__dict__",
+        "write_text", "write_bytes", "unlink", "rmdir", "mkdir",
+        "rename", "replace", "touch", "chmod", "symlink_to", "hardlink_to",
     }
     blocked_modules = {"os", "sys", "subprocess", "socket", "ctypes", "winreg"}
 
@@ -107,7 +109,7 @@ def _validate_generated_code(code: str) -> tuple[bool, str]:
         if isinstance(node, ast.Attribute) and node.attr in blocked_attrs:
             return False, f"Blocked attribute: {node.attr}"
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if any(mod in node.value for mod in blocked_modules):
+            if any(mod in node.value.lower() for mod in blocked_modules):
                 return False, "Blocked module reference in generated code."
     return True, ""
 
