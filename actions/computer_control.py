@@ -414,7 +414,7 @@ def computer_control(
       amount        : scroll amount (default: 3)
       seconds       : wait duration
       title         : window title fragment for focus_window
-      description   : natural-language element description for screen_find/click
+      description   : natural-language element description for screen_find/click\n      x/y            : physical screen-pixel coordinates; origin is top-left
       type          : data type for random_data
       field         : memory field name for user_data
       clear_first   : bool, clear field before typing (default: true)
