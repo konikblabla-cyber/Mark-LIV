@@ -1,7 +1,9 @@
 """Focus a uniquely matched Windows window by title text."""
 import ctypes,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
+
 def windows_focus_title(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "windows_focus_title is Windows-only."
  p=parameters or {}; needle=str(p.get("contains") or "").strip().lower()
  if not needle:return "Missing title text."
  u=ctypes.windll.user32;matches=[]
