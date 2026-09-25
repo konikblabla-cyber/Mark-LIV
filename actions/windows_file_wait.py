@@ -1,7 +1,9 @@
 """Wait for a Windows file or folder to appear."""
 import os,platform,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
+
 def windows_file_wait(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "windows_file_wait is Windows-only."
  p=parameters or {}; path=str(p.get("path") or "").strip(); timeout=max(1,min(int(p.get("timeout",30)),120))
  if not path:return "Missing path."
  end=time.time()+timeout
