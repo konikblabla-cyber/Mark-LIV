@@ -1,8 +1,8 @@
 """Bounded Windows UI workflow orchestration for Mark-LIV."""
 import platform,time
-if platform.system()!="Windows": raise RuntimeError("Mark-LIV UI workflows are Windows-only.")
 
 def ui_workflow(parameters=None, response=None, player=None, session_memory=None):
+    if platform.system()!="Windows": return "Windows-only action."
     p=parameters or {}; steps=p.get("steps") or []
     if not isinstance(steps,list) or not steps:return "Workflow needs a non-empty steps list."
     if len(steps)>30:return "Workflow limited to 30 steps."
@@ -21,7 +21,8 @@ def ui_workflow(parameters=None, response=None, player=None, session_memory=None
                 if not step.get("continue_on_wait_timeout",False): break
         action=str(step.get("action","")).strip()
         if not action:return f"Step {i} has no action."
-        attempts=max(1,min(int(step.get("retry",1)),5)); delay=max(0.2,min(float(step.get("retry_delay",0.8)),5.0))
+        try: attempts=max(1,min(int(step.get("retry",1)),5)); delay=max(0.2,min(float(step.get("retry_delay",0.8)),5.0))
+        except (TypeError,ValueError): return f"Step {i} has invalid retry settings."
         result=""
         for attempt in range(1,attempts+1):
             result=computer_control(step,response=response,player=player,session_memory=session_memory)
@@ -31,7 +32,8 @@ def ui_workflow(parameters=None, response=None, player=None, session_memory=None
         previous=result; results.append(f"{i}. {result}")
         low=result.lower()
         if step.get("stop_if_not_found") and ("not found" in low or "timed out" in low or "failed" in low): break
-        pause=max(0.0,min(float(step.get("pause",0.2)),5.0))
+        try: pause=max(0.0,min(float(step.get("pause",0.2)),5.0))
+        except (TypeError,ValueError): pause=0.2
         if pause: time.sleep(pause)
     return "\n".join(results)
 
