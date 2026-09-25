@@ -24,7 +24,7 @@ Get-Process | Where-Object {
     $_.CloseMainWindow() | Out-Null
 }
 '''
-    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps, "explorer", "dwm", "lsass", "svchost", "winlogon"],
                    capture_output=True, text=True, timeout=15,
                    creationflags=subprocess.CREATE_NO_WINDOW)
     return "Requested graceful close for all normal application windows."
