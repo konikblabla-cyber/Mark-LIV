@@ -1,9 +1,9 @@
 """Persistent Windows system snapshot compare."""
 import json,platform
 from pathlib import Path
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 STORE=Path(__file__).resolve().parents[1]/"memory"/"system_snapshot.json"
 def system_snapshot_compare(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; a=str(p.get("action","show")).lower()
  if a=="save":
   snap=p.get("snapshot")
