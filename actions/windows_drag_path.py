@@ -1,7 +1,7 @@
 """Bounded Windows mouse drag path."""
 import platform,pyautogui
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_drag_path(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; start=p.get("start");end=p.get("end")
  if not isinstance(start,list) or len(start)!=2 or not isinstance(end,list) or len(end)!=2:return "start/end must be [x,y]."
  x1,y1=map(int,start);x2,y2=map(int,end);duration=max(.1,min(float(p.get("duration",.6)),10))
