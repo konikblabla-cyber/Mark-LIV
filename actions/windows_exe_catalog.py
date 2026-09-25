@@ -1,7 +1,7 @@
 """Bounded Windows executable catalog with publisher and signature status."""
 import platform,subprocess
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_exe_catalog(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; root=str(p.get("root",r"C:\Program Files")).strip() or r"C:\Program Files"; limit=max(1,min(int(p.get("limit",100)),300))
  safe=root.replace("'","''")
  cmd=f"Get-ChildItem '{safe}' -Filter *.exe -Recurse -ErrorAction SilentlyContinue | Select -First {limit} | ForEach-Object {{$s=Get-AuthenticodeSignature $_.FullName -ErrorAction SilentlyContinue; [PSCustomObject]@{{Name=$_.Name;Path=$_.FullName;Size=$_.Length;Company=$_.VersionInfo.CompanyName;Version=$_.VersionInfo.FileVersion;Signature=$s.Status}}}} | Format-Table -Wrap -AutoSize"
