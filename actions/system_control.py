@@ -17,9 +17,24 @@ def _service(cmd,name):
     safe=name.replace("'","''")
     r=ps(f"{cmd} -Name '{safe}' -ErrorAction Stop")
     return r.stdout.strip() or f"{cmd} completed for {name}."
+def _gaming_prepare():
+    """Apply reversible user-level gaming optimizations and report the result."""
+    results=[]
+    try:
+        subprocess.run(["powercfg","/setactive","8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"],capture_output=True,**HIDE)
+        results.append("power_plan=high_performance")
+    except Exception as e: results.append(f"power_plan_error={e}")
+    try:
+        subprocess.run(["reg","add",r"HKCU\Software\Microsoft\GameBar","/v","AutoGameModeEnabled","/t","REG_DWORD","/d","1","/f"],capture_output=True,**HIDE)
+        results.append("game_mode=enabled")
+    except Exception as e: results.append(f"game_mode_error={e}")
+    return "Gaming preparation: " + "; ".join(results)
+
 def system_control(parameters=None,**kwargs):
     if not WIN:return "This action is Windows-only."
     p=parameters or {}; a=str(p.get("action","status")).lower().strip(); v=str(p.get("value","")).strip()
+    if a=="gaming_prepare":
+        return _gaming_prepare()
     if a=="status":
         r=ps("Get-CimInstance Win32_OperatingSystem | Select Caption,Version,LastBootUpTime | Format-List")
         return r.stdout.strip() or "Windows status unavailable."
@@ -94,7 +109,7 @@ def system_control(parameters=None,**kwargs):
     return "Unknown system_control action."
 TOOL={
     "name":"system_control",
-    "description":"Windows-only direct system control. Use the action field for power, network, services, firewall, Defender, storage, users, devices, scheduled tasks, registry, display, audio and other Windows controls.",
+    "description":"Windows-only direct system control including power, gaming preparation, network, services, firewall, Defender, storage, users, devices, scheduled tasks, registry, display, audio and other Windows controls.",
     "parameters":{
         "type":"OBJECT",
         "properties":{
