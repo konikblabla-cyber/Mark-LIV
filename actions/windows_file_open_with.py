@@ -1,7 +1,8 @@
 """Open a file with a specific Windows application."""
 import os,platform
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_file_open_with(parameters=None,**kwargs):
+    if platform.system() != "Windows":
+        return "Windows-only action."
  p=parameters or {}; path=os.path.abspath(str(p.get("path",""))); app=str(p.get("application","")).strip()
  if not path or not os.path.isfile(path): return "File does not exist."
  if not app:return "Missing application."
