@@ -13,4 +13,4 @@ def windows_file_properties(parameters=None, **kwargs):
     kind = "directory" if os.path.isdir(p) else "file"
     return f"Path: {p}\nType: {kind}\nSize: {s.st_size} bytes\nCreated: {s.st_ctime}\nModified: {s.st_mtime}"
 
-TOOL={"name":"windows_file_properties","description":"Read-only Windows file or folder basic metadata.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler=windows_file_properties}
+TOOL={"name":"windows_file_properties","description":"Read-only Windows file or folder basic metadata.","parameters":{"type":"OBJECT","properties":{"path":{"type":"STRING"}},"required":["path"]},"handler":windows_file_properties}
