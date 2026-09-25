@@ -1,8 +1,10 @@
 """Bounded watcher for changes of the Windows foreground application."""
 import platform,ctypes,time
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_active_app_watch(parameters=None,**kwargs):
- p=parameters or {}; seconds=max(.5,min(float(p.get("seconds",10)),30)); u=ctypes.windll.user32; k=ctypes.windll.kernel32; end=time.time()+seconds; last=None; rows=[]
+ if platform.system()!="Windows": return "Windows-only action."
+ p=parameters or {}
+ try: seconds=max(.5,min(float(p.get("seconds",10)),30))
+ except (TypeError,ValueError): return "Invalid watch duration."max(.5,min(float(p.get("seconds",10)),30)); u=ctypes.windll.user32; k=ctypes.windll.kernel32; end=time.time()+seconds; last=None; rows=[]
  while time.time()<end:
   h=u.GetForegroundWindow(); t=ctypes.create_unicode_buffer(256); u.GetWindowTextW(h,t,256); pid=ctypes.c_ulong(); u.GetWindowThreadProcessId(h,ctypes.byref(pid)); key=(pid.value,t.value)
   if key!=last: rows.append(f"{pid.value}\t{t.value}"); last=key
