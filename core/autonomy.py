@@ -15,6 +15,7 @@ from typing import Any
 
 from core.gemini import as_json, FAST, SMART
 from core.permissions import needs_confirmation
+from core.autonomy_verifier import verify_text, recovery_hint
 
 
 @dataclass
@@ -108,14 +109,13 @@ Previous failure:
         return Plan(goal=goal, steps=steps[:self.MAX_STEPS],
                     summary=str(data.get("summary") or ""))
 
-    def _result_ok(self, result: Any) -> bool:
-        text = str(result or "").lower()
-        if "[confirmation_pending]" in text:
-            return True
-        if isinstance(result, dict):
-            return bool(result.get("ok", False))
-        bad = ("failed", "error:", "not available", "unknown tool", "permission denied")
-        return not any(x in text for x in bad)
+    def _result_ok(self, result: Any, expectation: str = "") -> bool:
+        return verify_text(result, expectation)
+
+    def _failure(self, action: str, result: Any, expectation: str = "") -> str:
+        return recovery_hint(action, result) + (
+            f" Expected verification: {expectation}" if expectation else ""
+        )
 
     def run(self, goal: str) -> str:
         goal = str(goal or "").strip()
@@ -143,14 +143,14 @@ Previous failure:
                 elapsed = time.monotonic() - started
                 history.append((step.action, result))
 
-                if self._result_ok(result):
-                    self.logger(f"[Autonomy] Step {index}/{len(plan.steps)} OK: "
+                if self._result_ok(result, step.verify):
+                    self.logger(f"[Autonomy] Step {index}/{len(plan.steps)} VERIFIED: "
                                  f"{step.action} ({elapsed:.1f}s)")
                     if "[CONFIRMATION_PENDING]" in str(result):
                         return str(result)
                     continue
 
-                failure = f"Action {step.action} failed: {result}"
+                failure = self._failure(step.action, result, step.verify)
                 self.logger(f"[Autonomy] {failure}")
                 break
             else:
