@@ -12,4 +12,4 @@ def windows_clipboard_formats(parameters=None,**kwargs):
    out.append(str(f))
  finally:u.CloseClipboard()
  return "Formats present: "+(", ".join(out) if out else "none")
-TOOL={"name":"windows_clipboard_formats","description":"Read-only Windows clipboard format inspection; reports formats only and never returns clipboard contents.","parameters":{"type":"OBJECT","properties":{}},"handler=windows_clipboard_formats}
+TOOL={"name":"windows_clipboard_formats","description":"Read-only Windows clipboard format inspection; reports formats only and never returns clipboard contents.","parameters":{"type":"OBJECT","properties":{}},"handler":windows_clipboard_formats}
