@@ -1,7 +1,7 @@
 """Windows installed application metadata inspection."""
 import platform,subprocess
-if platform.system()!="Windows":raise RuntimeError("Windows-only.")
 def installed_app_info(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "installed_app_info is available only on Windows."
  p=parameters or {}; q=str(p.get("name","")).strip()
  if not q:return "Application name required."
  safe_q=q.replace("'","''")
