@@ -592,7 +592,10 @@ def dev_agent(
     description  = p.get("description", "").strip()
     language     = p.get("language", "python").strip()
     project_name = p.get("project_name", "").strip()
-    timeout      = int(p.get("timeout", 30))
+    try:
+        timeout = max(1, min(int(p.get("timeout", 30)), 300))
+    except (TypeError, ValueError):
+        timeout = 30
 
     if not description:
         return "Please describe the project you want me to build, sir."
