@@ -1,8 +1,8 @@
 """Bounded Windows keyboard sequence action."""
 import platform,time
 from pyautogui import hotkey,press
-if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_keyboard_sequence(parameters=None,**kwargs):
+ if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; seq=p.get("keys",[]); delay=max(0,min(float(p.get("delay",0.15)),2.0))
  if not isinstance(seq,list) or len(seq)>30:return "keys must be a list of at most 30 key names."
  for key in seq:
