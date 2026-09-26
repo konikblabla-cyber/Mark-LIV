@@ -114,6 +114,25 @@ def daily_planner(parameters=None, **kwargs):
                     _write(tasks)
                     return f"Task postponed: {task.get('title')}."
             return "Open task not found."
+        if action == "upcoming":
+            now = datetime.now()
+            soon = []
+            for task in tasks:
+                if task.get("status") != "open":
+                    continue
+                try:
+                    when = datetime.strptime(str(task.get("due") or ""), "%Y-%m-%d %H:%M")
+                except ValueError:
+                    continue
+                delta = (when - now).total_seconds()
+                if 0 <= delta <= 3600:
+                    soon.append(task)
+            soon.sort(key=lambda t: t.get("due") or "")
+            if not soon:
+                return "No tasks due within the next hour."
+            return "\n".join(
+                f"{t['id']} | {t['title']} | due {t['due']}" for t in soon[:20]
+            )
         if action == "overdue":
             now = datetime.now()
             overdue = []
@@ -163,7 +182,7 @@ TOOL = {
     "parameters": {
         "type": "OBJECT",
         "properties": {
-            "action": {"type": "STRING", "description": "add, list, next, or complete."},
+            "action": {"type": "STRING", "description": "add, list, next, complete, postpone, overdue, or upcoming."},
             "title": {"type": "STRING", "description": "Task title for add."},
             "id": {"type": "STRING", "description": "Task id for complete."},
             "priority": {"type": "INTEGER", "description": "1 highest, 2 normal, 3 low."},
