@@ -156,7 +156,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             # One cheap retry for clearly transient failures, but only for
             # low-risk actions; never blindly repeat a consequential action.
             if (
-                replan_count == 0
+                replan_count < self.MAX_TRANSIENT_RETRIES
                 and classify(step.action, step.parameters).level == "low"
                 and self._looks_transient(result)
             ):
