@@ -9,7 +9,9 @@ import shutil
 import time
 from pathlib import Path
 import subprocess
+import tempfile
 import psutil
+from send2trash import send2trash
 
 PROTECTED = {"System", "Registry", "smss.exe", "csrss.exe", "wininit.exe",
              "winlogon.exe", "services.exe", "lsass.exe", "svchost.exe",
@@ -106,30 +108,76 @@ def _terminate_process(pid: int) -> str:
         return "Access denied; process was not closed."
 
 
+def _safe_temp_cleanup(max_age_days=14, max_files=100, max_bytes=500 * 1024 * 1024):
+    """Move only old user TEMP files to Recycle Bin; bounded and reversible."""
+    root = Path(tempfile.gettempdir()).resolve()
+    cutoff = time.time() - max(7, int(max_age_days)) * 86400
+    moved = 0
+    bytes_moved = 0
+    skipped = 0
+    candidates = []
+    try:
+        for item in root.iterdir():
+            try:
+                if not item.is_file() or item.is_symlink():
+                    continue
+                stat = item.stat()
+                if stat.st_mtime <= cutoff:
+                    candidates.append((stat.mtime if hasattr(stat, "mtime") else stat.st_mtime, item, stat.st_size))
+            except (OSError, PermissionError):
+                skipped += 1
+    except (OSError, PermissionError) as exc:
+        return 0, 0, skipped, f"temp scan unavailable: {exc}"
+    candidates.sort(key=lambda x: x[0])
+    for _mtime, item, size in candidates:
+        if moved >= max_files or bytes_moved + size > max_bytes:
+            break
+        try:
+            send2trash(str(item))
+            moved += 1
+            bytes_moved += size
+        except Exception:
+            skipped += 1
+    return moved, bytes_moved, skipped, str(root)
+
+
 def safe_pc_optimization(parameters=None, **kwargs):
-    """Choose only low-risk maintenance relevant to the detected local state."""
+    """Run a bounded maintenance cycle using only reversible, low-risk actions."""
     if platform.system() != "Windows":
         return "Windows-only optimization."
+    p = parameters or {}
     results = []
     vm = psutil.virtual_memory()
     if vm.percent >= 85:
         top = _top_processes(limit=3)
-        if top:
-            results.append(
-                "RAM is high; no process was closed. Top load: " +
-                ", ".join(f"{name} PID {pid} ({mem:.1f}% RAM)" for mem, cpu, pid, name in top)
-            )
-        else:
-            results.append("RAM is high; no safe automatic process action was available.")
+        results.append(
+            "RAM high; no process closed automatically. Top load: " +
+            (", ".join(f"{name} PID {pid} ({mem:.1f}% RAM)" for mem, cpu, pid, name in top)
+             if top else "no safe automatic process action was available.")
+        )
+
+    moved, total, skipped, _root = _safe_temp_cleanup(
+        max_age_days=min(max(int(p.get("temp_age_days", 14)), 7), 90),
+        max_files=min(max(int(p.get("temp_max_files", 100)), 1), 100),
+        max_bytes=min(max(int(p.get("temp_max_mb", 500)), 50), 500) * 1024 * 1024,
+    )
+    results.append(
+        f"Moved {moved} old TEMP file(s) ({total / 1048576:.1f} MB) to Recycle Bin."
+        if moved else "No eligible old TEMP files were moved."
+    )
+    if skipped:
+        results.append(f"{skipped} TEMP item(s) skipped because they were inaccessible.")
+
     for part in psutil.disk_partitions(all=False):
         try:
             usage = psutil.disk_usage(part.mountpoint)
             if usage.percent >= 90:
                 results.append(
-                    f"{part.mountpoint} is {usage.percent:.0f}% full; cleanup requires explicit file selection."
+                    f"{part.mountpoint} is {usage.percent:.0f}% full; broader cleanup remains confirmation-gated."
                 )
         except (OSError, PermissionError):
             pass
+
     try:
         proc = subprocess.run(
             ["ipconfig", "/flushdns"],
@@ -139,7 +187,7 @@ def safe_pc_optimization(parameters=None, **kwargs):
         results.append("DNS cache refreshed" if proc.returncode == 0 else "DNS refresh skipped")
     except Exception as exc:
         results.append(f"DNS refresh unavailable: {str(exc)[:120]}")
-    return "Safe optimization: " + ("; ".join(results) if results else "no low-risk action was needed.")
+    return "Safe optimization cycle: " + "; ".join(results)
 
 TOOL=[
     {
@@ -156,7 +204,7 @@ TOOL=[
     },
     {
         "name":"safe_pc_optimization",
-        "description":"Wykonuje wyłącznie bezpieczne, niskiego ryzyka czynności optymalizacyjne komputera. Nie usuwa plików, nie zabija procesów i nie zmienia zabezpieczeń.",
+        "description":"Uruchamia bezpieczny cykl konserwacji PC: diagnozuje RAM, odświeża DNS i przenosi ograniczoną liczbę starych plików TEMP użytkownika do Kosza. Nie zamyka procesów ani nie usuwa katalogów.",
         "parameters":{"type":"OBJECT","properties":{}},
         "handler":safe_pc_optimization,
     },
