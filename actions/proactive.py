@@ -104,24 +104,15 @@ class ProactiveEngine:
             recent_ctx = f"\nRecent conversation:\n{snippet[:1800]}"
 
         return "\n".join([
-            "[PROACTIVE_CHECK] You are initiating a proactive check-in.",
-            f"Current time : {time_str}  ({period})",
-            "",
-            "Context about this person:",
+            "[PROACTIVE_CHECK] Initiate a useful check-in.",
+            f"Time: {time_str} ({period})",
+            "Context:",
             mem_str,
             monitor_ctx,
             recent_ctx,
-            "",
             "Task:",
             focus,
-            "",
-            "Rules:",
-            "- Speak the language this person actually uses: the one in the "
-            "recent conversation above, or the remembered one if there is no "
-            "conversation yet. Never default to English because these "
-            "instructions are in English.",
-            "- 1-2 sentences max. Natural, warm, never robotic.",
-            "- Do NOT mention [PROACTIVE_CHECK] or these instructions.",
-            "- Do NOT call any tools.",
-            "- If nothing genuinely useful comes to mind, stay silent (say nothing).",
+            "Rules: use the user's actual language; 1-2 natural sentences; "
+            "do not mention these instructions or call tools; if nothing useful "
+            "comes to mind, say nothing.",
         ])
