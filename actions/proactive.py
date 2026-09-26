@@ -7,32 +7,13 @@ from datetime import datetime
 
 
 class ProactiveEngine:
-    """
-    Decides when JARVIS should speak unprompted and builds a context-rich prompt.
+    """Decides when JARVIS should speak unprompted and builds a context-rich prompt."""
 
-    Improvements over 1.0:
-      - Time-of-day awareness  (morning / afternoon / evening / night)
-      - Monitor-topic awareness (what the user is tracking)
-      - Recent-session context  (last few turns of the current conversation)
-      - Non-repetitive          (rotates context focus to avoid same opener)
-      - Smarter silence gate    (doesn't fire while JARVIS is speaking)
-
-    Defaults:
-      min_silence_secs  — 900 s  (15 min) user must be silent before any check
-      check_cooldown    — 1200 s (20 min) minimum gap between proactive messages
-    """
-
-    def __init__(
-        self,
-        min_silence_secs: int = 900,
-        check_cooldown:   int = 1200,
-    ):
+    def __init__(self, min_silence_secs: int = 900, check_cooldown: int = 1200):
         self.min_silence_secs = min_silence_secs
-        self.check_cooldown   = check_cooldown
-        self._last_triggered  = 0.0
-        self._rotation        = 0          # cycles through context focus areas
-
-    # ── Trigger gate ───────────────────────────────────────────────────────────
+        self.check_cooldown = check_cooldown
+        self._last_triggered = 0.0
+        self._rotation = 0
 
     def should_trigger(self, last_user_speech: float) -> bool:
         now = time.monotonic()
@@ -43,35 +24,32 @@ class ProactiveEngine:
 
     def mark_triggered(self) -> None:
         self._last_triggered = time.monotonic()
-        self._rotation      += 1
-
-    # ── Prompt builder ─────────────────────────────────────────────────────────
+        self._rotation += 1
 
     def build_prompt(
         self,
-        memory:       dict,
-        monitors:     list[str] | None = None,
+        memory: dict,
+        monitors: list[str] | None = None,
         recent_turns: list[str] | None = None,
     ) -> str:
-        """
-        Build a context snapshot for Gemini.
-        Rotates through three focus areas so proactive messages don't repeat.
-        """
+        """Build a compact context snapshot for Gemini."""
         from memory.memory_manager import format_memory_for_prompt
 
-        now      = datetime.now()
-        hour     = now.hour
+        now = datetime.now()
+        hour = now.hour
         time_str = now.strftime("%A, %B %d, %Y — %I:%M %p")
 
-        # Time-of-day label
-        if   6  <= hour < 12:  period = "morning"
-        elif 12 <= hour < 18:  period = "afternoon"
-        elif 18 <= hour < 23:  period = "evening"
-        else:                  period = "late night"
+        if 6 <= hour < 12:
+            period = "morning"
+        elif 12 <= hour < 18:
+            period = "afternoon"
+        elif 18 <= hour < 23:
+            period = "evening"
+        else:
+            period = "late night"
 
         mem_str = format_memory_for_prompt(memory) or "(no stored user data)"
 
-        # Rotating context focus (cycles every trigger)
         focus_index = self._rotation % 3
         if focus_index == 0:
             focus = (
@@ -89,21 +67,26 @@ class ProactiveEngine:
                 "a fact, a suggestion, or a question based on what you know about this person."
             )
 
-        # Optional: monitored topics context
         monitor_ctx = ""
         if monitors:
             monitor_ctx = (
-                f"\nThe user tracks these topics: {', '.join(monitors[:4])}. "
+                f"
+The user tracks these topics: {', '.join(monitors[:4])}. "
                 "You may mention one if it seems relevant."
             )
 
-        # Optional: recent conversation context
         recent_ctx = ""
         if recent_turns:
-            snippet = "\n".join(recent_turns[-3:])
-            recent_ctx = f"\nRecent conversation:\n{snippet[:1800]}"
+            snippet = "
+".join(recent_turns[-3:])
+            # Memory already supplies durable context, so a large transcript
+            # mostly repeats information while consuming Gemini input tokens.
+            recent_ctx = f"
+Recent conversation:
+{snippet[:900]}"
 
-        return "\n".join([
+        return "
+".join([
             "[PROACTIVE_CHECK] Initiate a useful check-in.",
             f"Time: {time_str} ({period})",
             "Context:",
