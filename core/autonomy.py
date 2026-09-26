@@ -124,10 +124,13 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             verified = self._result_ok(result, step.verify) and verify_state(step.action, step.parameters, result)
             if self.task_id:
                 self.tasks.step(self.task_id, step.action, result, verified)
+                self.tasks.update(self.task_id, status="running", next_step=index + 1)
                 if "[CONFIRMATION_PENDING]" in str(result):
                     self.tasks.update(self.task_id, status="waiting_confirmation", next_step=index)
 
             if verified:
+                if self.task_id:
+                    self.tasks.update(self.task_id, next_step=index + 1)
                 self.logger(
                     f"[Autonomy] Step {index + 1}/{len(plan.steps)} VERIFIED: "
                     f"{step.action} ({elapsed:.1f}s)"
