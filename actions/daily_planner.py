@@ -28,6 +28,12 @@ def _write(tasks):
     os.replace(tmp, _PATH)
 
 
+def _safe_priority(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 2
+
 def _clean(text, limit=240):
     return " ".join(str(text or "").replace("\n", " ").split())[:limit]
 
@@ -115,7 +121,7 @@ def daily_planner(parameters=None, **kwargs):
             task = {
                 "id": uuid.uuid4().hex[:10],
                 "title": title,
-                "priority": max(1, min(3, int(p.get("priority", 2) or 2))),
+                "priority": max(1, min(3, _safe_priority(p.get("priority", 2))),
                 "due": _clean(p.get("due"), 32),
                 "status": "open",
                 "created_at": datetime.now(timezone.utc).isoformat(),
