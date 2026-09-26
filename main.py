@@ -617,6 +617,7 @@ class JarvisLive:
         self._turn_done_event: asyncio.Event | None = None
         self._dashboard     = None
         self._briefing_sent    = False          # morning briefing fires once per process
+        self._recovery_started  = False          # recover persisted autonomous tasks once per launch
         self._sys_monitor      = SystemMonitor()  # persistent cooldown state
         self._proactive        = ProactiveEngine()
         self._last_user_speech = time.monotonic()  # updated on every user utterance
@@ -2071,6 +2072,32 @@ class JarvisLive:
                         print(f"[Monitor] ⚠️ Background check error: {e}")
             await asyncio.sleep(1800)     # check every 30 minutes
 
+    async def _resume_recoverable_tasks(self) -> None:
+        """Resume interrupted autonomous tasks once after startup, safely."""
+        if self._recovery_started:
+            return
+        self._recovery_started = True
+        try:
+            from core.task_manager import TaskManager
+            from actions.autonomous_tasks import resume_autonomous_task
+            tasks = TaskManager().recoverable()
+            resumable = [t for t in tasks if t.get("status") == "running"][:3]
+            for task in resumable:
+                task_id = str(task.get("id") or "")
+                if not task_id:
+                    continue
+                result = await asyncio.to_thread(
+                    resume_autonomous_task,
+                    {"task_id": task_id},
+                    action_registry=self._action_registry,
+                    player=None,
+                    speak=self.speak,
+                    response=None,
+                    session_memory=None,
+                )
+                self.ui.write_log(f"SYS: recovered task {task_id}: {str(result)[:300]}")
+        except Exception as e:
+            self.ui.write_log(f"WARN: autonomous task recovery failed — {str(e)[:180]}")
     async def _run_daily_task_monitor(self) -> None:
         """Check upcoming and overdue local planner deadlines without Gemini."""
         while True:
@@ -2316,6 +2343,7 @@ class JarvisLive:
                     tg.create_task(self._run_system_monitor())
                     tg.create_task(self._run_background_monitor())
                     tg.create_task(self._run_proactive_mode())\n                    tg.create_task(self._run_daily_task_monitor())
+                    tg.create_task(self._resume_recoverable_tasks())
                     tg.create_task(self._run_sleep_watch())
                     if self._dashboard:
                         tg.create_task(self._relay_phone_audio())
