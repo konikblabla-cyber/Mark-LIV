@@ -121,16 +121,15 @@ def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> str:
     return fn(parameters=parameters, **kwargs)
 
 
-def _validate(module, filename: str) -> ActionRecord:
-    """Returns an ActionRecord; .valid=False + .error set on any problem. Never raises."""
-    tool = getattr(module, "TOOL", None)
+def _validate_tool(tool, filename: str, fallback_name: str) -> ActionRecord:
+    """Validate one TOOL declaration without raising."""
     if not isinstance(tool, dict):
-        return ActionRecord(name=Path(filename).stem, file=filename,
-                            error="No module-level TOOL dict (not a discoverable action).")
+        return ActionRecord(name=fallback_name, file=filename,
+                            error="TOOL entry must be a dict.")
 
     name = tool.get("name")
     if not isinstance(name, str) or not _NAME_RE.match(name):
-        return ActionRecord(name=str(name or Path(filename).stem), file=filename,
+        return ActionRecord(name=str(name or fallback_name), file=filename,
                             error="TOOL['name'] missing or not a valid identifier.")
 
     description = tool.get("description")
@@ -153,6 +152,14 @@ def _validate(module, filename: str) -> ActionRecord:
                         behavior=_opt_upper(tool.get("behavior"), _BEHAVIORS),
                         scheduling=_opt_upper(tool.get("scheduling"), _SCHEDULING))
 
+
+def _validate(module, filename: str) -> list[ActionRecord]:
+    """Validate a module TOOL dict or list of TOOL dicts."""
+    tool = getattr(module, "TOOL", None)
+    if tool is None:
+        return []
+    entries = tool if isinstance(tool, list) else [tool]
+    return [_validate_tool(entry, filename, Path(filename).stem) for entry in entries]
 
 def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
                      logger: Callable[[str], None] = print) -> ActionRegistry:
@@ -192,15 +199,25 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
             if getattr(module, "TOOL", None) is None:
                 continue   # not an action file — a helper/capture-only module
 
-            rec = _validate(module, path.name)
+            records = _validate(module, path.name)
+            if not records:
+                continue
 
-            if rec.valid and rec.name in reserved:
-                rec = ActionRecord(name=rec.name, file=path.name,
-                                   error=f"Name '{rec.name}' collides with a reserved core tool — rejected.")
-            elif rec.valid and rec.name in valid:
-                other = valid[rec.name].file
-                rec = ActionRecord(name=rec.name, file=path.name,
-                                   error=f"Name '{rec.name}' already used by action '{other}' — rejected.")
+            for rec in records:
+                if rec.valid and rec.name in reserved:
+                    rec = ActionRecord(name=rec.name, file=path.name,
+                                       error=f"Name '{rec.name}' collides with a reserved core tool — rejected.")
+                elif rec.valid and rec.name in valid:
+                    other = valid[rec.name].file
+                    rec = ActionRecord(name=rec.name, file=path.name,
+                                       error=f"Name '{rec.name}' already used by action '{other}' — rejected.")
+
+                all_records.append(rec)
+                if rec.valid:
+                    valid[rec.name] = rec
+                    logger(f"Action loaded: {rec.name} ({path.name})")
+                else:
+                    logger(f"Action rejected: {path.name} — {rec.error}")
 
         except Exception as e:
             rec = ActionRecord(name=path.stem, file=path.name,
