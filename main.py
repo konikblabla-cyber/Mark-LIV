@@ -901,6 +901,15 @@ class JarvisLive:
 
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
+            # Essential commands remain usable without Gemini/network.
+            try:
+                from core.offline_fallback import handle as _offline_handle
+                result = _offline_handle(text)
+                if result is not None:
+                    self.ui.write_log(f"JARVIS [offline]: {result}")
+                    return
+            except Exception as exc:
+                self.ui.write_log(f"ERR: offline fallback — {str(exc)[:120]}")
             return
         # Respect wake-word sleep: a typed command must not be answered while
         # asleep either (the sleep gate is not just for the mic). Wake first with
