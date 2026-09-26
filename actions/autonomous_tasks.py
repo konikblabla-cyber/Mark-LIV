@@ -87,6 +87,13 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
     if status_events["last_fix"]:
         e = status_events["last_fix"]
         lines.append(f"Last fix/maintenance: {e.get('message', '')[:180]}")
+    if tasks:
+        lines.append("Recoverable tasks:")
+        for task in tasks[:5]:
+            tid = str(task.get("id", ""))[:24]
+            state = str(task.get("status", ""))[:24]
+            goal = str(task.get("goal", ""))[:100]
+            lines.append(f"- {state} {tid}: {goal}")
     if status_events["events"]:
         lines.append("Recent events:")
         lines.extend(f"- {e.get('kind')}: {e.get('message')}" for e in status_events["events"][:4])
