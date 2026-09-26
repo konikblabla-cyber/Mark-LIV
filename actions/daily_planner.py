@@ -231,7 +231,7 @@ TOOL = {
     "parameters": {
         "type": "OBJECT",
         "properties": {
-            "action": {"type": "STRING", "description": "add, list, next, complete, postpone, overdue, or upcoming."},
+            "action": {"type": "STRING", "description": "add, list, next, complete, postpone, overdue, upcoming, or summary."},
             "title": {"type": "STRING", "description": "Task title for add."},
             "id": {"type": "STRING", "description": "Task id for complete."},
             "priority": {"type": "INTEGER", "description": "1 highest, 2 normal, 3 low."},
