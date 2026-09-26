@@ -205,6 +205,22 @@ def daily_planner(parameters=None, **kwargs):
             except Exception:
                 pass
             return "\n".join(lines)
+        if action == "summary":
+            open_tasks = [t for t in tasks if t.get("status") == "open"]
+            due = []
+            now = datetime.now()
+            for task in open_tasks:
+                try:
+                    when = datetime.strptime(str(task.get("due") or ""), "%Y-%m-%d %H:%M")
+                except ValueError:
+                    continue
+                if -86400 <= (when - now).total_seconds() <= 86400:
+                    due.append(task)
+            lines = [f"Open tasks: {len(open_tasks)}", f"Due/overdue within 24h: {len(due)}"]
+            for task in sorted(due, key=lambda t: t.get("due") or "")[:5]:
+                lines.append(f"- {task.get('title')} | {task.get('due')}")
+            return "\n".join(lines)
+
         if action == "list":
             open_tasks = [t for t in tasks if t.get("status") == "open"]
             open_tasks.sort(key=lambda t: (int(t.get("priority", 2)), t.get("due") or "9999-99-99"))
