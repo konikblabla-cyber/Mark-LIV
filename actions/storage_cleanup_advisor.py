@@ -8,6 +8,7 @@ import platform
 from pathlib import Path
 from datetime import datetime, timezone
 import psutil
+from send2trash import send2trash
 
 SKIP_DIRS = {
     "AppData", "Windows", "Program Files", "Program Files (x86)",
@@ -102,7 +103,58 @@ def storage_cleanup_advisor(parameters=None, **kwargs):
         lines.append("Brak wystarczająco mocnych kandydatów.")
     return "\n".join(lines)
 
-TOOL = {
+
+def cleanup_confirmed(parameters=None, **kwargs):
+    """Move explicitly selected cleanup candidates to the Windows Recycle Bin."""
+    p = parameters or {}
+    raw = p.get("paths") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    paths = [str(x).strip() for x in raw if str(x).strip()][:20]
+    if not paths:
+        return "No cleanup paths supplied."
+    safe = []
+    for raw_path in paths:
+        path = Path(raw_path).expanduser()
+        if not path.is_file():
+            continue
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        safe.append(path)
+    if not safe:
+        return "No safe cleanup candidates found."
+    from core import confirm
+    names = ", ".join(p.name for p in safe[:5])
+    return confirm.request(
+        key="cleanup:" + str(abs(hash("|".join(map(str, safe))))),
+        title="Move selected files to Recycle Bin",
+        detail=f"JARVIS will move {len(safe)} selected file(s) to the Recycle Bin: {names}",
+        run=lambda: _move_to_trash(safe),
+    )
+
+
+def _move_to_trash(paths):
+    moved = 0
+    failed = []
+    for path in paths:
+        try:
+            send2trash(str(path))
+            moved += 1
+        except Exception as exc:
+            failed.append(f"{path.name}: {str(exc)[:100]}")
+    result = f"Moved {moved} file(s) to the Recycle Bin."
+    if failed:
+        result += " Failed: " + "; ".join(failed[:5])
+    return result
+
+TOOL = [
+    {
+    "name": "storage_cleanup_confirmed",
+    "description": "Move explicitly selected cleanup candidates to the Windows Recycle Bin. Always requires human confirmation.",
+    "parameters": {"type":"OBJECT","properties":{"paths":{"type":"ARRAY","items":{"type":"STRING"}}},"required":["paths"]},
+    "handler": cleanup_confirmed,
+    },
+    {
     "name": "storage_cleanup_advisor",
     "description": "Zaawansowanie analizuje zajętość dysku i wybiera tylko mocne, wyjaśnione kandydatury do czyszczenia; niczego nie usuwa.",
     "parameters": {"type":"OBJECT","properties":{
@@ -111,4 +163,5 @@ TOOL = {
         "min_mb":{"type":"NUMBER","description":"Minimalny rozmiar pliku w MB, domyślnie 5."}
     }},
     "handler": storage_cleanup_advisor,
-}
+    },
+]
