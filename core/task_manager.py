@@ -46,6 +46,12 @@ class TaskManager:
         return task_id
 
     def update(self, task_id: str, **fields):
+        # Keep task metadata bounded so repeated recovery errors cannot grow
+        # the persistent state indefinitely.
+        if "failure" in fields:
+            fields["failure"] = str(fields["failure"] or "")[:800]
+        if "goal" in fields:
+            fields["goal"] = str(fields["goal"] or "")[:500]
         with _LOCK:
             data = self._read()
             if task_id not in data:
