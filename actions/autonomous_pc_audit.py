@@ -62,6 +62,50 @@ def autonomous_pc_audit(parameters=None, **kwargs):
     lines += [f"- PID {pid} {name}: RAM {mem:.1f}%, CPU {cpu:.1f}%" for mem,cpu,pid,name in _top_processes()]
     return "\n".join(lines)
 
+def close_process(parameters=None, **kwargs):
+    """Close a non-protected process only after the shared confirmation gate."""
+    p = parameters or {}
+    try:
+        pid = int(p.get("pid", 0))
+    except (TypeError, ValueError):
+        return "Valid PID required."
+    if pid <= 0:
+        return "Valid PID required."
+    try:
+        proc = psutil.Process(pid)
+        name = proc.name() or "unknown"
+        if name in PROTECTED or name.lower() in {x.lower() for x in PROTECTED}:
+            return f"Refused to close protected process {name} (PID {pid})."
+        detail = f"JARVIS will close {name} (PID {pid}). Unsaved work in that process may be lost."
+        from core import confirm
+        return confirm.request(
+            key=f"process:{pid}",
+            title=f"Close process: {name} (PID {pid})",
+            detail=detail,
+            run=lambda: _terminate_process(pid),
+        )
+    except psutil.NoSuchProcess:
+        return "That process is no longer running."
+    except psutil.AccessDenied:
+        return "Access denied; I will not force-close that process."
+
+
+def _terminate_process(pid: int) -> str:
+    try:
+        proc = psutil.Process(pid)
+        name = proc.name() or "unknown"
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except psutil.TimeoutExpired:
+            return f"{name} did not close within 3 seconds; nothing more forceful was attempted."
+        return f"Closed {name} (PID {pid})."
+    except psutil.NoSuchProcess:
+        return "Process already closed."
+    except psutil.AccessDenied:
+        return "Access denied; process was not closed."
+
+
 def safe_pc_optimization(parameters=None, **kwargs):
     """Apply only low-risk maintenance; never delete files or change security."""
     if platform.system() != "Windows":
@@ -82,6 +126,12 @@ def safe_pc_optimization(parameters=None, **kwargs):
     return "Safe optimization completed: " + "; ".join(results)
 
 TOOL=[
+    {
+        "name":"close_process",
+        "description":"Close a non-protected Windows process by PID. Always uses the shared human confirmation gate; never force-kills protected/system processes.",
+        "parameters":{"type":"OBJECT","properties":{"pid":{"type":"INTEGER"}},"required":["pid"]},
+        "handler":close_process,
+    },
     {
         "name":"autonomous_pc_audit",
         "description":"Wysokopoziomowy audyt komputera: zbiera dane, odrzuca chronione procesy i wyznacza priorytety zamiast zwracać surowy spam diagnostyczny.",
