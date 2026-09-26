@@ -75,6 +75,7 @@ from actions.background_monitor import (
     add_monitor, remove_monitor, list_monitors, check_all as monitor_check_all,
 )
 from actions.web_search        import _news as _fetch_news_sync
+from actions.autonomous_pc_audit import autonomous_pc_audit
 from memory.config_manager     import (
     get_brief_enabled, get_media_resolution, get_proactive_audio_enabled,
     get_push_to_talk_enabled, get_thinking_enabled, get_turn_tuning, get_voice,
@@ -82,6 +83,7 @@ from memory.config_manager     import (
 )
 from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
+from core.autonomy_monitor      import AutonomyMonitor
 from core                      import confirm as confirm_gate
 from core                      import audio_devices
 from core.action_loader        import discover_actions
@@ -594,16 +596,14 @@ class JarvisLive:
         # action can never shadow one.
         self._action_registry = discover_actions(
             actions_dir=_base_dir / "actions",
-        from actions.autonomous_pc_audit import autonomous_pc_audit
+            reserved_names=_inline_names,
+            logger=lambda msg: print(f"[Actions] {msg}"),
+        )
         self._autonomy_monitor = AutonomyMonitor(
             audit=lambda: autonomous_pc_audit({}),
             on_issue=self._on_autonomy_issue,
             interval=300,
             logger=lambda msg: self.ui.write_log(f"SYS: {msg}"),
-        )
-
-            reserved_names=_inline_names,
-            logger=lambda msg: print(f"[Actions] {msg}"),
         )
 
         # Plugins must not collide with either an inline tool or a discovered action.
