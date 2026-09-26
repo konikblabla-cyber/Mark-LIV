@@ -26,6 +26,7 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
 
     history = [(x.get("action", ""), x.get("result", ""))
                for x in task.get("history", [])]
+    recent = history[-3:]
     # Replanning from the original goal is deliberate: persisted state is evidence,
     # not permission to blindly repeat a stale action after a restart.
     ctx = {
@@ -34,8 +35,7 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
     }
     engine = AutonomyEngine(action_registry, ctx=ctx, task_manager=_mgr(), task_id=task_id)
     plan = engine._plan(task.get("goal", ""), failure=(
-        "Resuming persisted task after interruption. Review recorded history and "
-        "inspect current state before changing anything. History: " + str(history)[-5000:]
+"Resuming interrupted task. Inspect current state; do not blindly repeat completed steps. Recent history: " + str(recent)[-1500:]
     ))
     if not plan or not plan.steps:
         _mgr().update(task_id, status="paused")
