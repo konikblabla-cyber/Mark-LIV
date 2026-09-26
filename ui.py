@@ -5277,12 +5277,15 @@ class _RootShim:
 
 
 class JarvisUI:
-    def __init__(self, face_path: str, size=None):
+    def __init__(self, face_path: str, size=None, start_hidden: bool = False):
         self._app = QApplication.instance() or QApplication(sys.argv)
         self._app.setStyle("Fusion")
         self._win = MainWindow(face_path)
         self.root = _RootShim(self._app)
-        self._win.show()
+        if start_hidden:
+            self._win.hide()
+        else:
+            self._win.show()
 
     @property
     def muted(self) -> bool:
