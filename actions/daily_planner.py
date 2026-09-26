@@ -32,6 +32,33 @@ def _clean(text, limit=240):
     return " ".join(str(text or "").replace("\n", " ").split())[:limit]
 
 
+def summarize_due_tasks(window_minutes: int = 1440):
+    """Return a compact local summary of open tasks due within a bounded window."""
+    from datetime import datetime
+    now = datetime.now()
+    try:
+        window = max(1, min(int(window_minutes), 7 * 24 * 60))
+    except (TypeError, ValueError):
+        window = 1440
+    tasks = _load()
+    due = []
+    for task in tasks:
+        if task.get("status") != "open":
+            continue
+        raw = str(task.get("due") or "").strip()
+        if not raw:
+            continue
+        try:
+            dt = datetime.strptime(raw, "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        delta = (dt - now).total_seconds()
+        if -86400 <= delta <= window * 60:
+            due.append((delta, task))
+    due.sort(key=lambda item: item[0])
+    return [task for _, task in due[:10]]
+
+
 def check_overdue_tasks():
     now = datetime.now()
     found = []
