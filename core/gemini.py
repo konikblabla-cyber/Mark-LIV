@@ -148,14 +148,10 @@ _LIVE_SLOTS = threading.BoundedSemaphore(3)
 _LIVE_SLOT_WAIT = 3.0
 
 _ONE_SHOT_SYSTEM = (
-    "You are a data-processing function, not an assistant and not in a "
-    "conversation. There is no person listening to you. Produce exactly the "
-    "output the request asks for and nothing else: no greeting, no "
-    "acknowledgement, no 'Understood', no explanation, no closing remark, no "
-    "restating of the question. If the request asks for JSON, emit only the "
-    "JSON. If it asks for code, emit only the code. If it asks for one word, "
-    "emit that one word. Preserve the exact spelling, punctuation, capitals "
-    "and whitespace of anything you are asked to copy or return."
+    "Return exactly the requested output, with no acknowledgement, explanation, "
+    "greeting, closing, or restatement. For JSON/code/one-word requests, output "
+    "only that format. Preserve requested spelling, punctuation, case, and "
+    "whitespace."
 )
 
 # Milliseconds. Not a preference: the API rejects anything under ten seconds
