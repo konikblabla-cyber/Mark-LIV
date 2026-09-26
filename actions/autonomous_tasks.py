@@ -32,7 +32,11 @@ def jarvis_self_test(parameters, action_registry=None, **kwargs):
 
 
 def jarvis_status(parameters, action_registry=None, **kwargs):
+    """Return a useful local status snapshot without spending a Gemini call."""
     from core import confirm
+    import platform
+    import psutil
+
     tasks = TaskManager().recoverable()
     count = len(action_registry.names()) if action_registry else 0
     pending = confirm.pending_title() or "none"
@@ -44,13 +48,16 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
             checks.append(True)
         except Exception:
             checks.append(False)
+
     health = "OK" if all(checks) else "ATTENTION"
+    ram = psutil.virtual_memory()
+    root = "C:\\" if platform.system() == "Windows" else "/"
+    disk = psutil.disk_usage(root)
     return (
         f"JARVIS status: health={health}; actions={count}; "
-        f"recoverable_tasks={len(tasks)}; pending_confirmation={pending}"
+        f"recoverable_tasks={len(tasks)}; pending_confirmation={pending}; "
+        f"RAM={ram.percent:.0f}%; disk={disk.percent:.0f}%"
     )
-
-
 def autonomous_tasks(parameters, **kwargs):
     tasks = _mgr().recoverable()
     if not tasks:
