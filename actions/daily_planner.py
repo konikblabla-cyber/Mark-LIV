@@ -93,6 +93,29 @@ def daily_planner(parameters=None, **kwargs):
                     _write(tasks)
                     return f"Task postponed: {task.get('title')}."
             return "Open task not found."
+        if action == "overdue":
+            now = datetime.now()
+            overdue = []
+            for task in tasks:
+                if task.get("status") != "open":
+                    continue
+                due = str(task.get("due") or "")
+                try:
+                    when = datetime.strptime(due, "%Y-%m-%d %H:%M")
+                except ValueError:
+                    continue
+                if when < now:
+                    overdue.append(task)
+            overdue.sort(key=lambda t: t.get("due") or "")
+            if not overdue:
+                return "No overdue daily tasks."
+            lines = [f"{t['id']} | {t['title']} | overdue {t['due']}" for t in overdue[:20]]
+            try:
+                from core.status_center import record
+                record("planner", f"{len(overdue)} overdue task(s) detected", level="warning")
+            except Exception:
+                pass
+            return "\n".join(lines)
         if action == "list":
             open_tasks = [t for t in tasks if t.get("status") == "open"]
             open_tasks.sort(key=lambda t: (int(t.get("priority", 2)), t.get("due") or "9999-99-99"))
