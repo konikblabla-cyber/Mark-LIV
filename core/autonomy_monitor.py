@@ -14,6 +14,7 @@ class AutonomyMonitor:
         self._stop = threading.Event()
         self._thread = None
         self._last_fingerprint = None
+        self._health_counter = 0
 
     def _fingerprint(self, result):
         # Fingerprint only actionable state, not volatile uptime/CPU telemetry.
@@ -43,10 +44,28 @@ class AutonomyMonitor:
             self._last_fingerprint = fp
             if changed:
                 self.on_issue(result)
+            self._health_counter += 1
+            if self._health_counter >= 6:
+                self._health_counter = 0
+                self._local_health_check()
             return result
         except Exception as e:
             self.logger(f"[AutonomyMonitor] audit failed: {e}")
             return None
+
+    def _local_health_check(self):
+        """Cheap periodic core check; deliberately avoids Gemini/API calls."""
+        checks = ("core.confirm", "core.autonomy", "core.wake_word", "memory.memory_manager")
+        failed = []
+        for name in checks:
+            try:
+                __import__(name)
+            except Exception as exc:
+                failed.append(f"{name}: {str(exc)[:120]}")
+        if failed:
+            self.logger("[AutonomyMonitor] local health warning: " + " | ".join(failed))
+        else:
+            self.logger("[AutonomyMonitor] local self-test OK")
 
     def _loop(self):
         while not self._stop.wait(self.interval):
