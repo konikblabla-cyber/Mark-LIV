@@ -238,7 +238,7 @@ def daily_planner(parameters=None, **kwargs):
             t = open_tasks[0]
             return f"Next task: {t['title']} (id {t['id']}, priority {t.get('priority', 2)}" + (f", due {t['due']}" if t.get("due") else "") + ")."
 
-        return "Use action=add, list, next, or complete."
+        return "Use action=add, list, next, complete, postpone, overdue, upcoming, or summary."
 
 
 TOOL = {
