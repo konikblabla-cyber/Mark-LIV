@@ -17,7 +17,9 @@ class ActionLoaderTests(unittest.TestCase):
             "name": "bad_schema", "description": "test",
             "parameters": {"type": "STRING"}, "handler": lambda: None,
         })
-        record = _validate(module, "bad_schema.py")
+        records = _validate(module, "bad_schema.py")
+        self.assertEqual(len(records), 1)
+        record = records[0]
         self.assertFalse(record.valid)
         self.assertIn("parameters", record.error)
 
