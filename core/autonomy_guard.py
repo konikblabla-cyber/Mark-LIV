@@ -24,7 +24,8 @@ def validate_step(action: str, parameters: dict[str, Any]) -> tuple[bool, str]:
                 return False, f"autonomous planner cannot set approval parameter '{key}'"
 
     process = str(parameters.get("process") or parameters.get("name") or "")
-    if process.lower() in {p.lower() for p in PROTECTED_PROCESSES}:
+    protected = {p.lower() for p in PROTECTED_PROCESSES}
+    if process.lower() in protected:
         if action in {"kill_process", "terminate_process", "close_active"}:
             return False, f"protected process: {process}"
 
@@ -41,6 +42,10 @@ def validate_step(action: str, parameters: dict[str, Any]) -> tuple[bool, str]:
                 if action in {"delete_file", "delete_folder", "format_drive"}:
                     return False, f"protected system path: {value}"
 
+    if action == "format_drive":
+        drive = str(parameters.get("drive") or parameters.get("path") or parameters.get("target") or "")
+        if not drive:
+            return False, "format_drive requires an explicit drive/path"
     return True, ""
 
 def audit_plan(steps) -> list[str]:
