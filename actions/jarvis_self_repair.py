@@ -4,8 +4,11 @@ No Gemini call is made here. Repairs are limited to reversible runtime setup.
 """
 from __future__ import annotations
 
+import json
 import os
 import platform
+import shutil
+import tempfile
 from pathlib import Path
 
 import psutil
@@ -38,8 +41,39 @@ def _check_core():
     return checks
 
 
+def _safe_write_json(path: Path, data) -> None:
+    """Atomically replace a small runtime JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    finally:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+
+
+def _backup_corrupt(path: Path) -> Path | None:
+    """Keep a recoverable copy before repairing a corrupt runtime file."""
+    try:
+        backup = path.with_name(f"{path.stem}.corrupt-backup{path.suffix}")
+        if backup.exists():
+            backup = path.with_name(
+                f"{path.stem}.corrupt-backup-{os.getpid()}{path.suffix}"
+            )
+        shutil.copy2(path, backup)
+        return backup
+    except OSError:
+        return None
+
+
 def jarvis_self_repair(parameters=None, **kwargs):
-    """Run local diagnostics and apply only safe runtime repairs."""
+    """Run local diagnostics and apply only safe, reversible runtime repairs."""
     if platform.system() != "Windows":
         return "JARVIS self-repair is currently Windows-only."
 
@@ -57,19 +91,25 @@ def jarvis_self_repair(parameters=None, **kwargs):
         if task_file.exists() and not task_file.is_file():
             return "Self-repair stopped: task storage path is not a file."
         if not task_file.exists():
-            task_file.write_text("{}", encoding="utf-8")
+            _safe_write_json(task_file, {})
             results.append("recreated missing task storage")
         else:
-            # Validate JSON and repair only an unreadable/corrupt task store.
-            import json
             try:
                 data = json.loads(task_file.read_text(encoding="utf-8"))
                 if not isinstance(data, dict):
                     raise ValueError("task storage root is not an object")
                 results.append("task storage OK")
-            except Exception:
-                task_file.write_text("{}", encoding="utf-8")
-                results.append("replaced corrupt task storage")
+            except Exception as exc:
+                backup = _backup_corrupt(task_file)
+                _safe_write_json(task_file, {})
+                if backup:
+                    results.append(
+                        f"replaced corrupt task storage (backup: {backup.name})"
+                    )
+                else:
+                    results.append(
+                        f"replaced corrupt task storage (backup failed: {exc.__class__.__name__})"
+                    )
     except OSError as exc:
         results.append(f"task storage check failed: {exc}")
 
@@ -79,7 +119,9 @@ def jarvis_self_repair(parameters=None, **kwargs):
     message = "JARVIS self-repair: " + "; ".join(results)
     try:
         from core.status_center import record
-        level = "warning" if any("FAIL" in item or "failed" in item for item in results) else "info"
+        level = "warning" if any(
+            "FAIL" in item or "failed" in item for item in results
+        ) else "info"
         record("repair", message, level=level)
     except Exception:
         pass
@@ -124,12 +166,13 @@ def jarvis_protection_check(parameters=None, **kwargs):
     except (TypeError, ValueError):
         ram_limit = 15.0
     findings = []
+    protected = {x.lower() for x in PROTECTED}
 
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
             info = proc.info
             name = info.get("name") or "?"
-            if name.lower() in {x.lower() for x in PROTECTED}:
+            if name.lower() in protected:
                 continue
             cpu = float(info.get("cpu_percent") or 0)
             ram = float(info.get("memory_percent") or 0)
@@ -155,7 +198,7 @@ def jarvis_protection_check(parameters=None, **kwargs):
 TOOL = [
     {
         "name": "jarvis_self_repair",
-        "description": "Run cheap local JARVIS diagnostics and repair only missing runtime state; never changes security or kills processes.",
+        "description": "Run cheap local JARVIS diagnostics and repair only missing/corrupt runtime state with a backup; never changes security or kills processes.",
         "parameters": {"type": "OBJECT", "properties": {}},
         "handler": jarvis_self_repair,
     },
