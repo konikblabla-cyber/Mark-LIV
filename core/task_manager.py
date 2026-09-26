@@ -66,9 +66,11 @@ class TaskManager:
             task = data.get(task_id)
             if not task:
                 return
-            task["history"].append({"action": action, "result": str(result)[:4000],
-                                    "verified": verified,
+            task["history"].append({"action": str(action)[:120], "result": str(result)[:1200],
+                                    "verified": bool(verified),
                                     "at": datetime.now(timezone.utc).isoformat()})
+            if len(task["history"]) > 50:
+                task["history"] = task["history"][-50:]
             task["next_step"] = int(task.get("next_step", 0)) + 1
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._write(data)
