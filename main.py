@@ -2071,6 +2071,21 @@ class JarvisLive:
                         print(f"[Monitor] ⚠️ Background check error: {e}")
             await asyncio.sleep(1800)     # check every 30 minutes
 
+    async def _run_daily_task_monitor(self) -> None:
+        """Check local planner deadlines without Gemini/API calls."""
+        while True:
+            await asyncio.sleep(60)
+            try:
+                from actions.daily_planner import check_overdue_tasks
+                overdue = await asyncio.to_thread(check_overdue_tasks)
+                if overdue:
+                    for task in overdue[:5]:
+                        title = str(task.get("title") or "task")[:120]
+                        due = str(task.get("due") or "")[:32]
+                        self.ui.write_log(f"JARVIS [planner]: overdue — {title} ({due})")
+            except Exception as e:
+                print(f"[Planner] check error: {e}")
+
     # ── Proactive mode ──────────────────────────────────────────────────────────
 
     async def _run_proactive_mode(self) -> None:
@@ -2299,7 +2314,7 @@ class JarvisLive:
                     tg.create_task(self._play_audio())
                     tg.create_task(self._run_system_monitor())
                     tg.create_task(self._run_background_monitor())
-                    tg.create_task(self._run_proactive_mode())
+                    tg.create_task(self._run_proactive_mode())\n                    tg.create_task(self._run_daily_task_monitor())
                     tg.create_task(self._run_sleep_watch())
                     if self._dashboard:
                         tg.create_task(self._relay_phone_audio())
