@@ -60,7 +60,16 @@ def jarvis_self_repair(parameters=None, **kwargs):
             task_file.write_text("{}", encoding="utf-8")
             results.append("recreated missing task storage")
         else:
-            results.append("task storage OK")
+            # Validate JSON and repair only an unreadable/corrupt task store.
+            import json
+            try:
+                data = json.loads(task_file.read_text(encoding="utf-8"))
+                if not isinstance(data, dict):
+                    raise ValueError("task storage root is not an object")
+                results.append("task storage OK")
+            except Exception:
+                task_file.write_text("{}", encoding="utf-8")
+                results.append("replaced corrupt task storage")
     except OSError as exc:
         results.append(f"task storage check failed: {exc}")
 
