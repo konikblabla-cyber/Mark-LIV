@@ -106,6 +106,16 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             f" Expected verification: {expectation}" if expectation else ""
         )
 
+    @staticmethod
+    def _looks_transient(result: Any) -> bool:
+        text = str(result or "").lower()
+        markers = (
+            "timeout", "timed out", "temporarily", "try again",
+            "busy", "connection reset", "connection refused",
+            "service unavailable", "network unavailable",
+        )
+        return any(marker in text for marker in markers)
+
     def _execute_steps(self, plan: Plan, start: int, goal: str, history: list, replan_count: int = 0) -> str:
         """Execute remaining steps; a human confirmation resumes at the next step."""
         for index in range(start, len(plan.steps)):
@@ -142,6 +152,29 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 continue
 
             failure = self._failure(step.action, result, step.verify)
+
+            # One cheap retry for clearly transient failures, but only for
+            # low-risk actions; never blindly repeat a consequential action.
+            if (
+                replan_count == 0
+                and classify(step.action, step.parameters).level == "low"
+                and self._looks_transient(result)
+            ):
+                self.logger(f"[Autonomy] Transient failure; retrying once: {step.action}")
+                retry_result = self.registry.run(step.action, step.parameters, self.ctx)
+                retry_verified = (
+                    self._result_ok(retry_result, step.verify)
+                    and verify_state(step.action, step.parameters, retry_result)
+                )
+                history.append((step.action, retry_result))
+                if self.task_id:
+                    self.tasks.step(self.task_id, step.action, retry_result, retry_verified)
+                if retry_verified:
+                    self.logger(f"[Autonomy] Retry VERIFIED: {step.action}")
+                    continue
+                result = retry_result
+                failure = self._failure(step.action, result, step.verify)
+
             if self.task_id:
                 self.tasks.update(self.task_id, status="recovering", failure=failure)
             self.logger(f"[Autonomy] Recovery required: {failure}")
