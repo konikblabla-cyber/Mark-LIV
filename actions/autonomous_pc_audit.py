@@ -187,7 +187,13 @@ def safe_pc_optimization(parameters=None, **kwargs):
         results.append("DNS cache refreshed" if proc.returncode == 0 else "DNS refresh skipped")
     except Exception as exc:
         results.append(f"DNS refresh unavailable: {str(exc)[:120]}")
-    return "Safe optimization cycle: " + "; ".join(results)
+    message = "Safe optimization cycle: " + "; ".join(results)
+    try:
+        from core.status_center import record
+        record("maintenance", message, level="warning" if any("attention" in x.lower() for x in results) else "info")
+    except Exception:
+        pass
+    return message
 
 TOOL=[
     {
