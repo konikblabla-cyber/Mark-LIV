@@ -10,6 +10,19 @@ def autonomous_tasks(parameters, **kwargs):
         return {"ok": True, "tasks": [], "message": "No recoverable autonomous tasks."}
     return {"ok": True, "tasks": tasks}
 
+def run_autonomous_goal(parameters, action_registry=None, player=None, speak=None,
+                       response=None, session_memory=None, **kwargs):
+    goal = str((parameters or {}).get("goal") or "").strip()
+    if not goal or action_registry is None:
+        return "Missing goal or action registry."
+    from core.autonomy import AutonomyEngine
+    ctx = {
+        "player": player, "speak": speak, "response": response,
+        "session_memory": session_memory, "action_registry": action_registry,
+    }
+    return AutonomyEngine(action_registry, ctx=ctx, task_manager=_mgr()).run(goal)
+
+
 def resume_autonomous_task(parameters, action_registry=None, player=None, speak=None,
                            response=None, session_memory=None, **kwargs):
     task_id = str(parameters.get("task_id") or "").strip()
@@ -44,6 +57,16 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
     return engine._execute_steps(plan, 0, task.get("goal", ""), history)
 
 TOOL = [
+    {
+        "name": "run_autonomous_goal",
+        "description": "Break a larger user goal into safe steps, execute them, verify results, and replan after failures. Use for multi-step tasks rather than inventing a long manual sequence.",
+        "parameters": {
+            "type":"OBJECT",
+            "properties":{"goal":{"type":"STRING"}},
+            "required":["goal"],
+        },
+        "handler": run_autonomous_goal,
+    },
     {
         "name": "autonomous_tasks",
         "description": "List autonomous tasks that can be recovered or resumed.",
