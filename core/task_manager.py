@@ -71,7 +71,11 @@ class TaskManager:
                                     "at": datetime.now(timezone.utc).isoformat()})
             if len(task["history"]) > 50:
                 task["history"] = task["history"][-50:]
-            task["next_step"] = int(task.get("next_step", 0)) + 1
+            try:
+                current_step = max(0, int(task.get("next_step", 0)))
+            except (TypeError, ValueError):
+                current_step = 0
+            task["next_step"] = current_step + 1
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._write(data)
 
