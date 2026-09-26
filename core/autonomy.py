@@ -224,11 +224,9 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 self.task_id, status="completed", next_step=len(plan.steps)
             )
         return (
-        return (
             f"{plan.summary or 'Goal completed.'}\n"
             f"Executed {len(history)} step(s).\n"
             f"Final result: {last}"
-        )
         )
 
     def run(self, goal: str) -> str:
