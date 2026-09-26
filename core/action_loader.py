@@ -105,7 +105,7 @@ class ActionRegistry:
         except Exception as e:
             self._logger(f"Action '{name}' crashed during run(): {e}")
             traceback.print_exc()
-            return {"ok": False, "error": f"Tool '{name}' failed: {e}"}
+            return f"Tool '{name}' failed: {e}"
 
 
 def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> str:
