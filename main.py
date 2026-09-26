@@ -1575,7 +1575,7 @@ class JarvisLive:
                             in_buf = []
 
                             # One wake phrase unlocks one user turn.
-                            if full_in and self._wake_enabled and not self._background_mode:
+                            if full_in and self._wake_enabled:
                                 self.sleep(reason="strict wake-word turn complete")
 
                             full_out = " ".join(out_buf).strip()
@@ -2154,12 +2154,12 @@ class JarvisLive:
                         self.ui.write_log("SYS: Reconnected — conversation restored.")
 
                     # Wake word: if enabled, come up ASLEEP (mic gated, silent)
-                    # until the user says "Hey Jarvis" or taps wake in the UI.
+                    # until the user says "Hey Jarvis" or "Jarvis", or taps wake in the UI.
                     if self._wake_enabled:
                         self._ensure_wake_detector()
                         self._awake = False
                         self.ui.set_state("SLEEPING")
-                        self.ui.write_log("SYS: JARVIS online — sleeping. Say 'Hey Jarvis' to wake me.")
+                        self.ui.write_log("SYS: JARVIS online — sleeping. Say 'Hey Jarvis' or 'Jarvis' to wake me.")
                     else:
                         self._awake = True
                         self.ui.set_state("LISTENING")
