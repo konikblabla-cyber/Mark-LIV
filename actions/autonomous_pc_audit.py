@@ -8,6 +8,7 @@ import platform
 import shutil
 import time
 from pathlib import Path
+import subprocess
 import psutil
 
 PROTECTED = {"System", "Registry", "smss.exe", "csrss.exe", "wininit.exe",
@@ -61,9 +62,36 @@ def autonomous_pc_audit(parameters=None, **kwargs):
     lines += [f"- PID {pid} {name}: RAM {mem:.1f}%, CPU {cpu:.1f}%" for mem,cpu,pid,name in _top_processes()]
     return "\n".join(lines)
 
-TOOL={
-    "name":"autonomous_pc_audit",
-    "description":"Wysokopoziomowy audyt komputera: zbiera dane, odrzuca chronione procesy i wyznacza priorytety zamiast zwracać surowy spam diagnostyczny.",
-    "parameters":{"type":"OBJECT","properties":{"disk_threshold":{"type":"INTEGER","description":"Próg zajętości dysku dla rekomendacji, domyślnie 80."}}},
-    "handler":autonomous_pc_audit,
-}
+def safe_pc_optimization(parameters=None, **kwargs):
+    """Apply only low-risk maintenance; never delete files or change security."""
+    if platform.system() != "Windows":
+        return "Windows-only optimization."
+    results = []
+    try:
+        proc = subprocess.run(
+            ["ipconfig", "/flushdns"],
+            capture_output=True, text=True, timeout=20,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if proc.returncode == 0:
+            results.append("DNS cache refreshed")
+        else:
+            results.append(f"DNS refresh skipped (code {proc.returncode})")
+    except Exception as e:
+        results.append(f"DNS refresh unavailable: {e}")
+    return "Safe optimization completed: " + "; ".join(results)
+
+TOOL=[
+    {
+        "name":"autonomous_pc_audit",
+        "description":"Wysokopoziomowy audyt komputera: zbiera dane, odrzuca chronione procesy i wyznacza priorytety zamiast zwracać surowy spam diagnostyczny.",
+        "parameters":{"type":"OBJECT","properties":{"disk_threshold":{"type":"INTEGER","description":"Próg zajętości dysku dla rekomendacji, domyślnie 80."}}},
+        "handler":autonomous_pc_audit,
+    },
+    {
+        "name":"safe_pc_optimization",
+        "description":"Wykonuje wyłącznie bezpieczne, niskiego ryzyka czynności optymalizacyjne komputera. Nie usuwa plików, nie zabija procesów i nie zmienia zabezpieczeń.",
+        "parameters":{"type":"OBJECT","properties":{}},
+        "handler":safe_pc_optimization,
+    },
+]
