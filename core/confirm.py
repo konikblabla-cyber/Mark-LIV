@@ -42,8 +42,6 @@ from typing import Callable, Optional
 
 _continuation: Optional[Callable[[str], None]] = None
 
-_continuation: Optional[Callable[[str], None]] = None
-
 # A pending confirmation is abandoned after this long. Chosen to outlast a
 # normal "hang on, let me look at the screen" pause without leaving a live
 # shutdown button sitting on the HUD for the rest of the day.
