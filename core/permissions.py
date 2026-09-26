@@ -27,7 +27,15 @@ PROTECTED_PROCESSES = {
 
 def needs_confirmation(action: str, *, admin: bool = False) -> bool:
     name = str(action or "").strip().lower()
-    return admin or name in REQUIRE_CONFIRMATION or name in REQUIRE_ADMIN_CONFIRMATION
+    if admin or name in REQUIRE_CONFIRMATION or name in REQUIRE_ADMIN_CONFIRMATION:
+        return True
+    # Catch common aliases so a newly added action cannot bypass the central
+    # confirmation policy merely by choosing a different tool name.
+    risky_markers = (
+        "delete", "remove", "uninstall", "format", "shutdown", "restart",
+        "kill", "terminate", "firewall", "security", "admin",
+    )
+    return any(marker in name for marker in risky_markers)
 
 def is_protected_process(name: str) -> bool:
     return str(name or "").strip().lower() in {p.lower() for p in PROTECTED_PROCESSES}
