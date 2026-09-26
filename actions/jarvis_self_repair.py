@@ -136,7 +136,8 @@ def jarvis_protection_check(parameters=None, **kwargs):
 
     if not findings:
         return "Protection check: no unusual non-protected process load detected."
-    message = "Protection check: attention needed (no action taken):\n- " + "\n- ".join(findings[:10])
+    findings = findings[:10]
+    message = "Protection check: attention needed (no action taken):\n- " + "\n- ".join(findings)
     try:
         from core.status_center import record
         record("protection", message, level="warning")
