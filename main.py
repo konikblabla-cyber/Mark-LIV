@@ -75,7 +75,7 @@ from actions.background_monitor import (
     add_monitor, remove_monitor, list_monitors, check_all as monitor_check_all,
 )
 from actions.web_search        import _news as _fetch_news_sync
-from actions.autonomous_pc_audit import autonomous_pc_audit
+from actions.autonomous_pc_audit import autonomous_pc_audit, safe_pc_optimization
 from memory.config_manager     import (
     get_brief_enabled, get_media_resolution, get_proactive_audio_enabled,
     get_push_to_talk_enabled, get_thinking_enabled, get_turn_tuning, get_voice,
