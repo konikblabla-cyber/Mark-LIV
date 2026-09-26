@@ -5,31 +5,52 @@ def _mgr():
     return TaskManager()
 
 def jarvis_self_test(parameters, action_registry=None, **kwargs):
+    """Run cheap local checks; never calls Gemini and never changes user data."""
     checks = []
     try:
-        checks.append(("action registry", bool(action_registry and action_registry.names())))
-    except Exception:
-        checks.append(("action registry", False))
+        count = len(action_registry.names()) if action_registry else 0
+        checks.append(("action registry", count > 0, f"{count} actions"))
+    except Exception as exc:
+        checks.append(("action registry", False, str(exc)[:100]))
     try:
         from memory.memory_manager import load_memory
         load_memory()
-        checks.append(("memory", True))
-    except Exception:
-        checks.append(("memory", False))
+        checks.append(("memory", True, "load OK"))
+    except Exception as exc:
+        checks.append(("memory", False, str(exc)[:100]))
+    try:
+        mgr = TaskManager()
+        data = mgr._read()
+        checks.append(("task storage", isinstance(data, dict), "read OK"))
+    except Exception as exc:
+        checks.append(("task storage", False, str(exc)[:100]))
     try:
         from core import confirm
-        checks.append(("confirmation gate", hasattr(confirm, "request") and hasattr(confirm, "resolve")))
-    except Exception:
-        checks.append(("confirmation gate", False))
+        ok = all(hasattr(confirm, name) for name in ("request", "resolve", "arm_voice", "resolve_voice"))
+        checks.append(("confirmation gate", ok, "API OK" if ok else "API incomplete"))
+    except Exception as exc:
+        checks.append(("confirmation gate", False, str(exc)[:100]))
+    try:
+        from core.autonomy import AutonomyEngine
+        checks.append(("autonomy engine", bool(AutonomyEngine), "import OK"))
+    except Exception as exc:
+        checks.append(("autonomy engine", False, str(exc)[:100]))
+    try:
+        from actions.jarvis_self_repair import jarvis_protection_fingerprint
+        snapshot = jarvis_protection_fingerprint()
+        checks.append(("protection monitor", isinstance(snapshot, list), "local check OK"))
+    except Exception as exc:
+        checks.append(("protection monitor", False, str(exc)[:100]))
     try:
         from core.wake_word import is_installed
-        checks.append(("wake word module", bool(is_installed())))
-    except Exception:
-        checks.append(("wake word module", False))
-    ok = all(v for _, v in checks)
+        installed = bool(is_installed())
+        checks.append(("wake word", True, "installed" if installed else "optional/not installed"))
+    except Exception as exc:
+        checks.append(("wake word", True, f"optional: {str(exc)[:80]}"))
+    ok = all(v for _, v, _ in checks)
     return ("JARVIS self-test: " + ("OK" if ok else "attention needed") + "\n" +
-            "\n".join(f"- {name}: {'OK' if value else 'FAIL'}" for name, value in checks))
-
+            "\n".join(f"- {name}: {'OK' if value else 'FAIL'} ({detail})"
+                        for name, value, detail in checks))
 
 def jarvis_status(parameters, action_registry=None, **kwargs):
     """Return a useful local status snapshot without spending a Gemini call."""
