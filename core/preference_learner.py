@@ -42,7 +42,11 @@ def preferred_action(action: str, min_uses: int = 3) -> bool:
     name = str(action or "").strip().lower()
     if not name:
         return False
-    return any(item_name == name and count >= max(2, int(min_uses or 3))
+    try:
+        threshold = max(2, int(min_uses or 3))
+    except (TypeError, ValueError):
+        threshold = 3
+    return any(item_name == name and count >= threshold
                for item_name, count in top_actions(20))
 
 
