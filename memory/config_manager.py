@@ -121,6 +121,15 @@ def save_wake_word_enabled(enabled: bool) -> None:
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
 
 
+
+def get_sleep_after_task_enabled() -> bool:
+    """Whether strict wake-word mode returns to sleep after each completed turn."""
+    return bool(load_api_keys().get("sleep_after_task_enabled", True))
+
+
+def save_sleep_after_task_enabled(enabled: bool) -> None:
+    _save_flag("sleep_after_task_enabled", enabled)
+
 def get_push_to_talk_enabled() -> bool:
     """Hold-a-key-to-speak. When on, the mic is closed unless the chord is held."""
     return load_api_keys().get("push_to_talk_enabled", False)
