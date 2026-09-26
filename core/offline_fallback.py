@@ -9,7 +9,10 @@ def handle(text: str):
     if not q:
         return None
 
-    if any(x in q for x in ("status komputera", "stan komputera", "system status", "pc status")):
+    if any(x in q for x in (
+        "status komputera", "stan komputera", "system status", "pc status",
+        "jak działa komputer", "jak dziala komputer",
+    )):
         from actions.pc_status import pc_status
         return pc_status({})
 
@@ -17,14 +20,18 @@ def handle(text: str):
         from actions.daily_planner import daily_planner
         return daily_planner({"action": "list"})
 
-    if any(x in q for x in ("następne zadanie", "nastepne zadanie", "next task")):
+    if q in {"następne zadanie", "nastepne zadanie", "next task"}:
         from actions.daily_planner import daily_planner
         return daily_planner({"action": "next"})
 
     m = re.match(r"^(?:dodaj|add) (?:zadanie|task)[: ]+(.+)$", q)
     if m:
-        from actions.daily_planner import daily_planner
-        return daily_planner({"action": "add", "title": m.group(1)})
+        title = m.group(1).strip()
+        if len(title) > 200:
+            title = title[:200].rstrip()
+        if title:
+            from actions.daily_planner import daily_planner
+            return daily_planner({"action": "add", "title": title})
 
     if q in {"self test", "autotest", "test jarvisa", "test jarvis"}:
         from actions.autonomous_tasks import jarvis_self_test
