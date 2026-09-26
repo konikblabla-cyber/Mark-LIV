@@ -67,4 +67,7 @@ def snapshot(limit: int = 8) -> dict:
         "events": events,
         "last_issue": next((e for e in events if e.get("level") in {"warning", "error"}), None),
         "last_fix": next((e for e in events if e.get("kind") in {"repair", "maintenance"}), None),
+        "health": "ATTENTION" if any(e.get("level") in {"warning", "error"} for e in events) else "OK",
+        "errors": sum(1 for e in events if e.get("level") == "error"),
+        "warnings": sum(1 for e in events if e.get("level") == "warning"),
     }
