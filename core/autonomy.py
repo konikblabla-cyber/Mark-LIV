@@ -61,8 +61,7 @@ class AutonomyEngine:
             if not rec:
                 continue
             rows.append(f"{name}: {rec.description[:240]}")
-        self._catalog_cache = "
-".join(rows)
+        self._catalog_cache = "\n".join(rows)
         return self._catalog_cache
 
     def _plan(self, goal: str, failure: str = "") -> Plan | None:
