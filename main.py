@@ -2110,7 +2110,12 @@ class JarvisLive:
         text = str(result or "").strip()
         if not text:
             return
-        self.ui.write_log("[AutonomyMonitor] PC state changed — review recommended.")
+        self.ui.write_log("[AutonomyMonitor] PC state changed — checking safe maintenance.")
+        if "HIGH:" in text:
+            try:
+                self.ui.write_log("[AutonomyMonitor] " + str(safe_pc_optimization({})))
+            except Exception as e:
+                self.ui.write_log(f"[AutonomyMonitor] Safe maintenance skipped: {e}")
         if self.session and self._awake:
             try:
                 asyncio.run_coroutine_threadsafe(
