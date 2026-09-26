@@ -103,7 +103,21 @@ class ActionRegistry:
         try:
             return _call_handler(rec.handler, parameters, ctx or {}) or "Done."
         except Exception as e:
-            self._logger(f"Action '{name}' crashed during run(): {e}")
+            message = f"Action '{name}' crashed during run(): {e}"
+            self._logger(message)
+            try:
+                from core.status_center import record
+                record("action_error", message, level="error")
+            except Exception:
+                pass
+            # Attempt only bounded runtime repair; never retry the failed action
+            # automatically, because its side effects may be unknown.
+            try:
+                from actions.jarvis_self_repair import jarvis_self_repair
+                repair = jarvis_self_repair({})
+                self._logger("[ActionLoader] bounded self-repair: " + str(repair)[:300])
+            except Exception as repair_error:
+                self._logger(f"[ActionLoader] self-repair unavailable: {repair_error}")
             traceback.print_exc()
             return f"Tool '{name}' failed: {e}"
 
