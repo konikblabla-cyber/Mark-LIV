@@ -1912,6 +1912,48 @@ class PluginManagerOverlay(QWidget):
                 QPushButton:hover {{ color: {C.TEXT}; border-color: {C.BORDER_B}; }}
             """)
 
+    def _setup_system_tray(self):
+        """Keep JARVIS alive when the main window is closed, like Discord/Steam."""
+        try:
+            if not QSystemTrayIcon.isSystemTrayAvailable():
+                return
+            icon = QIcon(str(self._face_path)) if Path(self._face_path).exists() else self.windowIcon()
+            self._tray = QSystemTrayIcon(icon, self)
+            self._tray.setToolTip(f"{self._assistant_name} — działa w tle")
+            menu = QMenu()
+            show_action = menu.addAction("Pokaż JARVIS")
+            show_action.triggered.connect(self._restore_from_tray)
+            menu.addSeparator()
+            quit_action = menu.addAction("Wyjdź z JARVIS")
+            quit_action.triggered.connect(self._quit_from_tray)
+            self._tray.setContextMenu(menu)
+            self._tray.activated.connect(self._tray_activated)
+            self._tray.show()
+        except Exception as exc:
+            print(f"[UI] Tray unavailable: {exc}")
+            self._tray = None
+
+    def _restore_from_tray(self, *_):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _quit_from_tray(self, *_):
+        self._allow_real_close = True
+        try:
+            if self._tray is not None:
+                self._tray.hide()
+        except Exception:
+            pass
+        self.close()
+
+    def _tray_activated(self, reason):
+        try:
+            if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+                self._restore_from_tray()
+        except Exception:
+            pass
+
     def _toggle(self, name: str, btn: QPushButton):
         from memory.config_manager import get_plugin_enabled, save_plugin_enabled
         new_val = not get_plugin_enabled(name)
@@ -2917,6 +2959,24 @@ class RemoteKeyOverlay(QWidget):
 
 
 class MainWindow(QMainWindow):
+    def closeEvent(self, event):
+        if not self._allow_real_close:
+            event.ignore()
+            self.hide()
+            try:
+                if self._tray is not None:
+                    self._tray.showMessage(
+                        self._assistant_name,
+                        "JARVIS nadal działa w tle. Otwórz go z ikony w zasobniku.",
+                        QSystemTrayIcon.MessageIcon.Information,
+                        2200,
+                    )
+            except Exception:
+                pass
+            return
+        super().closeEvent(event)
+
+
     _log_sig        = pyqtSignal(str)
     _state_sig      = pyqtSignal(str)
     _content_sig    = pyqtSignal(str, str)   # (title, text) — thread-safe content display
@@ -2973,6 +3033,9 @@ class MainWindow(QMainWindow):
         self._current_file: str | None = None
         self._remote_overlay: RemoteKeyOverlay | None = None
         self._customize_overlay: CustomizeOverlay | None = None
+        self._allow_real_close = False
+        self._tray = None
+        self._setup_system_tray()
 
         central = QWidget()
         central.setStyleSheet(f"background: {C.BG};")
