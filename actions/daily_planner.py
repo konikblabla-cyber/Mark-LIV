@@ -249,6 +249,7 @@ def daily_planner(parameters=None, **kwargs):
 
 TOOL = {
     "name": "daily_planner",
+    "handler": daily_planner,
     "description": "Manage JARVIS's persistent personal daily task list locally without Gemini.",
     "parameters": {
         "type": "OBJECT",
