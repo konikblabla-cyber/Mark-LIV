@@ -66,6 +66,10 @@ _lock = threading.Lock()
 _show_cb: Optional[Callable[[str, str], None]] = None
 _hide_cb: Optional[Callable[[], None]] = None
 _log_cb:  Optional[Callable[[str], None]] = None
+# A voice confirmation is only armed by the local wake-word detector. The model
+# cannot arm this flag itself.
+_voice_armed_until = 0.0
+
 
 
 def bind(show, hide, log=None) -> None:
@@ -86,6 +90,28 @@ def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
     """Set a one-shot callback used by autonomous tasks after confirmation."""
     global _continuation
     _continuation = callback
+
+
+def arm_voice(seconds: float = 12.0) -> None:
+    """Arm spoken confirmation briefly after a real local wake-word detection."""
+    global _voice_armed_until
+    _voice_armed_until = time.monotonic() + max(1.0, min(float(seconds), 30.0))
+
+
+def voice_armed() -> bool:
+    return time.monotonic() < _voice_armed_until
+
+
+def resolve_voice(accepted: bool) -> bool:
+    """Resolve the pending confirmation only when the wake word armed voice input."""
+    global _voice_armed_until
+    if not voice_armed():
+        return False
+    _voice_armed_until = 0.0
+    if pending_title() == "":
+        return False
+    resolve(bool(accepted))
+    return True
 
 
 def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
