@@ -1,0 +1,50 @@
+"""Background trigger logic for autonomous PC observation."""
+from __future__ import annotations
+import threading
+import time
+from typing import Callable
+
+class AutonomyMonitor:
+    def __init__(self, audit: Callable[[], object], on_issue: Callable[[object], None],
+                 interval: int = 300, logger=print):
+        self.audit = audit
+        self.on_issue = on_issue
+        self.interval = max(30, int(interval))
+        self.logger = logger
+        self._stop = threading.Event()
+        self._thread = None
+        self._last_fingerprint = None
+
+    def _fingerprint(self, result):
+        if isinstance(result, dict):
+            return str(sorted((k, str(v)) for k, v in result.items()))
+        return str(result)
+
+    def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._loop, daemon=True,
+                                        name="jarvis-autonomy-monitor")
+        self._thread.start()
+        self.logger("[AutonomyMonitor] started")
+
+    def stop(self):
+        self._stop.set()
+
+    def check_once(self):
+        try:
+            result = self.audit()
+            fp = self._fingerprint(result)
+            changed = self._last_fingerprint is not None and fp != self._last_fingerprint
+            self._last_fingerprint = fp
+            if changed:
+                self.on_issue(result)
+            return result
+        except Exception as e:
+            self.logger(f"[AutonomyMonitor] audit failed: {e}")
+            return None
+
+    def _loop(self):
+        while not self._stop.wait(self.interval):
+            self.check_once()
