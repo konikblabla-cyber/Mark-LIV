@@ -179,10 +179,9 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
     for path in files:
         if path.name.startswith("_"):
             continue
+
         try:
             module_name = f"actions.{path.stem}"
-            # Reuse the already-imported module when present so handlers are the
-            # same objects the rest of the app holds.
             module = sys.modules.get(module_name)
             if module is None:
                 spec = importlib.util.spec_from_file_location(module_name, path)
@@ -197,20 +196,21 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
                     raise
 
             if getattr(module, "TOOL", None) is None:
-                continue   # not an action file — a helper/capture-only module
-
-            records = _validate(module, path.name)
-            if not records:
                 continue
 
+            records = _validate(module, path.name)
             for rec in records:
                 if rec.valid and rec.name in reserved:
-                    rec = ActionRecord(name=rec.name, file=path.name,
-                                       error=f"Name '{rec.name}' collides with a reserved core tool — rejected.")
+                    rec = ActionRecord(
+                        name=rec.name, file=path.name,
+                        error=f"Name '{rec.name}' collides with a reserved core tool — rejected."
+                    )
                 elif rec.valid and rec.name in valid:
                     other = valid[rec.name].file
-                    rec = ActionRecord(name=rec.name, file=path.name,
-                                       error=f"Name '{rec.name}' already used by action '{other}' — rejected.")
+                    rec = ActionRecord(
+                        name=rec.name, file=path.name,
+                        error=f"Name '{rec.name}' already used by action '{other}' — rejected."
+                    )
 
                 all_records.append(rec)
                 if rec.valid:
@@ -222,14 +222,8 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
         except Exception as e:
             rec = ActionRecord(name=path.stem, file=path.name,
                                error=f"Failed to load: {e}")
+            all_records.append(rec)
             traceback.print_exc()
-
-        all_records.append(rec)
-        if rec.valid:
-            valid[rec.name] = rec
-            logger(f"Action loaded: {rec.name} ({path.name})")
-        else:
-            # Only log a rejection if the file actually tried to be an action.
             logger(f"Action rejected: {path.name} — {rec.error}")
 
     registry = ActionRegistry(valid, logger)
