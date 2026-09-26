@@ -37,6 +37,15 @@ def record_action(action: str) -> None:
             pass
 
 
+def preferred_action(action: str, min_uses: int = 3) -> bool:
+    """Return whether an action has become a stable repeated preference."""
+    name = str(action or "").strip().lower()
+    if not name:
+        return False
+    return any(item_name == name and count >= max(2, int(min_uses or 3))
+               for item_name, count in top_actions(20))
+
+
 def top_actions(limit: int = 10) -> list[tuple[str, int]]:
     with _LOCK:
         try:
