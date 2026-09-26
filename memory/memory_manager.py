@@ -342,59 +342,90 @@ def format_memory_for_prompt(memory: dict | None) -> str:
 
 # ── Recall ────────────────────────────────────────────────────────────────────
 
+def _normalize_words(text: str) -> list[str]:
+    """Cheap query normalization for Polish/English memory lookup."""
+    text = str(text or "").lower().replace("_", " ")
+    # Keep alphanumeric words, while making common Polish inflections a little
+    # easier to match without a stemmer dependency or another model call.
+    raw = [w for w in re.split(r"[^\\w]+", text, flags=re.UNICODE) if len(w) > 1]
+    out = []
+    for word in raw:
+        out.append(word)
+        if len(word) > 5:
+            for suffix in ("ami", "ach", "ego", "emu", "owi", "owa", "owe", "ów",
+                           "ie", "om", "em", "ym", "im", "ą", "ę", "y", "i", "a", "e"):
+                if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+                    out.append(word[:-len(suffix)])
+                    break
+    return list(dict.fromkeys(out))
+
+
+_CATEGORY_ALIASES = {
+    "preferences": ("preferenc", "lubi", "woli", "ustawien", "style"),
+    "projects": ("projekt", "aplikac", "program", "budow", "prac"),
+    "relationships": ("osob", "rodzin", "siostr", "brat", "kole", "znajom"),
+    "wishes": ("chce", "plan", "marz", "zyczen", "potrzeb"),
+    "notes": ("notatk", "pamiet", "uwag", "inform"),
+}
+
+
 def _score(query_words: list[str], cat: str, key: str, value: str) -> int:
-    """Cheap lexical relevance. No embeddings, no network, no model call - this
-    runs in well under a millisecond, which is the entire point: recall must
-    cost one model round trip, never two."""
+    """Cheap relevance scoring; no embeddings, network or Gemini call."""
     hay_key = _pretty(key).lower()
     hay_val = value.lower()
-    score   = 0
+    score = 0
     for w in query_words:
-        if not w:
-            continue
         if w == hay_key:
-            score += 10
+            score += 20
         elif w in hay_key:
-            score += 6
+            score += 9
         if w in hay_val:
-            score += 3
-        if w in cat:
-            score += 1
+            score += 5
+        if any(w in alias or alias in w for alias in _CATEGORY_ALIASES.get(cat, ())):
+            score += 2
     return score
 
 
 def search_memory(query: str, limit: int = 8) -> str:
-    """Find stored facts matching `query`. Backs the recall_memory tool.
+    """Find the most relevant stored facts with cheap local ranking.
 
-    An empty query is treated as "show me everything you know", capped - the
-    model asks that when the user says "what do you remember about me?"."""
+    Ranking uses phrase matches, key/value matches, category hints and
+    recency. It deliberately stays local so contextual recall never costs an
+    extra Gemini request.
+    """
     memory = load_memory()
-    words  = [w for w in re.split(r"[^\w]+", (query or "").lower()) if len(w) > 1]
+    query_text = str(query or "").strip()
+    words = _normalize_words(query_text)
+    phrase = " ".join(words[:8])
+    rows: list[tuple[int, str, str, str, str]] = []
 
-    rows: list[tuple[int, str, str, str]] = []
     for cat, items in memory.items():
         if not isinstance(items, dict):
-            continue                     # skip 'sessions', which is a list
+            continue
         for key, entry in items.items():
             val = _entry_value(entry)
             if not val:
                 continue
-            s = _score(words, cat, key, val) if words else 1
-            if s > 0:
-                rows.append((s, cat, key, val))
+            updated = (entry.get("updated", "") if isinstance(entry, dict) else "") or "0000-00-00"
+            score = _score(words, cat, key, val) if words else 1
+            if phrase and phrase in f"{_pretty(key).lower()} {val.lower()}":
+                score += 12
+            if score > 0:
+                rows.append((score, cat, key, val, updated))
 
     if not rows:
-        return (f"Nothing stored about '{query}'." if query
+        return (f"Nothing stored about '{query_text}'." if query_text
                 else "I have not stored anything about this person yet.")
 
-    rows.sort(key=lambda r: (-r[0], r[2]))
-    lines = [f"{cat}/{_pretty(key)}: {val}" for _s, cat, key, val in rows[:max(1, limit)]]
-    head  = (f"Stored facts matching '{query}':" if query
-             else "Everything currently stored:")
-    more  = (f"\n(+{len(rows) - len(lines)} more — search with a narrower keyword)"
-             if len(rows) > len(lines) else "")
-    return head + "\n" + "\n".join(lines) + more
-
+    rows.sort(key=lambda r: (-r[0], r[4], r[2]))
+    safe_limit = min(max(int(limit or 8), 1), 12)
+    selected = rows[:safe_limit]
+    lines = [f"{cat}/{_pretty(key)}: {val}" for _s, cat, key, val, _u in selected]
+    head = (f"Stored facts matching '{query_text}':" if query_text
+            else "Everything currently stored:")
+    more = (f"\\n(+{len(rows) - len(lines)} more — search with a narrower keyword)"
+            if len(rows) > len(lines) else "")
+    return head + "\\n" + "\\n".join(lines) + more
 
 def all_entries_for_ui() -> list[dict]:
     """Flat list for the memory panel: what JARVIS knows, and when it learned it.
