@@ -19,6 +19,8 @@ from core.task_manager import TaskManager
 from core.autonomy_guard import audit_plan
 from core.autonomy_policy import classify
 
+_CONFIRMATION_PENDING = "[confirmation_pending]"
+
 
 @dataclass
 class PlanStep:
@@ -40,7 +42,6 @@ class AutonomyEngine:
 
     MAX_STEPS = 12
     MAX_REPLANS = 2
-    # Fast transient retry before spending another planning call.
     MAX_TRANSIENT_RETRIES = 1
 
     def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
@@ -95,8 +96,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
         if problems:
             self.logger("[Autonomy] Plan rejected by safety guard: " + "; ".join(problems))
             return None
-        return Plan(goal=goal, steps=steps,
-                    summary=str(data.get("summary") or ""))
+        return Plan(goal=goal, steps=steps, summary=str(data.get("summary") or ""))
 
     def _result_ok(self, result: Any, expectation: str = "") -> bool:
         return verify_text(result, expectation)
@@ -116,6 +116,10 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
         )
         return any(marker in text for marker in markers)
 
+    @staticmethod
+    def _confirmation_pending(result: Any) -> bool:
+        return _CONFIRMATION_PENDING in str(result or "").lower()
+
     def _execute_steps(self, plan: Plan, start: int, goal: str, history: list, replan_count: int = 0) -> str:
         """Execute remaining steps; a human confirmation resumes at the next step."""
         for index in range(start, len(plan.steps)):
@@ -133,11 +137,12 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             result = self.registry.run(step.action, step.parameters, self.ctx)
             elapsed = time.monotonic() - started
             history.append((step.action, result))
+            pending = self._confirmation_pending(result)
             verified = self._result_ok(result, step.verify) and verify_state(step.action, step.parameters, result)
             if self.task_id:
                 self.tasks.step(self.task_id, step.action, result, verified)
                 self.tasks.update(self.task_id, status="running", next_step=index + 1)
-                if "[CONFIRMATION_PENDING]" in str(result):
+                if pending:
                     self.tasks.update(self.task_id, status="waiting_confirmation", next_step=index)
 
             if verified:
@@ -147,14 +152,12 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                     f"[Autonomy] Step {index + 1}/{len(plan.steps)} VERIFIED: "
                     f"{step.action} ({elapsed:.1f}s)"
                 )
-                if "[CONFIRMATION_PENDING]" in str(result):
+                if pending:
                     return str(result)
                 continue
 
             failure = self._failure(step.action, result, step.verify)
 
-            # One cheap retry for clearly transient failures, but only for
-            # low-risk actions; never blindly repeat a consequential action.
             if (
                 replan_count < self.MAX_TRANSIENT_RETRIES
                 and classify(step.action, step.parameters).level == "low"
@@ -162,6 +165,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             ):
                 self.logger(f"[Autonomy] Transient failure; retrying once: {step.action}")
                 retry_result = self.registry.run(step.action, step.parameters, self.ctx)
+                retry_pending = self._confirmation_pending(retry_result)
                 retry_verified = (
                     self._result_ok(retry_result, step.verify)
                     and verify_state(step.action, step.parameters, retry_result)
@@ -169,8 +173,14 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 history.append((step.action, retry_result))
                 if self.task_id:
                     self.tasks.step(self.task_id, step.action, retry_result, retry_verified)
+                    if retry_pending:
+                        self.tasks.update(
+                            self.task_id, status="waiting_confirmation", next_step=index
+                        )
                 if retry_verified:
                     self.logger(f"[Autonomy] Retry VERIFIED: {step.action}")
+                    if retry_pending:
+                        return str(retry_result)
                     continue
                 result = retry_result
                 failure = self._failure(step.action, result, step.verify)
@@ -212,8 +222,11 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             plan = self._plan(goal, failure=failure)
             if not plan or not plan.steps:
                 if self.task_id:
-                    self.tasks.update(self.task_id, status="failed",
-                                      failure="No safe executable plan could be created.")
+                    self.tasks.update(
+                        self.task_id,
+                        status="failed",
+                        failure="No safe executable plan could be created.",
+                    )
                 return (
                     "I could not build a safe executable plan for that goal "
                     "with the actions currently available."
