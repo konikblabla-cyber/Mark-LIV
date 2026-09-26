@@ -56,7 +56,6 @@ class _Pending:
     run:     Callable[[], str]
     at:      float
     continuation: Optional[Callable[[str], None]] = None
-    continuation: Optional[Callable[[str], None]] = None
 
 
 _pending: Optional[_Pending] = None
