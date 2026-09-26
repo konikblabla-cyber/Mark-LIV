@@ -75,3 +75,22 @@ class TaskManager:
         with _LOCK:
             return [v for v in self._read().values()
                     if v.get("status") in {"running", "waiting_confirmation", "paused"}]
+
+    def prune_finished(self, max_items: int = 100) -> int:
+        """Bound completed task history so the local state file cannot grow forever."""
+        limit = max(10, min(int(max_items or 100), 500))
+        with _LOCK:
+            data = self._read()
+            finished = [
+                (str(v.get("updated_at") or ""), key)
+                for key, v in data.items()
+                if v.get("status") == "completed"
+            ]
+            if len(finished) <= limit:
+                return 0
+            finished.sort()
+            remove = finished[:-limit]
+            for _, key in remove:
+                data.pop(key, None)
+            self._write(data)
+            return len(remove)
