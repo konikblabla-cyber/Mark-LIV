@@ -1895,7 +1895,9 @@ class JarvisLive:
         lang = (lang_entry.get("value", "") if isinstance(lang_entry, dict) else str(lang_entry)).strip()
         lang = lang or "English"
 
-        convo = "\n".join(log[-40:])   # cap at last 40 turns to stay within token budget
+        convo = "\n".join(log[-40:])   # keep recent turns, then cap by characters
+        if len(convo) > 6000:
+            convo = "[...earlier turns trimmed...]\n" + convo[-6000:]
         prompt = (
             f"Summarize this conversation in 1-2 sentences in {lang}. "
             "Focus on what the user accomplished or discussed. "
