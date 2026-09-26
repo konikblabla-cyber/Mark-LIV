@@ -88,7 +88,20 @@ class AutonomyMonitor:
             except Exception as exc:
                 failed.append(f"{name}: {str(exc)[:120]}")
         if failed:
-            self.logger("[AutonomyMonitor] local health warning: " + " | ".join(failed))
+            message = "[AutonomyMonitor] local health warning: " + " | ".join(failed)
+            self.logger(message)
+            try:
+                from core.status_center import record
+                record("health", message, level="warning")
+            except Exception:
+                pass
+            # Repair only the bounded local runtime; never alter user files/processes here.
+            try:
+                from actions.jarvis_self_repair import jarvis_self_repair
+                repair = jarvis_self_repair({})
+                self.logger("[AutonomyMonitor] self-repair: " + str(repair)[:500])
+            except Exception as exc:
+                self.logger(f"[AutonomyMonitor] self-repair failed: {exc}")
         else:
             self.logger("[AutonomyMonitor] local self-test OK")
 
