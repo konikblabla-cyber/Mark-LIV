@@ -1,4 +1,4 @@
-"""
+""" 
 JARVIS Autonomy Core.
 
 Turns a high-level user goal into a validated plan, executes one step at a time,
@@ -40,8 +40,11 @@ class Plan:
 class AutonomyEngine:
     """Goal -> plan -> execute -> verify -> recover/replan."""
 
-    MAX_STEPS = 12
-    MAX_REPLANS = 2
+    # Keep the planner capable of handling genuinely large JARVIS tasks.
+    # Safety is enforced by the action/confirmation guards, not by an artificially
+    # tiny plan size.
+    MAX_STEPS = 20
+    MAX_REPLANS = 3
     MAX_TRANSIENT_RETRIES = 1
 
     def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
