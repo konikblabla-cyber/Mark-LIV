@@ -1,8 +1,10 @@
 """Inspect and resume persisted autonomous JARVIS tasks."""
 from core.task_manager import TaskManager
 
+
 def _mgr():
     return TaskManager()
+
 
 def jarvis_self_test(parameters, action_registry=None, **kwargs):
     """Run cheap local checks; never calls Gemini and never changes user data."""
@@ -50,7 +52,8 @@ def jarvis_self_test(parameters, action_registry=None, **kwargs):
     ok = all(v for _, v, _ in checks)
     return ("JARVIS self-test: " + ("OK" if ok else "attention needed") + "\n" +
             "\n".join(f"- {name}: {'OK' if value else 'FAIL'} ({detail})"
-                        for name, value, detail in checks))
+                       for name, value, detail in checks))
+
 
 def jarvis_status(parameters, action_registry=None, **kwargs):
     """Return a useful local status snapshot without spending a Gemini call."""
@@ -125,15 +128,18 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
     if status_events["events"]:
         lines.append("Recent events:")
         lines.extend(f"- {e.get('kind')}: {e.get('message')}" for e in status_events["events"][:4])
-    return "\\n".join(lines)
+    return "\n".join(lines)
+
+
 def autonomous_tasks(parameters, **kwargs):
     tasks = _mgr().recoverable()
     if not tasks:
         return {"ok": True, "tasks": [], "message": "No recoverable autonomous tasks."}
     return {"ok": True, "tasks": tasks}
 
+
 def run_autonomous_goal(parameters, action_registry=None, player=None, speak=None,
-                       response=None, session_memory=None, **kwargs):
+                        response=None, session_memory=None, **kwargs):
     goal = str((parameters or {}).get("goal") or "").strip()
     if not goal or action_registry is None:
         return "Missing goal or action registry."
@@ -146,7 +152,7 @@ def run_autonomous_goal(parameters, action_registry=None, player=None, speak=Non
 
 
 def resume_autonomous_task(parameters, action_registry=None, player=None, speak=None,
-                           response=None, session_memory=None, **kwargs):
+                            response=None, session_memory=None, **kwargs):
     task_id = str(parameters.get("task_id") or "").strip()
     if not task_id or action_registry is None:
         return "Missing task_id or action registry."
@@ -160,21 +166,20 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
     history = [(x.get("action", ""), x.get("result", ""))
                for x in task.get("history", [])]
     recent = history[-3:]
-    # Replanning from the original goal is deliberate: persisted state is evidence,
-    # not permission to blindly repeat a stale action after a restart.
     ctx = {
         "player": player, "speak": speak, "response": response,
         "session_memory": session_memory, "action_registry": action_registry,
     }
     engine = AutonomyEngine(action_registry, ctx=ctx, task_manager=_mgr(), task_id=task_id)
     plan = engine._plan(task.get("goal", ""), failure=(
-"Resuming interrupted task. Inspect current state; do not blindly repeat completed steps. Recent history: " + str(recent)[-1500:]
+        "Resuming interrupted task. Inspect current state; do not blindly repeat completed steps. Recent history: " + str(recent)[-1500:]
     ))
     if not plan or not plan.steps:
         _mgr().update(task_id, status="paused")
         return "Could not safely rebuild the task plan."
     _mgr().update(task_id, status="running")
     return engine._execute_steps(plan, 0, task.get("goal", ""), history)
+
 
 TOOL = [
     {
