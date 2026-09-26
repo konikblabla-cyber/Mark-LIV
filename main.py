@@ -659,6 +659,7 @@ class JarvisLive:
         self.ui.wake_get_state   = self._wake_state       # () -> dict
         self.ui.on_wake_toggle   = self._ui_wake_toggle   # (enable: bool) -> str
         self.ui.on_wake_manual   = self._ui_wake_manual   # () -> toggle awake/asleep
+        self.ui.on_sleep_after_task_toggle = self._ui_sleep_after_task_toggle
         self.ui.on_wake_install  = self._ui_wake_install  # () -> (ok, msg)
 
     # ── Wake word: state machine ─────────────────────────────────────────────
@@ -746,6 +747,10 @@ class JarvisLive:
             save_wake_word_enabled(False)
             self.wake(reason="wake word disabled")
             return "disabled"
+
+    def _ui_sleep_after_task_toggle(self, enabled: bool) -> None:
+        """Apply the UI setting immediately to the live session."""
+        self._sleep_after_task = bool(enabled)
 
     def _ui_wake_manual(self) -> None:
         """Manual control for strict wake-word mode: sleep only."""
