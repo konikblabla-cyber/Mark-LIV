@@ -32,6 +32,27 @@ def _clean(text, limit=240):
     return " ".join(str(text or "").replace("\n", " ").split())[:limit]
 
 
+def check_overdue_tasks():
+    now = datetime.now()
+    found = []
+    with _LOCK:
+        tasks = _read()
+        changed = False
+        for task in tasks:
+            if task.get("status") != "open" or task.get("overdue_notified_at"):
+                continue
+            try:
+                when = datetime.strptime(str(task.get("due") or ""), "%Y-%m-%d %H:%M")
+            except ValueError:
+                continue
+            if when < now:
+                task["overdue_notified_at"] = datetime.now(timezone.utc).isoformat()
+                found.append({"id": task.get("id"), "title": task.get("title"), "due": task.get("due")})
+                changed = True
+        if changed:
+            _write(tasks)
+    return found
+
 def daily_planner(parameters=None, **kwargs):
     """Add/list/complete/postpone local daily tasks. Deterministic and offline-capable."""
     p = parameters or {}
