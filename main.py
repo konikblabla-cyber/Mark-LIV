@@ -2111,6 +2111,17 @@ class JarvisLive:
                     due = str(task.get("due") or "")[:32]
                     kind = "due soon" if task in upcoming else "overdue"
                     self.ui.write_log(f"JARVIS [planner]: {kind} — {title} ({due})")
+                    if kind == "due soon":
+                        try:
+                            from win10toast import ToastNotifier
+                            ToastNotifier().show_toast(
+                                "JARVIS — przypomnienie",
+                                f"Termin za mniej niż godzinę: {title}",
+                                duration=8,
+                                threaded=True,
+                            )
+                        except Exception:
+                            pass
             except Exception as e:
                 print(f"[Planner] check error: {e}")
 
