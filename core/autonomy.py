@@ -40,9 +40,6 @@ class Plan:
 class AutonomyEngine:
     """Goal -> plan -> execute -> verify -> recover/replan."""
 
-    # Keep the planner capable of handling genuinely large JARVIS tasks.
-    # Safety is enforced by the action/confirmation guards, not by an artificially
-    # tiny plan size.
     MAX_STEPS = 20
     MAX_REPLANS = 3
     MAX_TRANSIENT_RETRIES = 1
@@ -64,7 +61,8 @@ class AutonomyEngine:
             if not rec:
                 continue
             rows.append(f"{name}: {rec.description[:240]}")
-        self._catalog_cache = "\n".join(rows)
+        self._catalog_cache = "
+".join(rows)
         return self._catalog_cache
 
     def _plan(self, goal: str, failure: str = "") -> Plan | None:
@@ -198,7 +196,14 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 failure = self._failure(step.action, result, step.verify)
 
             if self.task_id:
-                self.tasks.update(self.task_id, status="recovering", failure=failure)
+                # TaskManager intentionally has no "recovering" state. Keep the
+                # task resumable while recording why recovery/replanning started.
+                self.tasks.update(
+                    self.task_id,
+                    status="running",
+                    failure=failure,
+                    next_step=index,
+                )
             self.logger(f"[Autonomy] Recovery required: {failure}")
             if replan_count >= self.MAX_REPLANS:
                 if self.task_id:
@@ -220,8 +225,10 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 self.task_id, status="completed", next_step=len(plan.steps)
             )
         return (
-            f"{plan.summary or 'Goal completed.'}\n"
-            f"Executed {len(history)} step(s).\n"
+            f"{plan.summary or 'Goal completed.'}
+"
+            f"Executed {len(history)} step(s).
+"
             f"Final result: {last}"
         )
 
