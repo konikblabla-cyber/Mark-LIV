@@ -926,9 +926,21 @@ class JarvisLive:
         if self._wake_enabled and not self._awake:
             self.ui.write_log("SYS: I'm asleep — say 'Hey Jarvis' or tap WAKE NOW first.")
             return
+        # Add only strong local memory matches; weak matches consume zero Gemini context.
+        message = text
+        try:
+            from memory.memory_manager import contextual_memory
+            context = contextual_memory(text, limit=3, min_score=8)
+            if context:
+                message = (
+                    "[LOCAL_CONTEXT — relevant stored facts; use only if useful]\n"
+                    + context[:900] + "\n[/LOCAL_CONTEXT]\n" + text
+                )
+        except Exception:
+            pass
         asyncio.run_coroutine_threadsafe(
             self.session.send_client_content(
-                turns={"role": "user", "parts": [{"text": text}]},
+                turns={"role": "user", "parts": [{"text": message}]}
                 turn_complete=True
             ),
             self._loop
