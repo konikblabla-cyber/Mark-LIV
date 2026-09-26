@@ -38,8 +38,8 @@ MAX_VALUE_LENGTH = 380
 # Everything above the core stays on disk and is fetched on demand by the
 # recall_memory tool — see search_memory() and format_memory_for_prompt().
 MEMORY_MAX_CHARS  = 200_000
-PROMPT_CORE_CHARS = 900
-PROMPT_INDEX_CHARS = 420
+PROMPT_CORE_CHARS = 650
+PROMPT_INDEX_CHARS = 260
 # Most entries any one category may contribute to the core block, so a person
 # with forty stored preferences still gets their sister into the prompt.
 PROMPT_MAX_PER_CATEGORY = 6
