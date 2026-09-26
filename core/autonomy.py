@@ -126,8 +126,6 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             step = plan.steps[index]
             risk = classify(step.action, step.parameters)
             self.logger(f"[Autonomy] Risk={risk.level}: {step.action} — {risk.reason}")
-            if risk.level == "high":
-                self.logger(f"[Autonomy] Confirmation-gated step: {step.action}")
 
             def resume(_result: str, next_index=index + 1, current_plan=plan, current_replans=replan_count):
                 self._execute_steps(current_plan, next_index, goal, history, current_replans)
@@ -138,12 +136,16 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             elapsed = time.monotonic() - started
             history.append((step.action, result))
             pending = self._confirmation_pending(result)
-            verified = self._result_ok(result, step.verify) and verify_state(step.action, step.parameters, result)
+            verified = self._result_ok(result, step.verify) and verify_state(
+                step.action, step.parameters, result
+            )
             if self.task_id:
                 self.tasks.step(self.task_id, step.action, result, verified)
                 self.tasks.update(self.task_id, status="running", next_step=index + 1)
                 if pending:
-                    self.tasks.update(self.task_id, status="waiting_confirmation", next_step=index)
+                    self.tasks.update(
+                        self.task_id, status="waiting_confirmation", next_step=index
+                    )
 
             if verified:
                 if self.task_id:
@@ -160,11 +162,13 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
 
             if (
                 replan_count < self.MAX_TRANSIENT_RETRIES
-                and classify(step.action, step.parameters).level == "low"
+                and risk.level == "low"
                 and self._looks_transient(result)
             ):
                 self.logger(f"[Autonomy] Transient failure; retrying once: {step.action}")
+                retry_started = time.monotonic()
                 retry_result = self.registry.run(step.action, step.parameters, self.ctx)
+                retry_elapsed = time.monotonic() - retry_started
                 retry_pending = self._confirmation_pending(retry_result)
                 retry_verified = (
                     self._result_ok(retry_result, step.verify)
@@ -172,13 +176,18 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 )
                 history.append((step.action, retry_result))
                 if self.task_id:
-                    self.tasks.step(self.task_id, step.action, retry_result, retry_verified)
+                    self.tasks.step(
+                        self.task_id, step.action, retry_result, retry_verified
+                    )
                     if retry_pending:
                         self.tasks.update(
                             self.task_id, status="waiting_confirmation", next_step=index
                         )
                 if retry_verified:
-                    self.logger(f"[Autonomy] Retry VERIFIED: {step.action}")
+                    self.logger(
+                        f"[Autonomy] Retry VERIFIED: {step.action} "
+                        f"({retry_elapsed:.1f}s)"
+                    )
                     if retry_pending:
                         return str(retry_result)
                     continue
@@ -195,14 +204,18 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             recovery = self._plan(goal, failure=failure)
             if recovery and recovery.steps:
                 self.logger(f"[Autonomy] Recovery plan: {recovery.summary}")
-                return self._execute_steps(recovery, 0, goal, history, replan_count + 1)
+                return self._execute_steps(
+                    recovery, 0, goal, history, replan_count + 1
+                )
             if self.task_id:
                 self.tasks.update(self.task_id, status="failed", failure=failure)
             return "Recovery failed: " + failure
 
         last = history[-1][1] if history else "Done."
         if self.task_id:
-            self.tasks.update(self.task_id, status="completed", next_step=len(plan.steps))
+            self.tasks.update(
+                self.task_id, status="completed", next_step=len(plan.steps)
+            )
         return (
             f"{plan.summary or 'Goal completed.'}\n"
             f"Executed {len(history)} step(s).\n"
@@ -233,7 +246,6 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 )
 
             self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
-            result = self._execute_steps(plan, 0, goal, history)
-            return result
+            return self._execute_steps(plan, 0, goal, history)
 
         return "I could not complete the goal safely."
