@@ -78,7 +78,7 @@ from actions.web_search        import _news as _fetch_news_sync
 from memory.config_manager     import (
     get_brief_enabled, get_media_resolution, get_proactive_audio_enabled,
     get_push_to_talk_enabled, get_thinking_enabled, get_turn_tuning, get_voice,
-    get_wake_word_enabled, save_wake_word_enabled,    get_input_device, get_output_device,
+    get_wake_word_enabled, save_wake_word_enabled, get_sleep_after_task_enabled, get_input_device, get_output_device,
 )
 from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
@@ -1575,7 +1575,7 @@ class JarvisLive:
                             in_buf = []
 
                             # One wake phrase unlocks one user turn.
-                            if full_in and self._wake_enabled:
+                            if full_in and self._wake_enabled and self._sleep_after_task:
                                 self.sleep(reason="strict wake-word turn complete")
 
                             full_out = " ".join(out_buf).strip()
