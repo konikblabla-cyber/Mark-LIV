@@ -88,12 +88,6 @@ def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
     _continuation = callback
 
 
-def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
-    """Set a one-shot callback used by autonomous tasks after confirmation."""
-    global _continuation
-    _continuation = callback
-
-
 def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
     """Park an irreversible action behind the on-screen gate.
 
