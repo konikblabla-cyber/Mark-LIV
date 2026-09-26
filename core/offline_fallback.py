@@ -34,4 +34,12 @@ def handle(text: str):
         from actions.autonomous_tasks import jarvis_status
         return jarvis_status({})
 
+    if q in {"optymalizuj komputer", "optymalizuj pc", "safe optimization", "pc optimization"}:
+        from actions.autonomous_pc_audit import safe_pc_optimization
+        return safe_pc_optimization({})
+
+    if q in {"sprawdź ochronę", "sprawdz ochrone", "ochrona komputera", "protection check"}:
+        from actions.jarvis_self_repair import jarvis_protection_check
+        return jarvis_protection_check({})
+
     return None
