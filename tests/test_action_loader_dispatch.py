@@ -10,7 +10,8 @@ class ActionLoaderDispatchTests(unittest.TestCase):
         record = ActionRecord(name="bad", description="bad", parameters={"type":"OBJECT"}, handler=bad, file="bad.py", valid=True)
         registry = ActionRegistry({"bad": record}, lambda _msg: None)
         result = registry.run("bad", {})
-        self.assertFalse(result.get("ok", True))
+        self.assertIsInstance(result, str)
+        self.assertIn("failed", result.lower())
 
 
 if __name__ == "__main__":
