@@ -15,6 +15,7 @@ class AutonomyMonitor:
         self._thread = None
         self._last_fingerprint = None
         self._health_counter = 0
+        self._issue_streak = 0
 
     def _fingerprint(self, result):
         # Fingerprint only actionable state, not volatile uptime/CPU telemetry.
@@ -43,7 +44,11 @@ class AutonomyMonitor:
             changed = self._last_fingerprint is not None and fp != self._last_fingerprint
             self._last_fingerprint = fp
             if changed:
-                self.on_issue(result)
+                self._issue_streak += 1
+                if self._issue_streak >= 2:
+                    self.on_issue(result)
+            else:
+                self._issue_streak = 0
             self._health_counter += 1
             if self._health_counter >= 6:
                 self._health_counter = 0
