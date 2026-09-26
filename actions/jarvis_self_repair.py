@@ -1,7 +1,4 @@
-"""Cheap local JARVIS health, repair and protection checks.
-
-No Gemini call is made here. Repairs are limited to reversible runtime setup.
-"""
+"""Cheap local JARVIS health, repair and protection checks."""
 from __future__ import annotations
 
 import json
@@ -27,13 +24,10 @@ def _runtime_root() -> Path:
 
 def _check_core():
     checks = []
-    modules = (
-        "core.confirm",
-        "core.autonomy",
-        "core.autonomy_monitor",
+    for name in (
+        "core.confirm", "core.autonomy", "core.autonomy_monitor",
         "memory.memory_manager",
-    )
-    for name in modules:
+    ):
         try:
             __import__(name)
             checks.append((name, True, "import OK"))
@@ -43,7 +37,6 @@ def _check_core():
 
 
 def _safe_write_json(path: Path, data) -> None:
-    """Atomically replace a small runtime JSON file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
@@ -62,7 +55,6 @@ def _safe_write_json(path: Path, data) -> None:
 
 
 def _backup_corrupt(path: Path) -> Path | None:
-    """Keep a uniquely named recoverable copy before repairing a corrupt file."""
     try:
         backup = path.with_name(
             f"{path.stem}.corrupt-backup-{uuid.uuid4().hex[:10]}{path.suffix}"
@@ -73,19 +65,21 @@ def _backup_corrupt(path: Path) -> Path | None:
         return None
 
 
+def _bounded_text(value, limit: int = 180) -> str:
+    return str(value or "").replace("\r", " ").replace("\n", " ")[:limit]
+
+
 def jarvis_self_repair(parameters=None, **kwargs):
-    """Run local diagnostics and apply only safe, reversible runtime repairs."""
     if platform.system() != "Windows":
         return "JARVIS self-repair is currently Windows-only."
 
     results = []
     root = _runtime_root()
-
     try:
         root.mkdir(parents=True, exist_ok=True)
         results.append("runtime directory OK")
     except OSError as exc:
-        return f"Self-repair stopped: cannot prepare runtime directory: {exc}"
+        return f"Self-repair stopped: cannot prepare runtime directory: {_bounded_text(exc)}"
 
     task_file = root / "jarvis_tasks.json"
     try:
@@ -104,19 +98,17 @@ def jarvis_self_repair(parameters=None, **kwargs):
                 backup = _backup_corrupt(task_file)
                 if backup is None:
                     results.append(
-                        f"corrupt task storage detected; repair skipped because backup failed "
-                        f"({exc.__class__.__name__})"
+                        "corrupt task storage detected; repair skipped because backup failed "
+                        f"({_bounded_text(exc.__class__.__name__)})"
                     )
                 else:
                     _safe_write_json(task_file, {})
-                    results.append(
-                        f"replaced corrupt task storage (backup: {backup.name})"
-                    )
+                    results.append(f"replaced corrupt task storage (backup: {backup.name})")
     except OSError as exc:
-        results.append(f"task storage check failed: {exc}")
+        results.append(f"task storage check failed: {_bounded_text(exc)}")
 
     for name, ok, detail in _check_core():
-        results.append(f"{name}: {'OK' if ok else 'FAIL'} ({detail})")
+        results.append(f"{name}: {'OK' if ok else 'FAIL'} ({_bounded_text(detail)})")
 
     message = "JARVIS self-repair: " + "; ".join(results)
     try:
@@ -132,33 +124,28 @@ def jarvis_self_repair(parameters=None, **kwargs):
 
 
 def jarvis_protection_fingerprint(parameters=None, **kwargs):
-    """Return a cheap stable snapshot of unusually heavy non-protected processes."""
     findings = []
     protected = {x.lower() for x in PROTECTED}
     try:
-        current = psutil.Process()
-        current_pid = current.pid
+        current_pid = psutil.Process().pid
     except Exception:
         current_pid = -1
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
             info = proc.info
             name = info.get("name") or "?"
-            if int(info.get("pid") or 0) == current_pid:
-                continue
-            if name.lower() in protected:
+            if int(info.get("pid") or 0) == current_pid or name.lower() in protected:
                 continue
             cpu = float(info.get("cpu_percent") or 0)
             ram = float(info.get("memory_percent") or 0)
             if cpu >= 90.0 or ram >= 15.0:
                 findings.append((name.lower(), int(info.get("pid") or 0)))
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError, TypeError):
             continue
     return sorted(findings)[:8]
 
 
 def jarvis_protection_check(parameters=None, **kwargs):
-    """Detect unusual resource-heavy processes without killing or changing anything."""
     p = parameters or {}
     try:
         cpu_limit = max(80.0, min(float(p.get("cpu_limit", 90.0)), 100.0))
@@ -168,9 +155,9 @@ def jarvis_protection_check(parameters=None, **kwargs):
         ram_limit = max(10.0, min(float(p.get("ram_limit", 15.0)), 100.0))
     except (TypeError, ValueError):
         ram_limit = 15.0
+
     findings = []
     protected = {x.lower() for x in PROTECTED}
-
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
             info = proc.info
@@ -183,7 +170,7 @@ def jarvis_protection_check(parameters=None, **kwargs):
                 findings.append(
                     f"PID {info.get('pid')}: {name} | CPU {cpu:.0f}% | RAM {ram:.1f}%"
                 )
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError, TypeError):
             continue
 
     if not findings:
