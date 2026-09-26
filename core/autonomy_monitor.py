@@ -73,8 +73,14 @@ class AutonomyMonitor:
             else:
                 self._protection_streak = 0
             if self._protection_streak >= 2:
-                self.logger("[AutonomyMonitor] process anomaly detected; no action taken")
+                self.logger("[AutonomyMonitor] process anomaly detected; running bounded safe maintenance")
                 self._protection_streak = 0
+                try:
+                    from actions.autonomous_pc_audit import safe_pc_optimization
+                    result = safe_pc_optimization({})
+                    self.logger("[AutonomyMonitor] safe maintenance: " + str(result)[:500])
+                except Exception as exc:
+                    self.logger(f"[AutonomyMonitor] safe maintenance failed: {exc}")
         except Exception as exc:
             self.logger(f"[AutonomyMonitor] protection check failed: {exc}")
 
