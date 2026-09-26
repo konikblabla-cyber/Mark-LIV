@@ -115,8 +115,14 @@ def jarvis_protection_fingerprint(parameters=None, **kwargs):
 def jarvis_protection_check(parameters=None, **kwargs):
     """Detect unusual resource-heavy processes without killing or changing anything."""
     p = parameters or {}
-    cpu_limit = max(80.0, min(float(p.get("cpu_limit", 90.0)), 100.0))
-    ram_limit = max(10.0, min(float(p.get("ram_limit", 15.0)), 100.0))
+    try:
+        cpu_limit = max(80.0, min(float(p.get("cpu_limit", 90.0)), 100.0))
+    except (TypeError, ValueError):
+        cpu_limit = 90.0
+    try:
+        ram_limit = max(10.0, min(float(p.get("ram_limit", 15.0)), 100.0))
+    except (TypeError, ValueError):
+        ram_limit = 15.0
     findings = []
 
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
