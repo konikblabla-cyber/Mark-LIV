@@ -167,11 +167,6 @@ def resolve(accepted: bool) -> None:
                     p.continuation(str(result))
                 except Exception as e:
                     _log(f"ERR: continuation failed — {e}")
-            if p.continuation:
-                try:
-                    p.continuation(str(result))
-                except Exception as e:
-                    _log(f"ERR: continuation failed — {e}")
         except Exception as e:
             _log(f"ERR: {p.title} failed — {e}")
 
