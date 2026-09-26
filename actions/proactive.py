@@ -70,23 +70,18 @@ class ProactiveEngine:
         monitor_ctx = ""
         if monitors:
             monitor_ctx = (
-                f"
-The user tracks these topics: {', '.join(monitors[:4])}. "
+                f"\nThe user tracks these topics: {', '.join(monitors[:4])}. "
                 "You may mention one if it seems relevant."
             )
 
         recent_ctx = ""
         if recent_turns:
-            snippet = "
-".join(recent_turns[-3:])
+            snippet = "\n".join(recent_turns[-3:])
             # Memory already supplies durable context, so a large transcript
             # mostly repeats information while consuming Gemini input tokens.
-            recent_ctx = f"
-Recent conversation:
-{snippet[:900]}"
+            recent_ctx = f"\nRecent conversation:\n{snippet[:900]}"
 
-        return "
-".join([
+        return "\n".join([
             "[PROACTIVE_CHECK] Initiate a useful check-in.",
             f"Time: {time_str} ({period})",
             "Context:",
