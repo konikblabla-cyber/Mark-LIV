@@ -50,6 +50,21 @@ def verify_state(action: str, parameters: dict | None = None, result: Any = None
             src = p.get("source") or p.get("src")
             dst = p.get("destination") or p.get("dst")
             return bool(src and dst) and Path(str(src)).exists() and Path(str(dst)).exists()
+        if action in {"create_file", "write_file"}:
+            path = p.get("path") or p.get("file_path") or p.get("destination")
+            return bool(path) and Path(str(path)).exists()
+        if action == "rename_file":
+            src = p.get("source") or p.get("src")
+            dst = p.get("destination") or p.get("dst")
+            return bool(src and dst) and not Path(str(src)).exists() and Path(str(dst)).exists()
+        if action == "close_process":
+            name = str(p.get("name") or p.get("process") or "").strip().lower()
+            if name:
+                return not any(
+                    str(proc.info.get("name") or "").strip().lower() == name
+                    for proc in psutil.process_iter(["name"])
+                )
+            return result_success(result)
         return result_success(result)
     except (OSError, ValueError, TypeError):
         return False
