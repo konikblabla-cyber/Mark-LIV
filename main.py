@@ -306,6 +306,16 @@ def _clean_transcript(text: str) -> str:
     text = re.sub(r"[\x00-\x08\x0b-\x1f]", "", text)
     return text.strip()
 
+def _compact_tool_result(result, max_chars: int = 7000) -> str:
+    """Keep large tool payloads from consuming the Live context window."""
+    text = str(result if result is not None else "")
+    if len(text) <= max_chars:
+        return text
+    head = max_chars - 1400
+    return text[:head] + "\n...[tool output trimmed for context]...\n" + text[-1400:]
+
+
+
 TOOL_DECLARATIONS = [
     # ── Inline tools ─────────────────────────────────────────────────────────
     # These stay here (rather than in an actions/*.py TOOL dict) because their
@@ -1286,7 +1296,7 @@ class JarvisLive:
         _extra = {"scheduling": _sched} if _sched else {}
         return types.FunctionResponse(
             id=fc.id, name=name,
-            response={"result": result},
+            response={"result": _compact_tool_result(result)},
             **_extra
         )
 
@@ -1856,7 +1866,7 @@ class JarvisLive:
                     self.ui.show_content("NEWS — top world news today", news_text)
 
                     p2 = (
-                        f"[BRIEFING] Here are today's top news headlines:\n{news_text}\n\n"
+                        f"[BRIEFING] Here are today's top news headlines:\n{news_text[:5000]}\n\n"
                         "Pick ONE headline, summarise it in one sentence, then say the full list "
                         f"is displayed on screen. Do not call any tools.{lang_str}"
                     )
@@ -2081,7 +2091,7 @@ class JarvisLive:
                             "Autonomous PC monitor detected a meaningful state change. "
                             "Review this audit and, if appropriate, tell the user what changed "
                             "and what safe next step is recommended. Do not execute destructive "
-                            "actions without confirmation.\n\n" + text}]},
+                            "actions without confirmation.\n\n" + _compact_tool_result(text, 3500)}]},
                         turn_complete=True,
                     ),
                     self._loop,
