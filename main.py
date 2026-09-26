@@ -432,6 +432,21 @@ TOOL_DECLARATIONS = [
         }
     },
     {
+        "name": "voice_confirmation",
+        "description": (
+            "Resolves the currently pending confirmation using the user's explicit spoken yes/no. "
+            "This tool is valid only immediately after the LOCAL wake phrase 'Hey Jarvis'/'Jarvis' "
+            "has armed voice confirmation. Never call it merely because the user said yes/no in normal conversation."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "accepted": {"type": "BOOLEAN", "description": "True only for an explicit yes/confirm; false for an explicit no/cancel."}
+            },
+            "required": ["accepted"]
+        }
+    },
+    {
         "name": "forget_memory",
         "description": "Forget one exact saved long-term memory entry. Always ask the human to confirm on the HUD before changing memory.",
         "parameters": {
@@ -692,6 +707,28 @@ class JarvisLive:
     def _on_wake_detected(self) -> None:
         """Called from the detector thread when 'Hey Jarvis' is heard."""
         self.wake(reason="wake word")
+        # A spoken confirmation is valid only after the local detector heard the
+        # wake phrase. This prevents an isolated "yes" from another conversation
+        # from authorizing a pending risky action.
+        confirm_gate.arm_voice()
+        pending = confirm_gate.pending_title()
+        if pending and self.session and self._loop:
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self.session.send_client_content(
+                        turns={"role": "user", "parts": [{"text":
+                            "[VOICE_CONFIRMATION_ARMED] The user just said the local wake phrase. "
+                            f"A confirmation is pending for: {pending}. If the user's next utterance "
+                            "is an explicit yes/confirm, call voice_confirmation(accepted=true). "
+                            "If it is an explicit no/cancel, call voice_confirmation(accepted=false). "
+                            "Otherwise do not resolve anything."
+                        }]},
+                        turn_complete=True,
+                    ),
+                    self._loop,
+                )
+            except Exception as e:
+                self.ui.write_log(f"SYS: voice confirmation context failed: {e}")
         # Replay a short local pre-roll so "Hey Jarvis, do X" is not truncated.
         loop = self._loop
         out = self.out_queue
@@ -1150,6 +1187,17 @@ class JarvisLive:
         print(f"[JARVIS] 🔧 {name}  {args}")
         self.ui.set_state("THINKING")
 
+
+        if name == "voice_confirmation":
+            accepted = bool(args.get("accepted", False))
+            result = (
+                "Confirmation accepted and the pending action is executing."
+                if confirm_gate.resolve_voice(accepted)
+                else "Voice confirmation was not armed by a wake phrase or no confirmation is pending. Nothing was done."
+            )
+            if not self.ui.muted:
+                self.ui.set_state("LISTENING")
+            return types.FunctionResponse(id=fc.id, name=name, response={"result": result})
 
         if name == "forget_memory":
             category = str(args.get("category", "")).strip()
