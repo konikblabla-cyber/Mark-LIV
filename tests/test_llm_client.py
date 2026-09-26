@@ -5,6 +5,23 @@ from core import llm_client
 
 
 class LlmClientTests(unittest.TestCase):
+    @patch("core.llm_client.ensure_ollama_running", return_value=True)
+    @patch("core.llm_client.get_llm_settings", return_value=("http://localhost:1234", "Luna"))
+    @patch("core.llm_client.get_llm_provider", return_value="openai")
+    @patch("core.llm_client.requests.post")
+    def test_text_connection_retry_parses_openai_response(self, post, _provider, _settings, _ensure):
+        first = post.side_effect = [
+            __import__("requests").exceptions.ConnectionError("down"),
+            post.return_value,
+        ]
+        response = post.return_value
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"choices": [{"message": {"content": "retried"}}]}
+
+        result = llm_client.call_llm_text("hi")
+        self.assertEqual(result, "retried")
+        self.assertEqual(post.call_count, 2)
+
     @patch("core.llm_client.get_llm_settings", return_value=("http://localhost:1234", "Luna"))
     @patch("core.llm_client.get_llm_provider", return_value="openai")
     @patch("core.llm_client.requests.post")
