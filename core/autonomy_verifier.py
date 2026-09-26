@@ -33,9 +33,26 @@ def verify_text(result: Any, expectation: str) -> bool:
 
 
 def _process_name_matches(actual: str, requested: str) -> bool:
-    actual_name = ntpath.basename(str(actual or "").strip().rstrip("\/")).lower()
-    requested_name = ntpath.basename(str(requested or "").strip().rstrip("\/")).lower()
+    actual_name = ntpath.basename(str(actual or "").strip().rstrip("\\/")).lower()
+    requested_name = ntpath.basename(str(requested or "").strip().rstrip("\\/")).lower()
     return bool(requested_name) and actual_name == requested_name
+
+
+def _process_gone(pid: Any = None, name: str = "") -> bool:
+    if pid is not None:
+        try:
+            return not psutil.pid_exists(int(pid))
+        except (TypeError, ValueError):
+            return False
+    if name:
+        for proc in psutil.process_iter(["name"]):
+            try:
+                if _process_name_matches(proc.info.get("name"), name):
+                    return False
+            except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                continue
+        return True
+    return False
 
 
 def verify_state(
@@ -53,8 +70,8 @@ def verify_state(
             return bool(path) and not Path(str(path)).exists()
 
         if action in {"kill_process", "terminate_process"}:
-            pid = p.get("pid")
-            return bool(pid) and not psutil.pid_exists(int(pid))
+            name = str(p.get("name") or p.get("process") or p.get("process_name") or "").strip()
+            return _process_gone(p.get("pid"), name)
 
         if action == "move_file":
             src = p.get("source") or p.get("src")
@@ -86,10 +103,7 @@ def verify_state(
                 or ""
             ).strip()
             if name:
-                return not any(
-                    _process_name_matches(proc.info.get("name"), name)
-                    for proc in psutil.process_iter(["name"])
-                )
+                return _process_gone(name=name)
             return result_success(result)
 
         return result_success(result)
