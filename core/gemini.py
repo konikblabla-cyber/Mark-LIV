@@ -177,6 +177,41 @@ _COOLDOWN_SECONDS = 300
 _cooldown: dict[str, float] = {}
 _cool_lock = threading.Lock()
 
+# Short-lived response cache for identical deterministic side-requests.
+# It prevents duplicate Gemini spend when the same plugin asks the same question
+# repeatedly. Images and non-string inputs are never cached.
+_TEXT_CACHE_TTL = 120.0
+_TEXT_CACHE_MAX = 64
+_text_cache: dict[str, tuple[float, str]] = {}
+_text_cache_lock = threading.Lock()
+
+def _cache_key(contents, tier: str, config) -> str | None:
+    if not isinstance(contents, str):
+        return None
+    system = ""
+    if config is not None:
+        system = getattr(config, "system_instruction", None) or (
+            config.get("system_instruction", "") if isinstance(config, dict) else ""
+        )
+    return json.dumps([tier, str(system), contents], ensure_ascii=False, sort_keys=True)
+
+def _cached_text(key: str) -> str | None:
+    with _text_cache_lock:
+        item = _text_cache.get(key)
+        if not item:
+            return None
+        if time.monotonic() - item[0] > _TEXT_CACHE_TTL:
+            _text_cache.pop(key, None)
+            return None
+        return item[1]
+
+def _store_text(key: str, value: str) -> None:
+    with _text_cache_lock:
+        if len(_text_cache) >= _TEXT_CACHE_MAX:
+            oldest = min(_text_cache, key=lambda k: _text_cache[k][0])
+            _text_cache.pop(oldest, None)
+        _text_cache[key] = (time.monotonic(), value)
+
 
 def _cool(model: str) -> None:
     with _cool_lock:
@@ -414,11 +449,20 @@ def call(contents, tier: str = FAST, config=None,
 def text(contents, tier: str = FAST, config=None,
          timeout_ms: int = DEFAULT_TIMEOUT_MS, key: str = "", default: str = "") -> str:
     """`call`, reduced to the reply text. `default` when nothing answered."""
+    cache_key = _cache_key(contents, tier, config)
+    if cache_key is not None:
+        cached = _cached_text(cache_key)
+        if cached is not None:
+            return cached
+
     resp = call(contents, tier=tier, config=config,
                 timeout_ms=timeout_ms, key=key)
     if resp is None:
         return default
-    return (getattr(resp, "text", None) or "").strip() or default
+    value = (getattr(resp, "text", None) or "").strip() or default
+    if cache_key is not None and value:
+        _store_text(cache_key, value)
+    return value
 
 
 def as_json(contents, tier: str = FAST, config=None,
