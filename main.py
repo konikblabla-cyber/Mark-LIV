@@ -222,29 +222,6 @@ def _pcm_visemes(samples, sr: int = 24000):
         return []
 
 
-def _describe_tools(declarations) -> str:
-    """One line per capability, straight from the live tool declarations.
-
-    Derived rather than written down: the action and plugin registries are
-    discovered at startup, so whatever the user has installed is what the model
-    is told it can do. Adding a plugin extends this by itself, and removing one
-    stops the model from claiming an ability it no longer has.
-    """
-    lines = []
-    for d in declarations or ():
-        try:
-            name = d.get("name") if isinstance(d, dict) else getattr(d, "name", None)
-            desc = (d.get("description") if isinstance(d, dict)
-                    else getattr(d, "description", "")) or ""
-        except Exception:
-            continue
-        if not name:
-            continue
-        desc = " ".join(str(desc).split())
-        lines.append(f"- {name}: {desc[:150]}" if desc else f"- {name}")
-    return "\n".join(lines)
-
-
 def _describe_limits(has_vision: bool, has_mic: bool) -> str:
     """The other half of self-knowledge: what is out of reach, and why.
 
@@ -1040,7 +1017,6 @@ class JarvisLive:
         sys_prompt = _render_prompt(sys_prompt, {
             "assistant_name": self._asst_name,
             "platform": f"{_platform.system()} {_platform.release()}".strip(),
-            "capabilities": _describe_tools(_all_decls),
             "limits": _describe_limits(
                 has_vision="screen_process" in _names,
                 has_mic=True,
