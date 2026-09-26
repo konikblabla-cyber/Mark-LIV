@@ -4,6 +4,42 @@ from core.task_manager import TaskManager
 def _mgr():
     return TaskManager()
 
+def jarvis_self_test(parameters, action_registry=None, **kwargs):
+    checks = []
+    try:
+        checks.append(("action registry", bool(action_registry and action_registry.names())))
+    except Exception:
+        checks.append(("action registry", False))
+    try:
+        from memory.memory_manager import load_memory
+        load_memory()
+        checks.append(("memory", True))
+    except Exception:
+        checks.append(("memory", False))
+    try:
+        from core import confirm
+        checks.append(("confirmation gate", hasattr(confirm, "request") and hasattr(confirm, "resolve")))
+    except Exception:
+        checks.append(("confirmation gate", False))
+    try:
+        from core.wake_word import is_installed
+        checks.append(("wake word module", bool(is_installed())))
+    except Exception:
+        checks.append(("wake word module", False))
+    ok = all(v for _, v in checks)
+    return ("JARVIS self-test: " + ("OK" if ok else "attention needed") + "\n" +
+            "\n".join(f"- {name}: {'OK' if value else 'FAIL'}" for name, value in checks))
+
+
+def jarvis_status(parameters, action_registry=None, **kwargs):
+    from core.task_manager import TaskManager
+    from core import confirm
+    tasks = TaskManager().recoverable()
+    count = len(action_registry.names()) if action_registry else 0
+    pending = confirm.pending_title() or "none"
+    return f"JARVIS status: actions={count}; recoverable_tasks={len(tasks)}; pending_confirmation={pending}"
+
+
 def autonomous_tasks(parameters, **kwargs):
     tasks = _mgr().recoverable()
     if not tasks:
@@ -57,6 +93,18 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
     return engine._execute_steps(plan, 0, task.get("goal", ""), history)
 
 TOOL = [
+    {
+        "name": "jarvis_self_test",
+        "description": "Run a cheap local health check of JARVIS core services without making changes.",
+        "parameters": {"type":"OBJECT","properties":{}},
+        "handler": jarvis_self_test,
+    },
+    {
+        "name": "jarvis_status",
+        "description": "Show a compact status of JARVIS actions, recoverable tasks, and pending confirmations.",
+        "parameters": {"type":"OBJECT","properties":{}},
+        "handler": jarvis_status,
+    },
     {
         "name": "run_autonomous_goal",
         "description": "Break a larger user goal into safe steps, execute them, verify results, and replan after failures. Use for multi-step tasks rather than inventing a long manual sequence.",
