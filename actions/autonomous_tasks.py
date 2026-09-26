@@ -85,6 +85,24 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
     ]
 
     try:
+        records = getattr(action_registry, "_all_records", []) if action_registry else []
+        active = action_registry.names() if action_registry else set()
+        invalid = [r for r in records if not getattr(r, "valid", False)]
+        bad_active = [
+            r for r in records
+            if getattr(r, "valid", False)
+            and (not callable(getattr(r, "handler", None))
+                 or not isinstance(getattr(r, "parameters", None), dict)
+                 or not getattr(r, "name", ""))
+        ]
+        valid_names = {getattr(r, "name", "") for r in records if getattr(r, "valid", False)}
+        ok = not invalid and not bad_active and len(active) == len(valid_names)
+        detail = f"{len(active)} active; {len(invalid)} rejected; {len(bad_active)} malformed"
+        checks.append(("action integrity", ok, detail))
+    except Exception as exc:
+        checks.append(("action integrity", False, str(exc)[:100]))
+
+    try:
         from core.preference_learner import top_actions
         learned = top_actions(5)
         if learned:
