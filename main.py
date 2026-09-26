@@ -900,14 +900,22 @@ class JarvisLive:
         return url, key, f"{url}/auto-login?key={key}", manual
 
     def _on_text_command(self, text: str):
-        if not self._loop or not self.session:
-            # Essential commands remain usable without Gemini/network.
+        # Offline mode is based on the actual Live session, not merely on the
+        # asyncio loop existing. The loop can stay alive for reconnect/backoff
+        # while Gemini is unreachable, so checking only `_loop` used to make
+        # essential local commands silently disappear during an outage.
+        if not self.session:
             try:
                 from core.offline_fallback import handle as _offline_handle
                 result = _offline_handle(text)
                 if result is not None:
                     self.ui.write_log(f"JARVIS [offline]: {result}")
                     return
+                self.ui.write_log(
+                    "JARVIS [offline]: Gemini is unavailable. "
+                    "Local commands: status komputera, zadania, następne zadanie, "
+                    "dodaj zadanie <tekst>, status Jarvis, self-test, optymalizuj komputer."
+                )
             except Exception as exc:
                 self.ui.write_log(f"ERR: offline fallback — {str(exc)[:120]}")
             return
