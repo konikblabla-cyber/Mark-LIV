@@ -2072,17 +2072,18 @@ class JarvisLive:
             await asyncio.sleep(1800)     # check every 30 minutes
 
     async def _run_daily_task_monitor(self) -> None:
-        """Check local planner deadlines without Gemini/API calls."""
+        """Check upcoming and overdue local planner deadlines without Gemini."""
         while True:
             await asyncio.sleep(60)
             try:
-                from actions.daily_planner import check_overdue_tasks
+                from actions.daily_planner import check_upcoming_tasks, check_overdue_tasks
+                upcoming = await asyncio.to_thread(check_upcoming_tasks, 60)
                 overdue = await asyncio.to_thread(check_overdue_tasks)
-                if overdue:
-                    for task in overdue[:5]:
-                        title = str(task.get("title") or "task")[:120]
-                        due = str(task.get("due") or "")[:32]
-                        self.ui.write_log(f"JARVIS [planner]: overdue — {title} ({due})")
+                for task in (upcoming + overdue)[:5]:
+                    title = str(task.get("title") or "task")[:120]
+                    due = str(task.get("due") or "")[:32]
+                    kind = "due soon" if task in upcoming else "overdue"
+                    self.ui.write_log(f"JARVIS [planner]: {kind} — {title} ({due})")
             except Exception as e:
                 print(f"[Planner] check error: {e}")
 
