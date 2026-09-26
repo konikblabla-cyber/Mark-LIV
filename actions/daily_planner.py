@@ -52,6 +52,26 @@ def check_overdue_tasks():
         if changed:
             _write(tasks)
     return found
+def check_upcoming_tasks(window_minutes=60):
+    now = datetime.now()
+    found = []
+    with _LOCK:
+        tasks = _read()
+        for task in tasks:
+            if task.get("status") != "open" or task.get("upcoming_notified_at"):
+                continue
+            try:
+                when = datetime.strptime(str(task.get("due") or ""), "%Y-%m-%d %H:%M")
+            except ValueError:
+                continue
+            delta = (when - now).total_seconds()
+            if 0 <= delta <= max(1, int(window_minutes)) * 60:
+                task["upcoming_notified_at"] = datetime.now(timezone.utc).isoformat()
+                found.append({"id": task.get("id"), "title": task.get("title"), "due": task.get("due")})
+        if found:
+            _write(tasks)
+    return found
+
 
 def daily_planner(parameters=None, **kwargs):
     """Add/list/complete/postpone local daily tasks. Deterministic and offline-capable."""
