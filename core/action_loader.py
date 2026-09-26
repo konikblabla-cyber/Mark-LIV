@@ -75,8 +75,20 @@ class ActionRegistry:
 
     # -- called by main.py at LiveConnectConfig build time --
     def get_tool_declarations(self) -> list[dict]:
+        # Put frequently successful local actions first. This costs no extra
+        # Gemini call or prompt text and lets learned usage patterns influence
+        # tool selection without forcing a specific action.
+        try:
+            from core.preference_learner import top_actions
+            weights = dict(top_actions(100))
+        except Exception:
+            weights = {}
+        records = sorted(
+            self._actions.values(),
+            key=lambda rec: (-int(weights.get(rec.name.lower(), 0)), rec.name.lower()),
+        )
         out = []
-        for rec in self._actions.values():
+        for rec in records:
             decl = {"name": rec.name, "description": rec.description,
                     "parameters": rec.parameters}
             if rec.behavior:
