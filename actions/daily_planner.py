@@ -46,7 +46,7 @@ def summarize_due_tasks(window_minutes: int = 1440):
         window = max(1, min(int(window_minutes), 7 * 24 * 60))
     except (TypeError, ValueError):
         window = 1440
-    tasks = _load()
+    tasks = _read()
     due = []
     for task in tasks:
         if task.get("status") != "open":
