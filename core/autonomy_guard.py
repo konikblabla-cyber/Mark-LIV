@@ -34,24 +34,17 @@ def validate_step(action: str, parameters: dict[str, Any]) -> tuple[bool, str]:
         if not isinstance(value, str) or not value:
             continue
         try:
-            normalized = os.path.normcase(os.path.abspath(os.path.expandvars(value)))
+            expanded = os.path.expandvars(value)
+            normalized = os.path.normcase(os.path.abspath(expanded))
+            real = os.path.normcase(os.path.realpath(expanded))
         except Exception:
             continue
         for protected in PROTECTED_PATHS:
-            if normalized == protected or normalized.startswith(protected + os.sep):
+            if (
+                normalized == protected
+                or normalized.startswith(protected + os.sep)
+                or real == protected
+                or real.startswith(protected + os.sep)
+            ):
                 if action in {"delete_file", "delete_folder", "format_drive"}:
                     return False, f"protected system path: {value}"
-
-    if action == "format_drive":
-        drive = str(parameters.get("drive") or parameters.get("path") or parameters.get("target") or "")
-        if not drive:
-            return False, "format_drive requires an explicit drive/path"
-    return True, ""
-
-def audit_plan(steps) -> list[str]:
-    problems = []
-    for i, step in enumerate(steps, 1):
-        ok, reason = validate_step(step.action, step.parameters)
-        if not ok:
-            problems.append(f"step {i} ({step.action}): {reason}")
-    return problems
