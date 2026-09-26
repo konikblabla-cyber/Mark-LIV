@@ -64,6 +64,7 @@ def recent(limit: int = 8):
 def snapshot(limit: int = 8) -> dict:
     events = recent(limit)
     # Keep the status response compact so it is cheap to expose to Gemini/UI.
+    return {
         "events": events,
         "last_issue": next((e for e in events if e.get("level") in {"warning", "error"}), None),
         "last_fix": next((e for e in events if e.get("kind") in {"repair", "maintenance"}), None),
