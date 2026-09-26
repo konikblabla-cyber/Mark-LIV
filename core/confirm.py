@@ -1,38 +1,6 @@
 """
 core/confirm.py — a confirmation the model cannot forge.
-
-THE PROBLEM WITH THE OLD GATE
-    computer_settings guarded shutdown and restart like this:
-
-        confirmed = str(params.get("confirmed", "")).lower()
-        if confirmed not in ("yes", "true", "1", "confirm"):
-            return "Please confirm by calling again with confirmed=yes."
-
-    `confirmed` is a tool parameter, which means the *model* writes it. Nothing
-    stops it from sending confirmed=yes on the first call, and nothing checks
-    that a human was ever involved. It is a convention, not a gate — and its
-    coverage was two actions, so deleting files and switching off the WiFi the
-    assistant is talking over went through with no gate at all.
-
-THE DESIGN HERE
-    The confirmation token is issued by the *interface*, never by the model:
-
-      1. An action calls `request(...)` with a callable that does the real work.
-      2. This module hands the UI a banner with CONFIRM / CANCEL and returns
-         IMMEDIATELY with a sentence for the model to say out loud.
-      3. If — and only if — the user presses CONFIRM, the UI calls `resolve()`,
-         which runs the stored callable off the Qt thread.
-
-    Nothing blocks. The model keeps talking while the banner is up, so this
-    costs no latency at all; in fact it is cheaper than the old gate, which
-    burned two tool round trips (reject, then re-call) on every shutdown.
-
-WHAT BELONGS HERE AND WHAT DOES NOT
-    Only genuinely irreversible things. Anything that can be reversed should be
-    done at once and pushed onto core/undo.py instead — undo is faster than a
-    question, and an assistant that asks before every action is one nobody uses.
 """
-
 from __future__ import annotations
 
 import threading
@@ -41,39 +9,28 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 _continuation: Optional[Callable[[str], None]] = None
-
-# A pending confirmation is abandoned after this long. Chosen to outlast a
-# normal "hang on, let me look at the screen" pause without leaving a live
-# shutdown button sitting on the HUD for the rest of the day.
 TIMEOUT_SECONDS = 90.0
 
 
 @dataclass
 class _Pending:
-    key:     str
-    title:   str
-    detail:  str
-    run:     Callable[[], str]
-    at:      float
+    key: str
+    title: str
+    detail: str
+    run: Callable[[], str]
+    at: float
     continuation: Optional[Callable[[str], None]] = None
 
 
 _pending: Optional[_Pending] = None
 _lock = threading.Lock()
-
-# Set once at startup by main.py. Signature: (title, detail) -> None for show,
-# and () -> None for hide. Both are marshalled onto the Qt thread by the UI.
 _show_cb: Optional[Callable[[str, str], None]] = None
 _hide_cb: Optional[Callable[[], None]] = None
-_log_cb:  Optional[Callable[[str], None]] = None
-# A voice confirmation is only armed by the local wake-word detector. The model
-# cannot arm this flag itself.
+_log_cb: Optional[Callable[[str], None]] = None
 _voice_armed_until = 0.0
 
 
-
 def bind(show, hide, log=None) -> None:
-    """Wire this module to the HUD. Called once from main.py at startup."""
     global _show_cb, _hide_cb, _log_cb
     _show_cb, _hide_cb, _log_cb = show, hide, log
 
@@ -87,59 +44,56 @@ def _log(msg: str) -> None:
 
 
 def set_continuation(callback: Optional[Callable[[str], None]]) -> None:
-    """Set a one-shot callback used by autonomous tasks after confirmation."""
     global _continuation
-    _continuation = callback
+    with _lock:
+        _continuation = callback
 
 
 def arm_voice(seconds: float = 12.0) -> None:
-    """Arm spoken confirmation briefly after a real local wake-word detection."""
     global _voice_armed_until
-    _voice_armed_until = time.monotonic() + max(1.0, min(float(seconds), 30.0))
+    with _lock:
+        _voice_armed_until = time.monotonic() + max(1.0, min(float(seconds), 30.0))
 
 
 def voice_armed() -> bool:
-    return time.monotonic() < _voice_armed_until
+    with _lock:
+        return time.monotonic() < _voice_armed_until
 
 
 def resolve_voice(accepted: bool) -> bool:
-    """Resolve the pending confirmation only when the wake word armed voice input."""
     global _voice_armed_until
-    if not voice_armed():
-        return False
-    _voice_armed_until = 0.0
-    if pending_title() == "":
+    with _lock:
+        if time.monotonic() >= _voice_armed_until:
+            return False
+        _voice_armed_until = 0.0
+        has_pending = _pending is not None and time.monotonic() - _pending.at <= TIMEOUT_SECONDS
+    if not has_pending:
         return False
     resolve(bool(accepted))
     return True
 
 
 def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
-    """Park an irreversible action behind the on-screen gate.
-
-    Returns the sentence the tool should hand back to the model — phrased as an
-    instruction so the assistant asks the user out loud in their own language,
-    rather than reading an English string verbatim."""
     global _pending, _continuation
-    continuation = _continuation
-    _continuation = None
-
-    if _show_cb is None:
-        # No interface bound (headless, or a very early call). Refuse rather
-        # than silently performing something irreversible.
-        return (f"I cannot confirm '{title}' right now because the interface is "
-                f"not available, so I have not done it.")
-
     with _lock:
-        if _pending is not None:
-            if time.monotonic() - _pending.at <= TIMEOUT_SECONDS:
-                return (
-                    f"Another confirmation is already pending for '{_pending.title}'. "
-                    f"Nothing was done."
-                )
-            _pending = None
+        continuation = _continuation
+        _continuation = None
+
+        if _show_cb is None:
+            return (
+                f"I cannot confirm '{title}' right now because the interface is "
+                f"not available, so I have not done it."
+            )
+
+        now = time.monotonic()
+        if _pending is not None and now - _pending.at <= TIMEOUT_SECONDS:
+            return (
+                f"Another confirmation is already pending for '{_pending.title}'. "
+                f"Nothing was done."
+            )
+
         _pending = _Pending(key=key, title=title, detail=detail,
-                            run=run, at=time.monotonic(), continuation=continuation)
+                            run=run, at=now, continuation=continuation)
 
     try:
         _show_cb(title, detail)
@@ -157,13 +111,7 @@ def request(key: str, title: str, detail: str, run: Callable[[], str]) -> str:
 
 
 def resolve(accepted: bool) -> None:
-    """Called by the UI when the user presses CONFIRM or CANCEL.
-
-    Runs the stored callable on a worker thread — this is invoked from the Qt
-    thread, and shutting the machine down from inside a button handler would
-    freeze the interface on its way out."""
     global _pending
-
     with _lock:
         p, _pending = _pending, None
 
@@ -175,11 +123,9 @@ def resolve(accepted: bool) -> None:
 
     if p is None:
         return
-
     if time.monotonic() - p.at > TIMEOUT_SECONDS:
         _log(f"SYS: Confirmation expired — {p.title}")
         return
-
     if not accepted:
         _log(f"SYS: Cancelled — {p.title}")
         return
@@ -201,10 +147,7 @@ def resolve(accepted: bool) -> None:
 
 
 def pending_title() -> str:
-    """'' when nothing is waiting. Lets an action avoid stacking two banners."""
     with _lock:
-        if _pending is None:
-            return ""
-        if time.monotonic() - _pending.at > TIMEOUT_SECONDS:
+        if _pending is None or time.monotonic() - _pending.at > TIMEOUT_SECONDS:
             return ""
         return _pending.title
