@@ -940,7 +940,7 @@ class JarvisLive:
             pass
         asyncio.run_coroutine_threadsafe(
             self.session.send_client_content(
-                turns={"role": "user", "parts": [{"text": message}]}
+                turns={"role": "user", "parts": [{"text": message}]},
                 turn_complete=True
             ),
             self._loop
