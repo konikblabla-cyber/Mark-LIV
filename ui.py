@@ -3026,6 +3026,7 @@ class MainWindow(QMainWindow):
         self.get_plugin_settings = None # callable: () -> list[dict] settings schemas, set by JarvisLive
         self.on_wake_toggle    = None   # callable: (enable: bool) -> str, set by JarvisLive
         self.on_wake_manual    = None   # callable: () -> None — manual sleep/wake
+        self.on_sleep_after_task_toggle = None  # callable: (enable: bool) -> None
         self.on_push_to_talk   = None   # callable: (enable: bool) -> str scope
         self.ptt_hold          = None   # callable: (held: bool) -> None — windowed chord
         self.wake_get_state    = None   # callable: () -> dict {enabled, awake, ready}
@@ -4007,6 +4008,14 @@ class MainWindow(QMainWindow):
         self._wake_btn.setStyleSheet(_BTN_STYLE_DIM)
         self._wake_sleep_btn.hide()
 
+        self._sleep_after_task_btn = QPushButton()
+        self._sleep_after_task_btn.setFixedHeight(26)
+        self._sleep_after_task_btn.setFont(QFont("Courier New", 7))
+        self._sleep_after_task_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sleep_after_task_btn.clicked.connect(self._toggle_sleep_after_task)
+        lay.addWidget(self._sleep_after_task_btn)
+        self._refresh_sleep_after_task_btn()
+
         self._ptt_btn = QPushButton()
         self._ptt_btn.setFixedHeight(26)
         self._ptt_btn.setFont(QFont("Courier New", 7))
@@ -4798,6 +4807,26 @@ class MainWindow(QMainWindow):
             self._wake_btn.setText("🎙  WAKE WORD: OFF")
             self._wake_btn.setStyleSheet(_off)
             self._wake_sleep_btn.hide()
+
+    def _refresh_sleep_after_task_btn(self):
+        if not hasattr(self, "_sleep_after_task_btn"):
+            return
+        from memory.config_manager import get_sleep_after_task_enabled
+        enabled = get_sleep_after_task_enabled()
+        self._sleep_after_task_btn.setText("😴  SLEEP AFTER TASK: ON" if enabled else "😴  SLEEP AFTER TASK: OFF")
+        self._sleep_after_task_btn.setStyleSheet(f"""QPushButton {{ background: {"#001a08" if enabled else "transparent"}; color: {C.GREEN if enabled else C.TEXT_DIM}; border: 1px solid {C.GREEN_D if enabled else C.BORDER}; border-radius: 3px; text-align: left; padding: 0 8px; }} QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}""")
+
+    def _toggle_sleep_after_task(self):
+        from memory.config_manager import get_sleep_after_task_enabled, save_sleep_after_task_enabled
+        enabled = not get_sleep_after_task_enabled()
+        save_sleep_after_task_enabled(enabled)
+        if self.on_sleep_after_task_toggle:
+            try:
+                self.on_sleep_after_task_toggle(enabled)
+            except Exception:
+                pass
+        self._refresh_sleep_after_task_btn()
+        self._log.append_log("SYS: Sleep after task " + ("enabled." if enabled else "disabled."))
 
     def _refresh_talk_btns(self):
         """Repaint the push-to-talk row from the saved setting."""
