@@ -15,6 +15,9 @@ _PATH = os.path.join(
     "Mark-LIV",
     "jarvis_tasks.json",
 )
+_ALLOWED_FIELDS = frozenset({
+    "status", "goal", "failure", "next_step", "plan", "waiting_for",
+})
 
 
 class TaskManager:
@@ -73,16 +76,31 @@ class TaskManager:
         return task_id
 
     def update(self, task_id: str, **fields):
-        if "failure" in fields:
-            fields["failure"] = str(fields["failure"] or "")[:800]
-        if "goal" in fields:
-            fields["goal"] = str(fields["goal"] or "")[:500]
+        safe_fields = {
+            key: value for key, value in fields.items()
+            if key in _ALLOWED_FIELDS
+        }
+        if "failure" in safe_fields:
+            safe_fields["failure"] = str(safe_fields["failure"] or "")[:800]
+        if "goal" in safe_fields:
+            safe_fields["goal"] = str(safe_fields["goal"] or "")[:500]
+        if "status" in safe_fields:
+            status = str(safe_fields["status"] or "").strip().lower()
+            if status not in {"running", "waiting_confirmation", "paused", "completed", "failed"}:
+                return
+            safe_fields["status"] = status
+        if "next_step" in safe_fields:
+            try:
+                safe_fields["next_step"] = max(0, min(int(safe_fields["next_step"]), 10000))
+            except (TypeError, ValueError):
+                return
         with _LOCK:
             data = self._read()
-            if task_id not in data:
+            task = data.get(task_id)
+            if not isinstance(task, dict):
                 return
-            data[task_id].update(fields)
-            data[task_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+            task.update(safe_fields)
+            task["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._write(data)
 
     def step(self, task_id: str, action: str, result: Any, verified: bool):
@@ -104,7 +122,7 @@ class TaskManager:
             if len(history) > 50:
                 task["history"] = history[-50:]
             try:
-                current_step = max(0, int(task.get("next_step", 0)))
+                current_step = max(0, min(int(task.get("next_step", 0)), 10000))
             except (TypeError, ValueError):
                 current_step = 0
             task["next_step"] = current_step + 1
@@ -125,7 +143,6 @@ class TaskManager:
             ]
 
     def prune_finished(self, max_items: int = 100) -> int:
-        """Bound completed task history so the local state file cannot grow forever."""
         try:
             limit = max(10, min(int(max_items or 100), 500))
         except (TypeError, ValueError):
