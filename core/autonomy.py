@@ -144,6 +144,8 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             if recovery and recovery.steps:
                 self.logger(f"[Autonomy] Recovery plan: {recovery.summary}")
                 return self._execute_steps(recovery, 0, goal, history)
+            if self.task_id:
+                self.tasks.update(self.task_id, status="failed", failure=failure)
             return "Recovery failed: " + failure
 
         last = history[-1][1] if history else "Done."
@@ -167,6 +169,9 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
         for attempt in range(self.MAX_REPLANS + 1):
             plan = self._plan(goal, failure=failure)
             if not plan or not plan.steps:
+                if self.task_id:
+                    self.tasks.update(self.task_id, status="failed",
+                                      failure="No safe executable plan could be created.")
                 return (
                     "I could not build a safe executable plan for that goal "
                     "with the actions currently available."
