@@ -2248,6 +2248,20 @@ class JarvisLive:
 
         self._autonomy_monitor.start()
 
+        # Cheap local self-test at launch; never calls Gemini and never changes user data.
+        try:
+            from actions.autonomous_tasks import jarvis_self_test
+            test_result = jarvis_self_test({}, action_registry=self._action_registry)
+            level = "warning" if "FAIL" in str(test_result) else "info"
+            self.ui.write_log("SYS: " + str(test_result).split("\n", 1)[0])
+            try:
+                from core.status_center import record
+                record("self_test", str(test_result)[:500], level=level)
+            except Exception:
+                pass
+        except Exception as exc:
+            self.ui.write_log(f"WARN: startup self-test failed — {str(exc)[:180]}")
+
         # ── Wire the shared core services to the interface ───────────────────
         # The confirmation gate is useless without a way to ask, and a memory
         # trim is invisible without a way to say so. Both are bound once here
