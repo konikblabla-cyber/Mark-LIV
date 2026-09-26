@@ -331,6 +331,7 @@ def text(contents, tier: str = FAST, config=None,
                     return default
                 event = threading.Event()
                 _text_inflight[cache_key] = event
+                owner = True
 
     try:
         resp = call(contents, tier=tier, config=config,
