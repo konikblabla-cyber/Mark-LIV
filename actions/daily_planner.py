@@ -130,6 +130,8 @@ def daily_planner(parameters=None, **kwargs):
             for task in tasks:
                 if task.get("id") == task_id and task.get("status") == "open":
                     task["due"] = due
+                    task.pop("overdue_notified_at", None)
+                    task.pop("upcoming_notified_at", None)
                     task["updated_at"] = datetime.now(timezone.utc).isoformat()
                     _write(tasks)
                     return f"Task postponed: {task.get('title')}."
