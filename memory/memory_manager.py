@@ -427,6 +427,32 @@ def search_memory(query: str, limit: int = 8) -> str:
             if len(rows) > len(lines) else "")
     return head + "\\n" + "\\n".join(lines) + more
 
+def contextual_memory(query: str, limit: int = 3, min_score: int = 8) -> str:
+    """Return only strongly relevant local facts for the current turn.
+
+    This is intentionally stricter than recall_memory: weak matches are omitted
+    so normal conversation does not spend Gemini tokens on unrelated memories.
+    """
+    memory = load_memory()
+    words = _normalize_words(str(query or "").strip())
+    if not words:
+        return ""
+    rows = []
+    for cat, items in memory.items():
+        if not isinstance(items, dict):
+            continue
+        for key, entry in items.items():
+            val = _entry_value(entry)
+            if not val:
+                continue
+            score = _score(words, cat, key, val)
+            if score >= min_score:
+                rows.append((score, cat, key, val))
+    rows.sort(key=lambda row: (-row[0], row[1], row[2]))
+    safe_limit = min(max(int(limit or 3), 1), 5)
+    lines = [f"{cat}/{_pretty(key)}: {val}" for _score_value, cat, key, val in rows[:safe_limit]]
+    return "\n".join(lines)[:900]
+
 def all_entries_for_ui() -> list[dict]:
     """Flat list for the memory panel: what JARVIS knows, and when it learned it.
     Sorted newest first so the panel opens on what changed most recently."""
