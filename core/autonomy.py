@@ -104,7 +104,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             f" Expected verification: {expectation}" if expectation else ""
         )
 
-    def _execute_steps(self, plan: Plan, start: int, goal: str, history: list) -> str:
+    def _execute_steps(self, plan: Plan, start: int, goal: str, history: list, replan_count: int = 0) -> str:
         """Execute remaining steps; a human confirmation resumes at the next step."""
         for index in range(start, len(plan.steps)):
             step = plan.steps[index]
@@ -140,10 +140,14 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             if self.task_id:
                 self.tasks.update(self.task_id, status="recovering", failure=failure)
             self.logger(f"[Autonomy] Recovery required: {failure}")
+            if replan_count >= self.MAX_REPLANS:
+                if self.task_id:
+                    self.tasks.update(self.task_id, status="failed", failure=failure)
+                return "Recovery limit reached: " + failure
             recovery = self._plan(goal, failure=failure)
             if recovery and recovery.steps:
                 self.logger(f"[Autonomy] Recovery plan: {recovery.summary}")
-                return self._execute_steps(recovery, 0, goal, history)
+                return self._execute_steps(recovery, 0, goal, history, replan_count + 1)
             if self.task_id:
                 self.tasks.update(self.task_id, status="failed", failure=failure)
             return "Recovery failed: " + failure
