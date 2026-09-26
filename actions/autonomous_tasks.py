@@ -32,12 +32,23 @@ def jarvis_self_test(parameters, action_registry=None, **kwargs):
 
 
 def jarvis_status(parameters, action_registry=None, **kwargs):
-    from core.task_manager import TaskManager
     from core import confirm
     tasks = TaskManager().recoverable()
     count = len(action_registry.names()) if action_registry else 0
     pending = confirm.pending_title() or "none"
-    return f"JARVIS status: actions={count}; recoverable_tasks={len(tasks)}; pending_confirmation={pending}"
+    checks = []
+    for module in ("core.confirm", "core.autonomy", "core.autonomy_monitor",
+                   "core.wake_word", "memory.memory_manager"):
+        try:
+            __import__(module)
+            checks.append(True)
+        except Exception:
+            checks.append(False)
+    health = "OK" if all(checks) else "ATTENTION"
+    return (
+        f"JARVIS status: health={health}; actions={count}; "
+        f"recoverable_tasks={len(tasks)}; pending_confirmation={pending}"
+    )
 
 
 def autonomous_tasks(parameters, **kwargs):
