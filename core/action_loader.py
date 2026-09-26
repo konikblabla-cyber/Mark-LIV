@@ -101,7 +101,13 @@ class ActionRegistry:
         if rec is None or not rec.valid:
             return f"Action '{name}' is not available."
         try:
-            return _call_handler(rec.handler, parameters, ctx or {}) or "Done."
+            result = _call_handler(rec.handler, parameters, ctx or {}) or "Done."
+            try:
+                from core.preference_learner import record_action
+                record_action(name)
+            except Exception:
+                pass
+            return result
         except Exception as e:
             message = f"Action '{name}' crashed during run(): {e}"
             self._logger(message)
