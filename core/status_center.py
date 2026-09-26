@@ -6,6 +6,7 @@ not conversation contents or user data.
 from __future__ import annotations
 import json
 import os
+import tempfile
 import threading
 from datetime import datetime, timezone
 
@@ -26,7 +27,8 @@ def _read():
         with open(_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict):
-            data.setdefault("events", [])
+            events = data.get("events")
+            data["events"] = events if isinstance(events, list) else []
             return data
     except Exception:
         pass
@@ -34,11 +36,20 @@ def _read():
 
 
 def _write(data):
-    os.makedirs(os.path.dirname(_PATH), exist_ok=True)
-    tmp = _PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, _PATH)
+    directory = os.path.dirname(_PATH)
+    os.makedirs(directory, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".jarvis_status.", suffix=".tmp", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, _PATH)
+    finally:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
 
 
 def record(kind: str, message: str, *, level: str = "info") -> None:
@@ -56,19 +67,30 @@ def record(kind: str, message: str, *, level: str = "info") -> None:
 
 
 def recent(limit: int = 8):
+    try:
+        count = max(1, min(int(limit or 8), 20))
+    except (TypeError, ValueError):
+        count = 8
     with _LOCK:
         events = _read().get("events", [])
-    return list(reversed(events[-max(1, min(int(limit or 8), 20)):]))
+    return list(reversed(events[-count:]))
 
 
 def snapshot(limit: int = 8) -> dict:
     events = recent(limit)
-    # Keep the status response compact so it is cheap to expose to Gemini/UI.
     return {
         "events": events,
-        "last_issue": next((e for e in events if e.get("level") in {"warning", "error"}), None),
-        "last_fix": next((e for e in events if e.get("kind") in {"repair", "maintenance"}), None),
-        "health": "ATTENTION" if any(e.get("level") in {"warning", "error"} for e in events) else "OK",
+        "last_issue": next(
+            (e for e in events if e.get("level") in {"warning", "error"}), None
+        ),
+        "last_fix": next(
+            (e for e in events if e.get("kind") in {"repair", "maintenance"}), None
+        ),
+        "health": (
+            "ATTENTION"
+            if any(e.get("level") in {"warning", "error"} for e in events)
+            else "OK"
+        ),
         "errors": sum(1 for e in events if e.get("level") == "error"),
         "warnings": sum(1 for e in events if e.get("level") == "warning"),
     }
