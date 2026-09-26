@@ -40,6 +40,8 @@ class AutonomyEngine:
 
     MAX_STEPS = 12
     MAX_REPLANS = 2
+    # Fast transient retry before spending another planning call.
+    MAX_TRANSIENT_RETRIES = 1
 
     def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
         self.registry = registry
