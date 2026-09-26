@@ -60,6 +60,8 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
 
     tasks = TaskManager().recoverable()
     count = len(action_registry.names()) if action_registry else 0
+    from core.status_center import snapshot
+    status_events = snapshot(6)
     pending = confirm.pending_title() or "none"
     checks = []
     for module in ("core.confirm", "core.autonomy", "core.autonomy_monitor",
@@ -74,11 +76,21 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
     ram = psutil.virtual_memory()
     root = "C:\\" if platform.system() == "Windows" else "/"
     disk = psutil.disk_usage(root)
-    return (
+    lines = [
         f"JARVIS status: health={health}; actions={count}; "
         f"recoverable_tasks={len(tasks)}; pending_confirmation={pending}; "
         f"RAM={ram.percent:.0f}%; disk={disk.percent:.0f}%"
-    )
+    ]
+    if status_events["last_issue"]:
+        e = status_events["last_issue"]
+        lines.append(f"Last issue: {e.get('message', '')[:180]}")
+    if status_events["last_fix"]:
+        e = status_events["last_fix"]
+        lines.append(f"Last fix/maintenance: {e.get('message', '')[:180]}")
+    if status_events["events"]:
+        lines.append("Recent events:")
+        lines.extend(f"- {e.get('kind')}: {e.get('message')}" for e in status_events["events"][:4])
+    return "\\n".join(lines)
 def autonomous_tasks(parameters, **kwargs):
     tasks = _mgr().recoverable()
     if not tasks:
@@ -110,8 +122,6 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
         return "Task is already completed."
 
     from core.autonomy import AutonomyEngine
-    from core.autonomy import Plan, PlanStep
-
     history = [(x.get("action", ""), x.get("result", ""))
                for x in task.get("history", [])]
     recent = history[-3:]
