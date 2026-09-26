@@ -9,6 +9,7 @@ import os
 import platform
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 
 import psutil
@@ -44,7 +45,9 @@ def _check_core():
 def _safe_write_json(path: Path, data) -> None:
     """Atomically replace a small runtime JSON file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(data, handle, ensure_ascii=False, indent=2)
@@ -59,13 +62,11 @@ def _safe_write_json(path: Path, data) -> None:
 
 
 def _backup_corrupt(path: Path) -> Path | None:
-    """Keep a recoverable copy before repairing a corrupt runtime file."""
+    """Keep a uniquely named recoverable copy before repairing a corrupt file."""
     try:
-        backup = path.with_name(f"{path.stem}.corrupt-backup{path.suffix}")
-        if backup.exists():
-            backup = path.with_name(
-                f"{path.stem}.corrupt-backup-{os.getpid()}{path.suffix}"
-            )
+        backup = path.with_name(
+            f"{path.stem}.corrupt-backup-{uuid.uuid4().hex[:10]}{path.suffix}"
+        )
         shutil.copy2(path, backup)
         return backup
     except OSError:
@@ -101,14 +102,15 @@ def jarvis_self_repair(parameters=None, **kwargs):
                 results.append("task storage OK")
             except Exception as exc:
                 backup = _backup_corrupt(task_file)
-                _safe_write_json(task_file, {})
-                if backup:
+                if backup is None:
                     results.append(
-                        f"replaced corrupt task storage (backup: {backup.name})"
+                        f"corrupt task storage detected; repair skipped because backup failed "
+                        f"({exc.__class__.__name__})"
                     )
                 else:
+                    _safe_write_json(task_file, {})
                     results.append(
-                        f"replaced corrupt task storage (backup failed: {exc.__class__.__name__})"
+                        f"replaced corrupt task storage (backup: {backup.name})"
                     )
     except OSError as exc:
         results.append(f"task storage check failed: {exc}")
@@ -120,7 +122,8 @@ def jarvis_self_repair(parameters=None, **kwargs):
     try:
         from core.status_center import record
         level = "warning" if any(
-            "FAIL" in item or "failed" in item for item in results
+            "FAIL" in item or "failed" in item or "repair skipped" in item
+            for item in results
         ) else "info"
         record("repair", message, level=level)
     except Exception:
