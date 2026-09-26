@@ -67,7 +67,14 @@ def jarvis_self_repair(parameters=None, **kwargs):
     for name, ok, detail in _check_core():
         results.append(f"{name}: {'OK' if ok else 'FAIL'} ({detail})")
 
-    return "JARVIS self-repair: " + "; ".join(results)
+    message = "JARVIS self-repair: " + "; ".join(results)
+    try:
+        from core.status_center import record
+        level = "warning" if any("FAIL" in item or "failed" in item for item in results) else "info"
+        record("repair", message, level=level)
+    except Exception:
+        pass
+    return message
 
 
 def jarvis_protection_fingerprint(parameters=None, **kwargs):
@@ -113,7 +120,13 @@ def jarvis_protection_check(parameters=None, **kwargs):
 
     if not findings:
         return "Protection check: no unusual non-protected process load detected."
-    return "Protection check: attention needed (no action taken):\n- " + "\n- ".join(findings[:10])
+    message = "Protection check: attention needed (no action taken):\n- " + "\n- ".join(findings[:10])
+    try:
+        from core.status_center import record
+        record("protection", message, level="warning")
+    except Exception:
+        pass
+    return message
 
 
 TOOL = [
