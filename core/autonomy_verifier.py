@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from typing import Any
+from pathlib import Path
+import os
+import psutil
 
 
 def result_success(result: Any) -> bool:
@@ -25,6 +28,29 @@ def verify_text(result: Any, expectation: str) -> bool:
     wanted = [x.strip().lower() for x in expectation.split("|") if x.strip()]
     return not wanted or any(x in haystack for x in wanted)
 
+
+
+def verify_state(action: str, parameters: dict | None = None, result: Any = None) -> bool:
+    """Verify common high-impact actions against actual local state when possible."""
+    p = parameters or {}
+    try:
+        if action in {"delete_file", "delete_folder"}:
+            path = p.get("path") or p.get("file_path") or p.get("folder_path")
+            return bool(path) and not Path(str(path)).exists()
+        if action in {"kill_process", "terminate_process"}:
+            pid = p.get("pid")
+            return bool(pid) and not psutil.pid_exists(int(pid))
+        if action == "move_file":
+            src = p.get("source") or p.get("src")
+            dst = p.get("destination") or p.get("dst")
+            return bool(src and dst) and not Path(str(src)).exists() and Path(str(dst)).exists()
+        if action == "copy_file":
+            src = p.get("source") or p.get("src")
+            dst = p.get("destination") or p.get("dst")
+            return bool(src and dst) and Path(str(src)).exists() and Path(str(dst)).exists()
+        return result_success(result)
+    except (OSError, ValueError, TypeError):
+        return False
 
 def recovery_hint(action: str, result: Any) -> str:
     return (
