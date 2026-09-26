@@ -100,8 +100,8 @@ class ProactiveEngine:
         # Optional: recent conversation context
         recent_ctx = ""
         if recent_turns:
-            snippet = "\n".join(recent_turns[-6:])
-            recent_ctx = f"\nRecent conversation:\n{snippet}"
+            snippet = "\n".join(recent_turns[-3:])
+            recent_ctx = f"\nRecent conversation:\n{snippet[:1800]}"
 
         return "\n".join([
             "[PROACTIVE_CHECK] You are initiating a proactive check-in.",
