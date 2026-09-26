@@ -15,9 +15,10 @@ class MemoryManagerTests(unittest.TestCase):
         self.assertIn("Nothing stored", result)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_truncate_value_leaves_short_values_unchanged(self):
         value = "hello"
         self.assertEqual(_truncate_value(value), value)
+
+
+if __name__ == "__main__":
+    unittest.main()
