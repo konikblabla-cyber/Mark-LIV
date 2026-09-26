@@ -176,8 +176,8 @@ _cool_lock = threading.Lock()
 # Short-lived response cache for identical deterministic side-requests.
 # It prevents duplicate Gemini spend when the same plugin asks the same question
 # repeatedly. Images and non-string inputs are never cached.
-_TEXT_CACHE_TTL = 45.0
-_TEXT_CACHE_MAX = 64
+_TEXT_CACHE_TTL = 90.0
+_TEXT_CACHE_MAX = 96
 _text_cache: dict[str, tuple[float, str]] = {}
 _text_cache_lock = threading.Lock()
 
