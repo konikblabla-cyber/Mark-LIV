@@ -83,6 +83,14 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
         f"Status center: {status_events.get('health', 'OK')}; "
         f"warnings={status_events.get('warnings', 0)}; errors={status_events.get('errors', 0)}"
     ]
+
+    try:
+        from core.preference_learner import top_actions
+        learned = top_actions(5)
+        if learned:
+            lines.append("Learned actions: " + ", ".join(f"{name} ({count})" for name, count in learned))
+    except Exception:
+        pass
     if status_events["last_issue"]:
         e = status_events["last_issue"]
         lines.append(f"Last issue: {e.get('message', '')[:180]}")
