@@ -16,6 +16,8 @@ class AutonomyMonitor:
         self._last_fingerprint = None
         self._health_counter = 0
         self._issue_streak = 0
+        self._last_protection_fingerprint = None
+        self._protection_streak = 0
 
     def _fingerprint(self, result):
         # Fingerprint only actionable state, not volatile uptime/CPU telemetry.
@@ -49,6 +51,7 @@ class AutonomyMonitor:
                     self.on_issue(result)
             else:
                 self._issue_streak = 0
+            self._check_local_protection()
             self._health_counter += 1
             if self._health_counter >= 6:
                 self._health_counter = 0
@@ -57,6 +60,23 @@ class AutonomyMonitor:
         except Exception as e:
             self.logger(f"[AutonomyMonitor] audit failed: {e}")
             return None
+
+    def _check_local_protection(self):
+        """Cheap local anomaly check; never kills processes or calls Gemini."""
+        try:
+            from actions.jarvis_self_repair import jarvis_protection_fingerprint
+            fp = tuple(jarvis_protection_fingerprint())
+            changed = self._last_protection_fingerprint is not None and fp != self._last_protection_fingerprint
+            self._last_protection_fingerprint = fp
+            if fp and changed:
+                self._protection_streak += 1
+            else:
+                self._protection_streak = 0
+            if self._protection_streak >= 2:
+                self.logger("[AutonomyMonitor] process anomaly detected; no action taken")
+                self._protection_streak = 0
+        except Exception as exc:
+            self.logger(f"[AutonomyMonitor] protection check failed: {exc}")
 
     def _local_health_check(self):
         """Cheap periodic core check; deliberately avoids Gemini/API calls."""
