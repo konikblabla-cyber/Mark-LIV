@@ -2259,6 +2259,13 @@ class JarvisLive:
 
         self._autonomy_monitor.start()
 
+        # Keep persistent autonomous-task storage bounded.
+        try:
+            from core.task_manager import TaskManager
+            TaskManager().prune_finished(100)
+        except Exception as exc:
+            self.ui.write_log(f"WARN: task history cleanup failed — {str(exc)[:140]}")
+
         # Cheap local self-test at launch; never calls Gemini and never changes user data.
         try:
             from actions.autonomous_tasks import jarvis_self_test
