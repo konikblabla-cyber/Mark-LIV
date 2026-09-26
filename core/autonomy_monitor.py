@@ -27,6 +27,7 @@ class AutonomyMonitor:
         self._health_counter = 0
         self._issue_streak = 0
         self._last_protection_fingerprint = None
+        self._protection_candidate = None
         self._protection_streak = 0
 
     def _fingerprint(self, result):
@@ -97,15 +98,22 @@ class AutonomyMonitor:
             )
             self._last_protection_fingerprint = fp
             if fp and changed:
-                self._protection_streak += 1
+                if fp == self._protection_candidate:
+                    self._protection_streak += 1
+                else:
+                    self._protection_candidate = fp
+                    self._protection_streak = 1
             else:
+                self._protection_candidate = None
                 self._protection_streak = 0
+
             if self._protection_streak >= 2:
                 self.logger(
-                    "[AutonomyMonitor] process anomaly detected; "
+                    "[AutonomyMonitor] persistent process anomaly detected; "
                     "running bounded safe maintenance"
                 )
                 self._protection_streak = 0
+                self._protection_candidate = None
                 try:
                     from actions.autonomous_pc_audit import safe_pc_optimization
 
