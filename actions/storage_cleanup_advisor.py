@@ -75,7 +75,7 @@ def storage_cleanup_advisor(parameters=None, **kwargs):
     if raw_root:
         root = Path(raw_root).expanduser()
     else:
-        root = Path(os.environ.get("SystemDrive", "C:") + "\")
+        root = Path(os.environ.get("SystemDrive", "C:") + "\\")
     if not root.is_dir():
         return f"Directory not found: {root}"
     try:
