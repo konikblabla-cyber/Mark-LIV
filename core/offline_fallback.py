@@ -42,4 +42,8 @@ def handle(text: str):
         from actions.jarvis_self_repair import jarvis_protection_check
         return jarvis_protection_check({})
 
+    if q in {"sprawdź ochronę", "sprawdz ochrone", "ochrona komputera", "protection check"}:
+        from actions.jarvis_self_repair import jarvis_protection_check
+        return jarvis_protection_check({})
+
     return None
