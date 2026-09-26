@@ -156,6 +156,22 @@ def _recursive_update(target: dict, updates: dict) -> bool:
     return changed
 
 
+def delete_memory_entry(category: str, key: str) -> str:
+    """Delete one stored memory entry. Callers must provide an exact category/key."""
+    category = str(category or "").strip()
+    key = str(key or "").strip()
+    if category not in _empty_memory() or not key:
+        return "Invalid memory category or key."
+    memory = load_memory()
+    bucket = memory.get(category, {})
+    if key not in bucket:
+        return f"Memory not found: {category}/{key}"
+    del bucket[key]
+    save_memory(memory)
+    print(f"[Memory] 🗑️ Deleted: {category}/{key}")
+    return f"Deleted memory: {category}/{key}"
+
+
 def update_memory(memory_update: dict) -> dict:
     if not isinstance(memory_update, dict) or not memory_update:
         return load_memory()
