@@ -45,54 +45,32 @@ class AutonomyEngine:
 
     def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
         self.registry = registry
+        self._catalog_cache = None
         self.ctx = ctx or {}
         self.logger = logger
         self.tasks = task_manager or TaskManager()
         self.task_id = task_id
 
     def _catalog(self) -> str:
+        if self._catalog_cache is not None:
+            return self._catalog_cache
         rows = []
         for name in sorted(self.registry.names()):
             rec = self.registry._actions.get(name)
             if not rec:
                 continue
             rows.append(f"{name}: {rec.description[:240]}")
-        return "\n".join(rows)
+        self._catalog_cache = "\n".join(rows)
+        return self._catalog_cache
 
     def _plan(self, goal: str, failure: str = "") -> Plan | None:
-        prompt = f"""
-You are the planning brain of a local Windows JARVIS.
-Create a concrete, minimal execution plan for this goal:
-
-GOAL:
+        prompt = f"""Local Windows JARVIS planner. Make the shortest safe plan for:
 {goal}
 
-AVAILABLE ACTIONS:
+ACTIONS:
 {self._catalog()}
 
-Rules:
-- Only use action names from AVAILABLE ACTIONS.
-- Never invent a tool.
-- Prefer inspection/read-only actions before modification.
-- For destructive changes, select the existing destructive action; NEVER add
-  confirmation parameters and NEVER claim approval.
-- Each step must have parameters that match the action's schema as closely as
-  possible.
-- Maximum {self.MAX_STEPS} steps.
-- If the goal cannot be completed with these actions, return an empty steps list.
-- If a previous attempt failed, change strategy instead of repeating the exact
-  same failed step.
-
-Return ONLY JSON:
-{{
-  "summary": "short plan summary",
-  "steps": [
-    {{"action":"...", "parameters":{{}}, "reason":"...", "verify":"..."}}
-  ]
-}}
-Previous failure:
-{failure or "none"}
-"""
+Rules: use only listed actions; inspect before changes; destructive actions use their normal confirmation gate; never invent confirmation/approval; max {self.MAX_STEPS} steps; on failure change strategy. Return ONLY JSON with summary and steps (action, parameters, reason, verify). Failure: {failure or "none"}"""
         data = as_json(prompt, tier=SMART, timeout_ms=15000, default=None)
         if not isinstance(data, dict):
             return None
@@ -174,7 +152,7 @@ Previous failure:
         if self.task_id:
             self.tasks.update(self.task_id, status="completed", next_step=len(plan.steps))
         return (
-            f"{plan.summary or 'Goal completed.'\n"
+            f"{plan.summary or 'Goal completed.'}\n"
             f"Executed {len(history)} step(s).\n"
             f"Final result: {last}"
         )
