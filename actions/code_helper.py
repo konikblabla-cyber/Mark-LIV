@@ -19,6 +19,7 @@ MAX_BUILD_ATTEMPTS = 3
 # fallback ladder. Writing a model name here is what left this file hanging
 # forever whenever that one alias was unwell.
 from core import gemini
+from core import llm_client
 
 
 def _get_api_key() -> str:
@@ -155,7 +156,16 @@ def _detect_intent(description: str, file_path: str, code: str) -> str:
                 "  optimize     = refactor / clean up / speed up existing code\n\n"
                 "Reply with ONLY the intent word, nothing else."
             )
-            ans = _get_gemini().generate_content(prompt).text.strip().lower()
+            # Intent classification is tiny and deterministic; prefer the local
+            # model so routine coding requests do not spend a Gemini call.
+            try:
+                ans = llm_client.call_llm_text(
+                    prompt,
+                    system="Return exactly one intent word. No explanation.",
+                    timeout=8,
+                ).strip().lower()
+            except Exception:
+                ans = _get_gemini().generate_content(prompt).text.strip().lower()
             ans = ans.strip("`'\". \n")
             if ans in _VALID_INTENTS:
                 return ans
