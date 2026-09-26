@@ -57,7 +57,7 @@ def jarvis_self_repair(parameters=None, **kwargs):
         if task_file.exists() and not task_file.is_file():
             return "Self-repair stopped: task storage path is not a file."
         if not task_file.exists():
-            task_file.write_text("[]", encoding="utf-8")
+            task_file.write_text("{}", encoding="utf-8")
             results.append("recreated missing task storage")
         else:
             results.append("task storage OK")
