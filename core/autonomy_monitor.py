@@ -16,9 +16,12 @@ class AutonomyMonitor:
         self._last_fingerprint = None
 
     def _fingerprint(self, result):
+        # Fingerprint only actionable state, not volatile uptime/CPU telemetry.
         if isinstance(result, dict):
             return str(sorted((k, str(v)) for k, v in result.items()))
-        return str(result)
+        text = str(result or "")
+        priority = text.split("Priorytety:", 1)[-1].split("Procesy wymagające uwagi:", 1)[0]
+        return priority.strip()
 
     def start(self):
         if self._thread and self._thread.is_alive():
