@@ -113,8 +113,8 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             if risk.level == "high":
                 self.logger(f"[Autonomy] Confirmation-gated step: {step.action}")
 
-            def resume(_result: str, next_index=index + 1, current_plan=plan):
-                self._execute_steps(current_plan, next_index, goal, history)
+            def resume(_result: str, next_index=index + 1, current_plan=plan, current_replans=replan_count):
+                self._execute_steps(current_plan, next_index, goal, history, current_replans)
 
             confirm.set_continuation(resume)
             started = time.monotonic()
@@ -186,8 +186,6 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
 
             self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
             result = self._execute_steps(plan, 0, goal, history)
-            if self.task_id and "[CONFIRMATION_PENDING]" not in result and not result.startswith("Recovery failed"):
-                self.tasks.update(self.task_id, status="completed")
             return result
 
         return "I could not complete the goal safely."
