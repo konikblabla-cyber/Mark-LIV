@@ -617,6 +617,14 @@ class JarvisLive:
         # action can never shadow one.
         self._action_registry = discover_actions(
             actions_dir=_base_dir / "actions",
+        from actions.autonomous_pc_audit import autonomous_pc_audit
+        self._autonomy_monitor = AutonomyMonitor(
+            audit=lambda: autonomous_pc_audit({}),
+            on_issue=self._on_autonomy_issue,
+            interval=300,
+            logger=lambda msg: self.ui.write_log(f"SYS: {msg}"),
+        )
+
             reserved_names=_inline_names,
             logger=lambda msg: print(f"[Actions] {msg}"),
         )
@@ -2081,11 +2089,35 @@ class JarvisLive:
                 print(f"[Dashboard] Command error: {e}")
                 await asyncio.sleep(0.5)
 
+    def _on_autonomy_issue(self, result) -> None:
+        """Surface a changed PC audit without silently executing anything."""
+        text = str(result or "").strip()
+        if not text:
+            return
+        self.ui.write_log("[AutonomyMonitor] PC state changed — review recommended.")
+        if self.session and self._awake:
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self.session.send_client_content(
+                        turns={"role": "user", "parts": [{"text":
+                            "Autonomous PC monitor detected a meaningful state change. "
+                            "Review this audit and, if appropriate, tell the user what changed "
+                            "and what safe next step is recommended. Do not execute destructive "
+                            "actions without confirmation.\n\n" + text}]},
+                        turn_complete=True,
+                    ),
+                    self._loop,
+                )
+            except Exception as e:
+                self.ui.write_log(f"[AutonomyMonitor] notification failed: {e}")
+
     # ── main loop ───────────────────────────────────────────────────────────
 
     async def run(self):
         self._loop = asyncio.get_event_loop()
         self._reconnect_event = asyncio.Event()
+
+        self._autonomy_monitor.start()
 
         # ── Wire the shared core services to the interface ───────────────────
         # The confirmation gate is useless without a way to ask, and a memory
