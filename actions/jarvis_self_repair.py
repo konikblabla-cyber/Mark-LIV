@@ -90,10 +90,17 @@ def jarvis_protection_fingerprint(parameters=None, **kwargs):
     """Return a cheap stable snapshot of unusually heavy non-protected processes."""
     findings = []
     protected = {x.lower() for x in PROTECTED}
+    try:
+        current = psutil.Process()
+        current_pid = current.pid
+    except Exception:
+        current_pid = -1
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
             info = proc.info
             name = info.get("name") or "?"
+            if int(info.get("pid") or 0) == current_pid:
+                continue
             if name.lower() in protected:
                 continue
             cpu = float(info.get("cpu_percent") or 0)
