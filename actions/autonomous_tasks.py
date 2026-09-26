@@ -79,7 +79,9 @@ def jarvis_status(parameters, action_registry=None, **kwargs):
     lines = [
         f"JARVIS status: health={health}; actions={count}; "
         f"recoverable_tasks={len(tasks)}; pending_confirmation={pending}; "
-        f"RAM={ram.percent:.0f}%; disk={disk.percent:.0f}%"
+        f"RAM={ram.percent:.0f}%; disk={disk.percent:.0f}%",
+        f"Status center: {status_events.get('health', 'OK')}; "
+        f"warnings={status_events.get('warnings', 0)}; errors={status_events.get('errors', 0)}"
     ]
     if status_events["last_issue"]:
         e = status_events["last_issue"]
