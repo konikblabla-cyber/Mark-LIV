@@ -370,9 +370,17 @@ def call_llm_text(
             try:
                 resp = requests.post(endpoint, json=payload, timeout=timeout)
                 resp.raise_for_status()
-                return (resp.json().get("message", {}).get("content") or "").strip()
+                data = resp.json()
+                if provider == "openai":
+                    return (data.get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+                return (data.get("message", {}).get("content") or "").strip()
             except Exception:
                 pass
+        if provider == "openai":
+            raise RuntimeError(
+                f"Cannot connect to OpenAI-compatible server at {url}. "
+                "Make sure LM Studio / LocalAI / Jan is running and the server is started."
+            )
         raise RuntimeError(
             f"Cannot connect to Ollama at {url}. "
             "Make sure Ollama is installed and run: ollama serve"
