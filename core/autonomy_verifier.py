@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any
 from pathlib import Path
-import os
 import psutil
 
 
@@ -33,6 +32,9 @@ def verify_text(result: Any, expectation: str) -> bool:
 def verify_state(action: str, parameters: dict | None = None, result: Any = None) -> bool:
     """Verify common high-impact actions against actual local state when possible."""
     p = parameters or {}
+    # A confirmation-gated action has not executed yet; let the task remain pending.
+    if "[confirmation_pending]" in str(result or "").lower():
+        return True
     try:
         if action in {"delete_file", "delete_folder"}:
             path = p.get("path") or p.get("file_path") or p.get("folder_path")
