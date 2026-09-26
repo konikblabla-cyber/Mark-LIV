@@ -107,23 +107,39 @@ def _terminate_process(pid: int) -> str:
 
 
 def safe_pc_optimization(parameters=None, **kwargs):
-    """Apply only low-risk maintenance; never delete files or change security."""
+    """Choose only low-risk maintenance relevant to the detected local state."""
     if platform.system() != "Windows":
         return "Windows-only optimization."
     results = []
+    vm = psutil.virtual_memory()
+    if vm.percent >= 85:
+        top = _top_processes(limit=3)
+        if top:
+            results.append(
+                "RAM is high; no process was closed. Top load: " +
+                ", ".join(f"{name} PID {pid} ({mem:.1f}% RAM)" for mem, cpu, pid, name in top)
+            )
+        else:
+            results.append("RAM is high; no safe automatic process action was available.")
+    for part in psutil.disk_partitions(all=False):
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+            if usage.percent >= 90:
+                results.append(
+                    f"{part.mountpoint} is {usage.percent:.0f}% full; cleanup requires explicit file selection."
+                )
+        except (OSError, PermissionError):
+            pass
     try:
         proc = subprocess.run(
             ["ipconfig", "/flushdns"],
             capture_output=True, text=True, timeout=20,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
-        if proc.returncode == 0:
-            results.append("DNS cache refreshed")
-        else:
-            results.append(f"DNS refresh skipped (code {proc.returncode})")
-    except Exception as e:
-        results.append(f"DNS refresh unavailable: {e}")
-    return "Safe optimization completed: " + "; ".join(results)
+        results.append("DNS cache refreshed" if proc.returncode == 0 else "DNS refresh skipped")
+    except Exception as exc:
+        results.append(f"DNS refresh unavailable: {str(exc)[:120]}")
+    return "Safe optimization: " + ("; ".join(results) if results else "no low-risk action was needed.")
 
 TOOL=[
     {
