@@ -41,27 +41,41 @@ def validate_step(action: str, parameters: dict[str, Any]) -> tuple[bool, str]:
     if not isinstance(parameters, dict):
         return False, "invalid parameters"
 
-    # Autonomous planning can request risky actions, but it can never
-    # smuggle human approval through parameters.
     if needs_confirmation(action):
         for key in ("confirmed", "confirm", "approved", "force_confirm"):
             if key in parameters:
                 return False, f"autonomous planner cannot set approval parameter '{key}'"
 
-    process = str(parameters.get("process") or parameters.get("name") or "").strip()
+    process = str(
+        parameters.get("process")
+        or parameters.get("process_name")
+        or parameters.get("name")
+        or ""
+    ).strip()
     protected = {str(p).lower() for p in PROTECTED_PROCESSES}
     if process.lower() in protected and action in PROCESS_ACTIONS:
         return False, f"protected process: {process}"
 
-    for key in ("path", "file", "folder", "target"):
-        value = parameters.get(key)
-        if not isinstance(value, str) or not value.strip():
-            continue
-        if action in DESTRUCTIVE_PATH_ACTIONS and _protected_path(value):
-            return False, f"protected system path: {value}"
+    if action in DESTRUCTIVE_PATH_ACTIONS:
+        path_values = [
+            parameters.get("path"),
+            parameters.get("file"),
+            parameters.get("folder"),
+            parameters.get("target"),
+        ]
+        if action == "format_drive":
+            path_values.extend((parameters.get("drive"), parameters.get("drive_path")))
+        for value in path_values:
+            if isinstance(value, str) and value.strip() and _protected_path(value):
+                return False, f"protected system path: {value}"
 
     if action == "format_drive":
-        value = str(parameters.get("path") or parameters.get("drive") or "").strip()
+        value = str(
+            parameters.get("path")
+            or parameters.get("drive")
+            or parameters.get("drive_path")
+            or ""
+        ).strip()
         if not value:
             return False, "format_drive requires an explicit drive/path"
 
