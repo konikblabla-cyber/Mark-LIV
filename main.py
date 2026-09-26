@@ -59,7 +59,7 @@ from ui import JarvisUI
 from memory.memory_manager import (
     load_memory, update_memory, format_memory_for_prompt,
     save_session_summary, pop_last_session,
-    search_memory, set_trim_notifier,
+    search_memory, forget_memory, set_trim_notifier,
 )
 
 # The file-backed tools (open_app, web_search, browser_control, …) are no longer
@@ -429,6 +429,18 @@ TOOL_DECLARATIONS = [
                 "value": {"type": "STRING", "description": "Concise value in English (e.g. Fatih, pizza, older sister)"},
             },
             "required": ["category", "key", "value"]
+        }
+    },
+    {
+        "name": "forget_memory",
+        "description": "Forget one exact saved long-term memory entry. Always ask the human to confirm on the HUD before changing memory.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "category": {"type": "STRING", "description": "Exact memory category."},
+                "key": {"type": "STRING", "description": "Exact saved memory key."}
+            },
+            "required": ["category", "key"]
         }
     },
     {
@@ -1138,6 +1150,22 @@ class JarvisLive:
         print(f"[JARVIS] 🔧 {name}  {args}")
         self.ui.set_state("THINKING")
 
+
+        if name == "forget_memory":
+            category = str(args.get("category", "")).strip()
+            key = str(args.get("key", "")).strip()
+            if not category or not key:
+                result = "I need the exact memory category and key. Nothing was changed."
+            else:
+                result = confirm_gate.request(
+                    key=f"memory:{category}:{key}",
+                    title=f"Forget memory: {category}/{key}",
+                    detail="JARVIS will remove this saved memory entry after you confirm.",
+                    run=lambda: forget_memory(key, category),
+                )
+            if not self.ui.muted:
+                self.ui.set_state("LISTENING")
+            return types.FunctionResponse(id=fc.id, name=name, response={"result": result})
 
         if name == "save_memory":
             category = args.get("category", "notes")
