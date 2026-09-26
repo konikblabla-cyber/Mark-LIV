@@ -47,20 +47,36 @@ class AutonomyEngine:
     def __init__(self, registry, ctx=None, logger=print, task_manager=None, task_id=None):
         self.registry = registry
         self._catalog_cache = None
+        self._catalog_cache_key = None
         self.ctx = ctx or {}
         self.logger = logger
         self.tasks = task_manager or TaskManager()
         self.task_id = task_id
 
-    def _catalog(self) -> str:
-        if self._catalog_cache is not None:
+    def _catalog(self, goal: str = "", failure: str = "") -> str:
+        # Keep planner input compact without hiding available action names.
+        key = (str(goal).strip().lower(), str(failure).strip().lower())
+        if self._catalog_cache is not None and self._catalog_cache_key == key:
             return self._catalog_cache
-        rows = []
+
+        import re
+        terms = set(re.findall(r"[a-zA-Z0-9_]{3,}", " ".join(key)))
+        scored = []
         for name in sorted(self.registry.names()):
             rec = self.registry._actions.get(name)
             if not rec:
                 continue
-            rows.append(f"{name}: {rec.description[:240]}")
+            haystack = f"{name} {rec.description}".lower()
+            score = sum(1 for term in terms if term in haystack)
+            scored.append((score, name.lower(), name, rec))
+
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        detailed = {item[2] for item in scored[:40]}
+        rows = [
+            f"{name}: {rec.description[:180]}" if name in detailed else name
+            for _, _, name, rec in scored
+        ]
+        self._catalog_cache_key = key
         self._catalog_cache = "\n".join(rows)
         return self._catalog_cache
 
@@ -69,7 +85,7 @@ class AutonomyEngine:
 {goal}
 
 ACTIONS:
-{self._catalog()}
+{self._catalog(goal, failure)}
 
 Rules: use only listed actions; inspect before changes; destructive actions use their normal confirmation gate; never invent confirmation/approval; max {self.MAX_STEPS} steps; on failure change strategy. Return ONLY JSON with summary and steps (action, parameters, reason, verify). Failure: {failure or "none"}"""
         data = as_json(prompt, tier=SMART, timeout_ms=15000, default=None)
