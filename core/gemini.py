@@ -176,7 +176,7 @@ _cool_lock = threading.Lock()
 # Short-lived response cache for identical deterministic side-requests.
 # It prevents duplicate Gemini spend when the same plugin asks the same question
 # repeatedly. Images and non-string inputs are never cached.
-_TEXT_CACHE_TTL = 120.0
+_TEXT_CACHE_TTL = 45.0
 _TEXT_CACHE_MAX = 64
 _text_cache: dict[str, tuple[float, str]] = {}
 _text_cache_lock = threading.Lock()
@@ -445,7 +445,7 @@ def call(contents, tier: str = FAST, config=None,
 def text(contents, tier: str = FAST, config=None,
          timeout_ms: int = DEFAULT_TIMEOUT_MS, key: str = "", default: str = "") -> str:
     """`call`, reduced to the reply text. `default` when nothing answered."""
-    cache_key = _cache_key(contents, tier, config)
+    cache_key = None if tier == SEARCH else _cache_key(contents, tier, config)
     if cache_key is not None:
         cached = _cached_text(cache_key)
         if cached is not None:
