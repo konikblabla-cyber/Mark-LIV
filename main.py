@@ -1575,7 +1575,7 @@ class JarvisLive:
                             in_buf = []
 
                             # One wake phrase unlocks one user turn.
-                            if full_in and self._wake_enabled:
+                            if full_in and self._wake_enabled and not self._background_mode:
                                 self.sleep(reason="strict wake-word turn complete")
 
                             full_out = " ".join(out_buf).strip()
@@ -2304,6 +2304,8 @@ class JarvisLive:
 
 def main():
     start_hidden = "--background" in sys.argv
+    if start_hidden:
+        os.environ["MARK_LIV_BACKGROUND"] = "1"
     enable_autostart()
     ui = JarvisUI("face.png", start_hidden=start_hidden)
 
