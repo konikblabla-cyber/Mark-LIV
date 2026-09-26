@@ -46,6 +46,8 @@ import json
 import sys
 import traceback
 from datetime import datetime
+
+from core.background_runtime import enable_autostart
 from pathlib import Path
 from collections import deque
 
@@ -2301,7 +2303,9 @@ class JarvisLive:
             await asyncio.sleep(delay)
 
 def main():
-    ui = JarvisUI("face.png")
+    start_hidden = "--background" in sys.argv
+    enable_autostart()
+    ui = JarvisUI("face.png", start_hidden=start_hidden)
 
     def runner():
         ui.wait_for_api_key()
