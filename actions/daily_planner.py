@@ -54,7 +54,24 @@ def daily_planner(parameters=None, **kwargs):
             }
             tasks.append(task)
             _write(tasks)
-            return f"Task added: {title} [{task['id']}]."
+
+            # Valid YYYY-MM-DD HH:MM due times automatically get a local
+            # Windows reminder. Free-form due text remains a normal task.
+            due = task["due"]
+            reminder_result = ""
+            if due:
+                try:
+                    from datetime import datetime as _dt
+                    _dt.strptime(due, "%Y-%m-%d %H:%M")
+                    from actions.reminder import reminder
+                    reminder_result = " " + reminder({
+                        "date": due[:10],
+                        "time": due[11:16],
+                        "message": f"JARVIS task: {title}",
+                    })
+                except Exception:
+                    pass
+            return f"Task added: {title} [{task['id']}].{reminder_result}"
 
         if action in {"complete", "done"}:
             task_id = _clean(p.get("id"), 20)
