@@ -66,6 +66,16 @@ def daily_planner(parameters=None, **kwargs):
                     return f"Task completed: {task.get('title')}."
             return "Open task not found."
 
+        if action == "postpone":
+            task_id = _clean(p.get("id"), 20)
+            due = _clean(p.get("due"), 32)
+            for task in tasks:
+                if task.get("id") == task_id and task.get("status") == "open":
+                    task["due"] = due
+                    task["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    _write(tasks)
+                    return f"Task postponed: {task.get('title')}."
+            return "Open task not found."
         if action == "list":
             open_tasks = [t for t in tasks if t.get("status") == "open"]
             open_tasks.sort(key=lambda t: (int(t.get("priority", 2)), t.get("due") or "9999-99-99"))
