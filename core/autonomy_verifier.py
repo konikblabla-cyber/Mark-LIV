@@ -58,6 +58,9 @@ def verify_state(action: str, parameters: dict | None = None, result: Any = None
             dst = p.get("destination") or p.get("dst")
             return bool(src and dst) and not Path(str(src)).exists() and Path(str(dst)).exists()
         if action == "close_process":
+            pid = p.get("pid")
+            if pid is not None:
+                return not psutil.pid_exists(int(pid))
             name = str(p.get("name") or p.get("process") or "").strip().lower()
             if name:
                 return not any(
