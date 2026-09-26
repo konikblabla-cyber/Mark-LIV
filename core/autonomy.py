@@ -8,14 +8,12 @@ layer, whose core.confirm gate remains the security boundary.
 """
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.gemini import as_json, FAST, SMART
-from core.permissions import needs_confirmation
-from core.autonomy_verifier import verify_text, recovery_hint
+from core.gemini import as_json, SMART
+from core.autonomy_verifier import verify_text, verify_state, recovery_hint
 from core import confirm
 from core.task_manager import TaskManager
 from core.autonomy_guard import audit_plan
@@ -123,7 +121,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             result = self.registry.run(step.action, step.parameters, self.ctx)
             elapsed = time.monotonic() - started
             history.append((step.action, result))
-            verified = self._result_ok(result, step.verify)
+            verified = self._result_ok(result, step.verify) and verify_state(step.action, step.parameters, result)
             if self.task_id:
                 self.tasks.step(self.task_id, step.action, result, verified)
                 if "[CONFIRMATION_PENDING]" in str(result):
