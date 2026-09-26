@@ -70,6 +70,25 @@ def jarvis_self_repair(parameters=None, **kwargs):
     return "JARVIS self-repair: " + "; ".join(results)
 
 
+def jarvis_protection_fingerprint(parameters=None, **kwargs):
+    """Return a cheap stable snapshot of unusually heavy non-protected processes."""
+    findings = []
+    protected = {x.lower() for x in PROTECTED}
+    for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
+        try:
+            info = proc.info
+            name = info.get("name") or "?"
+            if name.lower() in protected:
+                continue
+            cpu = float(info.get("cpu_percent") or 0)
+            ram = float(info.get("memory_percent") or 0)
+            if cpu >= 90.0 or ram >= 15.0:
+                findings.append((name.lower(), int(info.get("pid") or 0)))
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return sorted(findings)[:8]
+
+
 def jarvis_protection_check(parameters=None, **kwargs):
     """Detect unusual resource-heavy processes without killing or changing anything."""
     p = parameters or {}
@@ -103,6 +122,12 @@ TOOL = [
         "description": "Run cheap local JARVIS diagnostics and repair only missing runtime state; never changes security or kills processes.",
         "parameters": {"type": "OBJECT", "properties": {}},
         "handler": jarvis_self_repair,
+    },
+    {
+        "name": "jarvis_protection_fingerprint",
+        "description": "Create a cheap stable snapshot of unusually heavy non-protected processes for anomaly detection; read-only.",
+        "parameters": {"type": "OBJECT", "properties": {}},
+        "handler": jarvis_protection_fingerprint,
     },
     {
         "name": "jarvis_protection_check",
