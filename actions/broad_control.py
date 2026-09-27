@@ -6,7 +6,7 @@ import subprocess
 from core import confirm
 
 try:
-    from core.permissions import needs_confirmation
+    from core.permissions import command_needs_admin, is_admin, is_admin_failure, needs_confirmation
 except (ImportError, ModuleNotFoundError):
     def needs_confirmation(action: str, *, admin: bool = False) -> bool:
         return False
@@ -83,9 +83,17 @@ def broad_control(parameters=None,response=None,player=None,session_memory=None)
     p=parameters or {};op=str(p.get("operation","")).strip().lower();value=str(p.get("target", p.get("value",""))).strip()
     if op not in _ALLOWED:return "Unsupported operation."
     if op in {"launch","open_file","open_folder","process_stop","run_command","run_as_admin"} and not value:return "A target is required."
+    admin_hint = op=="run_as_admin" or (op=="run_command" and command_needs_admin(value) and not is_admin())
+    if admin_hint:
+        if confirm.pending_title():return "There is already a confirmation waiting on screen."
+        return confirm.request(key=f"broad_control:admin:{op}",title="Allow JARVIS to request administrator access?",detail=f"Command: {value}",run=lambda:_execute("run_as_admin",value)) if needs_confirmation(op,admin=True) else _execute("run_as_admin",value)
     if needs_confirmation(op):
         if confirm.pending_title():return "There is already a confirmation waiting on screen."
         return confirm.request(key=f"broad_control:{op}",title="Allow JARVIS to perform this computer action?",detail=f"Operation: {op}\nTarget: {value or '(current computer)'}",run=lambda:_execute(op,value))
-    return _execute(op,value)
+    result = _execute(op,value)
+    if op=="run_command" and not is_admin() and is_admin_failure(result):
+        if confirm.pending_title():return "Command failed because administrator access is required, but another confirmation is pending."
+        return confirm.request(key="broad_control:admin_retry",title="Allow JARVIS to retry the command as administrator?",detail=f"Command: {value}\\nReason: Windows reported that elevation is required.",run=lambda:_execute("run_as_admin",value)) if needs_confirmation(op,admin=True) else _execute("run_as_admin",value)
+    return result
 
 TOOL={"name":"broad_control","description":"Windows-only direct computer control for applications, files, windows, power, processes, shell commands and administrator commands. Destructive/shell operations use the central permission gate; Full PC Control can disable confirmations.","parameters":{"type":"OBJECT","properties":{"operation":{"type":"STRING"},"value":{"type":"STRING"}},"required":["operation"]},"handler":broad_control}
