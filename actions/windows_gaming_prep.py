@@ -1,13 +1,24 @@
 """Prepare Windows for gaming with reversible, low-risk settings."""
 import platform
 import subprocess
+from core.permissions import permission_decision
+from core import confirm
+
+_TOKEN = object()
 
 def run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=15, shell=False)
 
-def windows_gaming_prep(parameters=None, **kwargs):
+def windows_gaming_prep(parameters=None, _permission_token=None, **kwargs):
     if platform.system() != "Windows":
         return "Windows-only action."
+    if _permission_token is not _TOKEN:
+        p = parameters or {}
+        decision = permission_decision("windows_gaming_prep", p)
+        if decision == "deny":
+            return "Permission denied."
+        if decision == "confirm":
+            return confirm.request("Prepare Windows for gaming", lambda _result: windows_gaming_prep(p, _permission_token=_TOKEN, **kwargs))
     try:
         parts = []
         r = run(["powercfg", "/setactive", "SCHEME_MIN"])
