@@ -85,6 +85,7 @@ from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
 from core.autonomy_monitor      import AutonomyMonitor
 from core                      import confirm as confirm_gate
+from core.permissions           import permission_decision
 from core                      import audio_devices
 from core.action_loader        import discover_actions
 from core.echo                 import EchoGuard
@@ -1217,6 +1218,49 @@ class JarvisLive:
         print(f"[JARVIS] 🔧 {name}  {args}")
         self.ui.set_state("THINKING")
 
+        # Inline tools bypass ActionRegistry, so consequential ones need the
+        # same central permission boundary as discovered actions and plugins.
+        if not hasattr(self, "_confirmed_inline_tools"):
+            self._confirmed_inline_tools = set()
+        _inline_policy = {
+            "save_memory": "save_memory",
+            "screen_process": "screen_process",
+            "close_camera": "close_camera",
+            "manage_monitor": (
+                "monitor_" + str(args.get("action", "")).strip().lower()
+                if str(args.get("action", "")).strip().lower() in {"add", "remove"}
+                else "monitor_list"
+            ),
+            "shutdown_jarvis": "shutdown",
+            "recall_memory": "recall_memory",
+            "undo": "undo",
+            "system_status": "system_status",
+        }
+        if name in _inline_policy:
+            _policy_action = _inline_policy[name]
+            if fc.id in self._confirmed_inline_tools:
+                self._confirmed_inline_tools.discard(fc.id)
+            else:
+                _decision, _reason = permission_decision(_policy_action, args)
+                if _decision == "deny":
+                    result = f"Permission denied: {_reason}"
+                    if not self.ui.muted:
+                        self.ui.set_state("LISTENING")
+                    return types.FunctionResponse(id=fc.id, name=name, response={"result": result})
+                if _decision == "confirm":
+                    if confirm_gate.pending_title():
+                        result = "There is already a confirmation waiting on screen. Please resolve it first."
+                    else:
+                        self._confirmed_inline_tools.add(fc.id)
+                        result = confirm_gate.request(
+                            key=f"inline-{name}-{fc.id}",
+                            title=f"JARVIS: {name}",
+                            detail=f"{_reason}. JARVIS will wait for your confirmation before executing it.",
+                            run=lambda: self._execute_tool(fc),
+                        )
+                    if not self.ui.muted:
+                        self.ui.set_state("LISTENING")
+                    return types.FunctionResponse(id=fc.id, name=name, response={"result": result})
 
         if name == "voice_confirmation":
             accepted = bool(args.get("accepted", False))
