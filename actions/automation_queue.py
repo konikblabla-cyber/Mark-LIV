@@ -10,6 +10,65 @@ _STATE = os.path.join(os.getenv("PROGRAMDATA", os.path.expanduser("~")), "Mark-L
 _MAX = 100
 
 
+def claim_due(limit=1):
+    """Atomically claim due queued goals for the runtime scheduler."""
+    os.makedirs(os.path.dirname(_STATE), exist_ok=True)
+    items = []
+    try:
+        with open(_STATE, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, list):
+                items = loaded[-_MAX:]
+    except Exception:
+        return []
+    now = time.time()
+    claimed = []
+    for item in items:
+        if len(claimed) >= max(1, int(limit)):
+            break
+        if item.get("status") != "queued":
+            continue
+        try:
+            run_after = float(item.get("run_after") or 0)
+        except (TypeError, ValueError):
+            run_after = 0
+        if run_after > now:
+            continue
+        item["status"] = "running"
+        item["started_at"] = now
+        claimed.append(dict(item))
+    if claimed:
+        tmp = _STATE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(items[-_MAX:], f, ensure_ascii=False)
+        os.replace(tmp, _STATE)
+    return claimed
+
+
+def finish_claimed(item_id, result, success):
+    """Persist the result of a scheduler claim."""
+    os.makedirs(os.path.dirname(_STATE), exist_ok=True)
+    items = []
+    try:
+        with open(_STATE, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, list):
+                items = loaded[-_MAX:]
+    except Exception:
+        return False
+    for item in items:
+        if str(item.get("id")) == str(item_id):
+            item["status"] = "completed" if success else "failed"
+            item["updated_at"] = time.time()
+            item["result"] = str(result or "")[:1800]
+            break
+    tmp = _STATE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(items[-_MAX:], f, ensure_ascii=False)
+    os.replace(tmp, _STATE)
+    return True
+
+
 def automation_queue(parameters=None, **kwargs):
     """Queue, list, cancel or complete deferred JARVIS goals."""
     p = parameters or {}
