@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 
 
 def daily_briefing(parameters=None, **kwargs):
@@ -31,13 +32,15 @@ def daily_briefing(parameters=None, **kwargs):
         pass
 
     try:
-        from actions.system_info import system_info
-        info = str(system_info({}))
-        lines = [line.strip() for line in info.splitlines() if line.strip()]
-        if lines:
-            parts.append("PC: " + " | ".join(lines[:3]))
+        from actions.pc_status import pc_status
+        info = json.loads(str(pc_status({})))
+        parts.append("PC: " + " | ".join([
+            f"CPU {info.get("cpu_percent", "?")}%",
+            f"RAM {info.get("ram_percent", "?")}%",
+            f"uptime {info.get("uptime_hours", "?")}h",
+        ]))
     except Exception:
-        pass
+        parts.append("PC: unavailable.")
 
     return "\n".join(parts)[:2500]
 
