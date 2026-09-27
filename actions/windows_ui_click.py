@@ -1,7 +1,15 @@
 """Click a Windows UI Automation control by visible title."""
 import platform
+from core.permissions import permission_decision
+from core import confirm
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_ui_click(parameters=None,**kwargs):
+    if not kwargs.get("_permission_token"):
+        p=dict(parameters or {})
+        d,r=permission_decision("windows_ui_click",p)
+        if d=="deny": return f"Permission denied: {r}"
+        if d=="confirm":
+            return confirm.request(key="windows_ui_click",title="Allow JARVIS: windows_ui_click?",detail=f"{r}. Waiting for your confirmation.",run=lambda: windows_ui_click(p,_permission_token=True))
     p=parameters or {}; title=str(p.get("window") or "").strip(); control=str(p.get("control") or "").strip()
     if not title or not control:return "Provide window and control text."
     try:
