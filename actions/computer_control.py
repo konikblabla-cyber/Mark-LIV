@@ -405,6 +405,21 @@ def _uia_find(params: dict):
     return control
 
 
+def _retry_operation(operation, attempts: int = 3, delay: float = 0.6):
+    """Retry a transient computer-control operation without hiding the final error."""
+    attempts = max(1, min(int(attempts), 5))
+    delay = max(0.1, min(float(delay), 3.0))
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation(), attempt
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                time.sleep(delay * attempt)
+    raise last_error
+
+
 def _uia_verify(params: dict) -> str:
     """Verify that a UI Automation control exists and is visible without changing it."""
     control = _uia_find(params)
@@ -675,6 +690,8 @@ def computer_control(
       random_data   — generate fake form data
       user_data     — pull real data from memory
       uia_verify    — verify a Windows UI Automation control exists
+      uia_click_retry — retry UI Automation click when a window/control is temporarily unavailable
+      uia_type_retry  — retry UI Automation typing when a window/control is temporarily unavailable
       uia_click     — click a Windows UI Automation control
       uia_type      — type into a Windows UI Automation control
       uia_get_text  — read a Windows UI Automation control's text
@@ -699,6 +716,14 @@ def computer_control(
 
         if action == "uia_verify":
             return _uia_verify(params)
+
+        if action == "uia_click_retry":
+            result, attempt = _retry_operation(lambda: _uia_click(params), params.get("attempts", 3), params.get("interval", 0.6))
+            return f"{result} (attempt {attempt})"
+
+        if action == "uia_type_retry":
+            result, attempt = _retry_operation(lambda: _uia_type(params), params.get("attempts", 3), params.get("interval", 0.6))
+            return f"{result} (attempt {attempt})"
 
         if action == "uia_click":
             return _uia_click(params)
@@ -845,13 +870,13 @@ def computer_control(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "computer_control",
-    "description": "Direct Windows computer control: type, click, double-click, right-click, hotkeys, press keys, scroll, move/drag mouse, clipboard, screenshots, window focus, AI screen finding/clicking, wait-for/watch-and-click screen automation, waits and test data generation.",
+    "description": "Direct Windows computer control with UI Automation, verification, retry/recovery for transient UI failures, screen finding/clicking, keyboard/mouse, clipboard, screenshots and window focus.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click | uia_type | uia_get_text | uia_list_controls"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls"
             },
             "text": {
                 "type": "STRING",
