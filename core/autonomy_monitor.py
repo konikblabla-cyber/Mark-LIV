@@ -114,18 +114,20 @@ class AutonomyMonitor:
                 )
                 self._protection_streak = 0
                 self._protection_candidate = None
+                # Observation is autonomous; mutations are not. The monitor
+                # must never move files, flush DNS, change settings, or otherwise
+                # alter the user's PC without going through the normal action
+                # permission/confirmation path.
+                message = (
+                    "[AutonomyMonitor] persistent process anomaly detected; "
+                    "no automatic PC mutation performed"
+                )
+                self.logger(message)
                 try:
-                    from actions.autonomous_pc_audit import safe_pc_optimization
-
-                    result = safe_pc_optimization({})
-                    self.logger(
-                        "[AutonomyMonitor] safe maintenance: "
-                        + str(result)[:500]
-                    )
-                except Exception as exc:
-                    self.logger(
-                        f"[AutonomyMonitor] safe maintenance failed: {exc}"
-                    )
+                    from core.status_center import record
+                    record("protection", message, level="warning")
+                except Exception:
+                    pass
         except Exception as exc:
             self.logger(f"[AutonomyMonitor] protection check failed: {exc}")
 
