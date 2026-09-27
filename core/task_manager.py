@@ -79,9 +79,21 @@ class TaskManager:
             self._write(data)
         return task_id
 
-    def set_plan(self, task_id: str, steps: list[str], max_retries: int = 2):
-        """Persist a bounded execution plan so a task can resume after restart."""
-        clean = [str(step).strip()[:500] for step in (steps or []) if str(step).strip()][:100]
+    def set_plan(self, task_id: str, steps: list[Any], max_retries: int = 2):
+        """Persist a bounded structured execution plan plus resumable step state."""
+        clean = []
+        for step in (steps or [])[:100]:
+            if isinstance(step, dict):
+                item = {
+                    "action": str(step.get("action") or "").strip()[:120],
+                    "parameters": step.get("parameters") if isinstance(step.get("parameters"), dict) else {},
+                    "reason": str(step.get("reason") or "")[:500],
+                    "verify": str(step.get("verify") or "")[:500],
+                }
+                if item["action"]:
+                    clean.append(item)
+            elif str(step).strip():
+                clean.append(str(step).strip()[:500])
         try:
             retries = max(0, min(int(max_retries), 5))
         except (TypeError, ValueError):
@@ -91,13 +103,35 @@ class TaskManager:
             task = data.get(task_id)
             if not isinstance(task, dict):
                 return
-            task["steps"] = clean
+            task["plan"] = clean
+            task["steps"] = [
+                {"description": item.get("action", "") if isinstance(item, dict) else str(item),
+                 "status": "pending", "note": ""}
+                for item in clean
+            ]
             task["current_step"] = 0
             task["next_step"] = 0
             task["max_retries"] = retries
             task["retry_count"] = 0
             task["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._write(data)
+
+    def get_plan(self, task_id: str) -> list[dict]:
+        """Return the persisted structured plan, if one exists."""
+        with _LOCK:
+            task = self._read().get(task_id)
+            if not isinstance(task, dict) or not isinstance(task.get("plan"), list):
+                return []
+            out = []
+            for item in task["plan"][:100]:
+                if isinstance(item, dict) and str(item.get("action") or "").strip():
+                    out.append({
+                        "action": str(item.get("action") or "").strip(),
+                        "parameters": item.get("parameters") if isinstance(item.get("parameters"), dict) else {},
+                        "reason": str(item.get("reason") or ""),
+                        "verify": str(item.get("verify") or ""),
+                    })
+            return out
 
     def mark_step(self, task_id: str, step_index: int, status: str, note: str = ""):
         """Persist step state without executing anything itself."""
