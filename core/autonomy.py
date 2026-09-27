@@ -87,7 +87,7 @@ class AutonomyEngine:
 ACTIONS:
 {self._catalog(goal, failure)}
 
-Rules: use only listed actions; inspect before changes; destructive actions use their normal confirmation gate; never invent confirmation/approval; max {self.MAX_STEPS} steps; on failure change strategy. Return ONLY JSON with summary and steps (action, parameters, reason, verify). Failure: {failure or "none"}"""
+Rules: use only listed actions; inspect before changes; for UI/computer tasks prefer local screen_understanding before screenshot/image analysis when that action is available; use screenshot vision only when structured UI data is insufficient; destructive actions use their normal confirmation gate; never invent confirmation/approval; max {self.MAX_STEPS} steps; on failure change strategy. Return ONLY JSON with summary and steps (action, parameters, reason, verify). Failure: {failure or "none"}"""
         data = as_json(prompt, tier=SMART, timeout_ms=15000, default=None)
         if not isinstance(data, dict):
             return None
