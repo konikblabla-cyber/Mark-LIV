@@ -122,6 +122,15 @@ def save_wake_word_enabled(enabled: bool) -> None:
 
 
 
+def get_full_control_enabled() -> bool:
+    """Whether the user explicitly enabled JARVIS full-control mode."""
+    return bool(load_api_keys().get("full_control_enabled", False))
+
+
+def save_full_control_enabled(enabled: bool) -> None:
+    _save_flag("full_control_enabled", bool(enabled))
+
+
 def get_sleep_after_task_enabled() -> bool:
     """Whether strict wake-word mode returns to sleep after each completed turn."""
     return bool(load_api_keys().get("sleep_after_task_enabled", True))
