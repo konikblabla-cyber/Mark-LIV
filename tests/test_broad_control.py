@@ -21,20 +21,20 @@ class BroadControlTests(unittest.TestCase):
         execute.assert_called_once_with("admin_status")
 
     @patch("actions.broad_control._execute", return_value="Administrator command requested.")
-    @patch("actions.broad_control.needs_confirmation", return_value=False)
-    @patch("actions.broad_control.is_admin", return_value=False)
+    @patch("actions.broad_control.permission_decision", return_value=("confirm", "administrator access required"))
     @patch("actions.broad_control.command_needs_admin", return_value=True)
-    def test_admin_hint_requests_elevation(self, admin_hint, is_admin, needs, execute):
+    @patch("actions.broad_control.confirm.request", side_effect=lambda **kwargs: kwargs["run"]())
+    def test_admin_hint_requests_elevation(self, confirm_request, admin_hint, permission, execute):
         result = broad_control.broad_control({"operation": "run_command", "target": "sc stop TestService"})
         self.assertIn("Administrator command requested", result)
         execute.assert_called_once_with("run_as_admin", "sc stop TestService")
 
     @patch("actions.broad_control._execute", return_value="Command exit=5:\nAccess is denied.")
-    @patch("actions.broad_control.needs_confirmation", side_effect=lambda action, admin=False: admin)
+    @patch("actions.broad_control.permission_decision", side_effect=lambda action, params: ("confirm", "administrator access required") if params.get("admin") else ("allow", "ok"))
     @patch("actions.broad_control.is_admin", return_value=False)
     @patch("actions.broad_control.is_admin_failure", return_value=True)
     @patch("actions.broad_control.confirm.request", side_effect=lambda **kwargs: kwargs["run"]())
-    def test_access_denied_can_retry_as_admin(self, admin_failure, is_admin, needs, execute, confirm_request):
+    def test_access_denied_can_retry_as_admin(self, confirm_request, admin_failure, is_admin, permission, execute):
         result = broad_control.broad_control({"operation": "run_command", "target": "some-command"})
         self.assertIn("Access is denied", result)
         self.assertTrue(execute.called)
@@ -50,11 +50,12 @@ class BroadControlTests(unittest.TestCase):
     @patch("actions.broad_control.subprocess.Popen")
     @patch("actions.broad_control.shlex.split", return_value=["notepad.exe"])
     @patch("actions.broad_control._OS", "Windows")
-    @patch("actions.broad_control.needs_confirmation", return_value=False)
-    def test_launch_does_not_use_shell(self, needs, split, popen):
+    @patch("actions.broad_control.permission_decision", return_value=("allow", "test"))
+    def test_launch_does_not_use_shell(self, permission, split, popen):
         result = broad_control.broad_control({"operation": "launch", "target": "notepad.exe"})
         self.assertIn("Launched", result)
         self.assertFalse(popen.call_args.kwargs.get("shell", False))
+
 
 if __name__ == "__main__":
     unittest.main()
