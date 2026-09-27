@@ -157,6 +157,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             )
             if self.task_id:
                 self.tasks.step(self.task_id, step.action, result, verified)
+                self.tasks.mark_step(self.task_id, index, "completed")
                 self.tasks.update(self.task_id, status="running", next_step=index + 1)
                 if pending:
                     self.tasks.update(
