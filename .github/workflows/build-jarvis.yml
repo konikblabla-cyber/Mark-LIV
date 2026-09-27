@@ -1,0 +1,33 @@
+name: Build JARVIS package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile sources
+        run: python -m compileall -q .
+      - name: Create package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/JARVIS | Out-Null
+          Copy-Item -Recurse actions,core,memory,plugins,tests dist/JARVIS
+          Copy-Item main.py,requirements.txt,README.md dist/JARVIS -ErrorAction SilentlyContinue
+          Compress-Archive -Path dist/JARVIS/* -DestinationPath dist/JARVIS-Windows.zip -Force
+      - name: Upload JARVIS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-Windows
+          path: dist/JARVIS-Windows.zip
+          retention-days: 14
