@@ -100,6 +100,15 @@ class ComputerControlTests(unittest.TestCase):
         active_window.assert_called_once()
         decision.assert_called_once()
 
+    @patch("actions.computer_control.permission_decision", return_value=("deny", "READ level allows only read/inspection operations"))
+    @patch("actions.computer_control.pyautogui.click")
+    def test_legacy_handle_cannot_bypass_permission_gate(self, click, decision):
+        result = computer_control.handle({"action": "click", "x": 10, "y": 10})
+        self.assertFalse(result.get("ok", True))
+        self.assertIn("Permission denied", result.get("result", ""))
+        click.assert_not_called()
+        decision.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
