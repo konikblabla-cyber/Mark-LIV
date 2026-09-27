@@ -16,6 +16,11 @@ from tests.test_computer_control_extra import ComputerControlExtraTests
 from tests.test_computer_settings import ComputerSettingsTests
 from tests.test_close_all_apps import CloseAllAppsTests
 from tests.test_action_sources import ActionSourceTests
+from tests.test_task_manager import (
+    test_plan_is_bounded,
+    test_retry_is_bounded,
+    test_task_plan_persists_and_recovers,
+)
 
 
 def suite():
@@ -37,6 +42,7 @@ def suite():
         loader.loadTestsFromTestCase(ComputerSettingsTests),
         loader.loadTestsFromTestCase(CloseAllAppsTests),
         loader.loadTestsFromTestCase(ActionSourceTests),
+        loader.loadTestsFromModule(__import__("tests.test_task_manager", fromlist=["*"])),
     ])
 
 
