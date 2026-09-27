@@ -75,7 +75,11 @@ jobs:
       - name: Test packaged entrypoint
         shell: pwsh
         run: |
-          python -c "import ast, pathlib; ast.parse(pathlib.Path('dist/JARVIS/main.py').read_text(encoding='utf-8')); ast.parse(pathlib.Path('dist/JARVIS/ui.py').read_text(encoding='utf-8')); if (!(Test-Path 'dist/JARVIS/core/face_model.obj')) { throw 'face_model.obj missing from package' }; if (!(Test-Path 'dist/JARVIS/START_JARVIS.bat')) { throw 'launcher missing' }; Write-Host 'packaged entrypoint OK'"
+          python -c "import ast, pathlib; ast.parse(pathlib.Path('dist/JARVIS/main.py').read_text(encoding='utf-8')); ast.parse(pathlib.Path('dist/JARVIS/ui.py').read_text(encoding='utf-8')); print('packaged Python entrypoints OK')"
+          if (!(Test-Path 'dist/JARVIS/core/face_model.obj')) { throw 'face_model.obj missing from package' }
+          if (!(Test-Path 'dist/JARVIS/START_JARVIS.bat')) { throw 'launcher missing' }
+          if (!(Test-Path 'dist/JARVIS/requirements.txt')) { throw 'requirements.txt missing' }
+          Write-Host 'packaged entrypoint OK'
 
       - name: Upload JARVIS package
         uses: actions/upload-artifact@v4
