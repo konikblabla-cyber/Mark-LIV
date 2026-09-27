@@ -1,8 +1,10 @@
-""""Central JARVIS permission policy for risky operations."""
+"""Central JARVIS permission policy for risky operations."""
 from __future__ import annotations
 
 import ntpath
 import os
+import re
+import sys
 
 # Set JARVIS_FULL_CONTROL=1 to let the user run risky actions without the
 # confirmation dialog. This is deliberately opt-in at the environment level.
@@ -15,6 +17,7 @@ def full_control_enabled() -> bool:
         return bool(get_full_control_enabled()) or FULL_CONTROL
     except Exception:
         return FULL_CONTROL
+
 
 REQUIRE_CONFIRMATION = {
     "shutdown", "restart", "toggle_wifi", "close_all_apps", "close_active",
@@ -50,10 +53,63 @@ def needs_confirmation(action: str, *, admin: bool = False) -> bool:
     return any(marker in name for marker in risky_markers)
 
 
+def is_admin() -> bool:
+    """Return whether this JARVIS process is already elevated on Windows."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError, ImportError):
+        return False
+
+
+def command_needs_admin(command: str) -> bool:
+    """Conservative deterministic hint for commands that commonly need elevation."""
+    raw = str(command or "").strip()
+    if not raw or os.name != "nt":
+        return False
+    normalized = re.sub(r"\s+", " ", raw.lower()).strip()
+    first = normalized.lstrip(" \"").split(" ", 1)[0]
+    executable = ntpath.basename(first)
+    if executable.endswith(".exe"):
+        executable = executable[:-4]
+
+    if executable in {"bcdedit", "dism", "diskpart", "takeown", "manage-bde"}:
+        return True
+    if executable == "sc":
+        return bool(re.search(r"\b(create|config|delete|start|stop|failure|sdset|sdshow)\b", normalized))
+    if executable == "reg":
+        return bool(re.search(r"\b(add|delete|import|load|unload)\b", normalized))
+    if executable == "netsh":
+        return bool(re.search(r"\b(advfirewall|firewall|wlan|interface portproxy|winsock)\b", normalized))
+    if executable == "net":
+        return bool(re.search(r"\b(user|localgroup|share|session|start|stop)\b", normalized))
+    if executable in {"wevtutil", "auditpol"}:
+        return True
+    return False
+
+
+def is_admin_failure(output: str) -> bool:
+    """Detect common Windows access-denied/elevation failures in command output."""
+    text = str(output or "").lower()
+    markers = (
+        "access is denied",
+        "access denied",
+        "requested operation requires elevation",
+        "requires elevation",
+        "requires administrator",
+        "elevation required",
+        "error: 5",
+        "error 5",
+    )
+    return any(marker in text for marker in markers)
+
+
 def is_protected_process(name: str) -> bool:
     raw = str(name or "").strip().lower()
     if not raw:
         return False
-    basename = ntpath.basename(raw.rstrip("\\/"))
+    basename = ntpath.basename(raw.rstrip("\/"))
     protected = {p.lower() for p in PROTECTED_PROCESSES}
     return raw in protected or basename in protected
