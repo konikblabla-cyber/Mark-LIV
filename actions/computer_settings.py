@@ -849,7 +849,8 @@ def computer_settings(
                     _permission_token=_SETTINGS_CONTROL_TOKEN,
                 ),
             )
-\n    print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
+
+    print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
     if player:
         player.write_log(f"[Settings] {action}")
 
