@@ -179,6 +179,15 @@ def command_needs_admin(command: str) -> bool:
     return False
 
 
+def admin_requirement_reason(command: str = "", output: str = "") -> str | None:
+    """Return a short reason when an operation needs Windows elevation."""
+    if command_needs_admin(command):
+        return "This Windows operation requires administrator privileges."
+    if is_admin_failure(output):
+        return "Windows reported that administrator privileges are required."
+    return None
+
+
 def is_admin_failure(output: str) -> bool:
     text = str(output or "").lower()
     markers = (
