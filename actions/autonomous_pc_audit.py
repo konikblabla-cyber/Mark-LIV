@@ -13,6 +13,8 @@ import tempfile
 import psutil
 from send2trash import send2trash
 
+ _SAFE_OPTIMIZATION_TOKEN = object()
+
 PROTECTED = {"System", "Registry", "smss.exe", "csrss.exe", "wininit.exe",
              "winlogon.exe", "services.exe", "lsass.exe", "svchost.exe",
              "dwm.exe", "explorer.exe"}
@@ -142,7 +144,25 @@ def _safe_temp_cleanup(max_age_days=14, max_files=100, max_bytes=500 * 1024 * 10
 
 
 def safe_pc_optimization(parameters=None, **kwargs):
-    """Run a bounded maintenance cycle using only reversible, low-risk actions."""
+    """Run bounded maintenance only after the shared permission/confirmation gate."""
+    if kwargs.get("_permission_token") is not _SAFE_OPTIMIZATION_TOKEN:
+        p = dict(parameters or {})
+        from core.permissions import permission_decision
+        from core import confirm as confirm_gate
+        decision, reason = permission_decision("safe_pc_optimization", p)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            if confirm_gate.pending_title():
+                return "There is already a confirmation waiting. Ask the user to answer it first."
+            return confirm_gate.request(
+                key="safe-pc-optimization",
+                title="Allow JARVIS to run safe PC maintenance?",
+                detail=f"{reason}. This may move old TEMP files to the Recycle Bin and refresh DNS.",
+                run=lambda: safe_pc_optimization(
+                    dict(p), _permission_token=_SAFE_OPTIMIZATION_TOKEN
+                ),
+            )
     if platform.system() != "Windows":
         return "Windows-only optimization."
     p = parameters or {}
