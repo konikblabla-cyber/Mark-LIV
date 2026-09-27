@@ -1,6 +1,16 @@
 """Launch a Windows application and optionally wait for its window."""
 import platform,subprocess,time,ctypes
+from core.permissions import permission_decision
+from core import confirm
 def windows_app_launch_and_focus(parameters=None,**kwargs):
+
+    if not kwargs.get("_permission_token"):
+        p = dict(parameters or {})
+        decision, reason = permission_decision("windows_app_launch_and_focus", p)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            return confirm.request(key="windows_app_launch_and_focus", title="Allow JARVIS: windows_app_launch_and_focus?", detail=f"{reason}. Waiting for your confirmation.", run=lambda: windows_app_launch_and_focus(p, _permission_token=True))
  if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; command=str(p.get("command") or "").strip(); title=str(p.get("window_contains") or "").strip().lower()
  if not command:return "Missing application command."
