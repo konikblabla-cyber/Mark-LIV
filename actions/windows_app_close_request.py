@@ -1,7 +1,13 @@
 """Request graceful close for one uniquely matched Windows application."""
 import ctypes,platform,time
+from core.permissions import permission_decision
+from core import confirm
 WM_CLOSE=0x0010
 def windows_app_close_request(parameters=None,**kwargs):
+ if not kwargs.get("_permission_token"):
+  p=dict(parameters or {});d,r=permission_decision("windows_app_close_request",p)
+  if d=="deny":return f"Permission denied: {r}"
+  if d=="confirm":return confirm.request(key="windows_app_close_request",title="Allow JARVIS: windows_app_close_request?",detail=f"{r}. Waiting for your confirmation.",run=lambda:windows_app_close_request(p,_permission_token=True))
  if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; title=str(p.get("contains") or "").strip().lower()
  if not title:return "Missing window title text."
