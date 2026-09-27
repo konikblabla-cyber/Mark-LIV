@@ -2137,6 +2137,36 @@ class JarvisLive:
             except Exception as e:
                 print(f"[Planner] check error: {e}")
 
+    async def _run_automation_scheduler(self) -> None:
+        """Execute persistent queued goals when their scheduled time arrives."""
+        while True:
+            await asyncio.sleep(10)
+            try:
+                from actions.automation_queue import claim_due, finish_claimed
+                from actions.autonomous_tasks import run_autonomous_goal
+                for item in claim_due(limit=1):
+                    goal = str(item.get("goal") or "").strip()
+                    if not goal:
+                        finish_claimed(item.get("id"), "Missing goal.", False)
+                        continue
+                    self.ui.write_log("[Automation] Starting scheduled goal: " + goal[:180])
+                    try:
+                        result = await asyncio.to_thread(
+                            run_autonomous_goal,
+                            {"goal": goal},
+                            action_registry=self._action_registry,
+                            session_memory=self._session_log[-6:],
+                        )
+                        text = str(result or "")
+                        success = "failed" not in text.lower() and "missing goal" not in text.lower()
+                        finish_claimed(item.get("id"), text, success)
+                        self.ui.write_log("[Automation] " + ("Completed: " if success else "Failed: ") + text[:300])
+                    except Exception as exc:
+                        finish_claimed(item.get("id"), str(exc), False)
+                        self.ui.write_log("[Automation] Execution error: " + str(exc)[:220])
+            except Exception as exc:
+                self.ui.write_log("[Automation] Scheduler check failed: " + str(exc)[:180])
+
     # ── Proactive mode ──────────────────────────────────────────────────────────
 
     async def _run_proactive_mode(self) -> None:
