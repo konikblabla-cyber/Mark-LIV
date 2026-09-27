@@ -96,14 +96,16 @@ class ComputerControlTests(unittest.TestCase):
         decision.assert_called_once()
 
     @patch("actions.computer_control.permission_decision", return_value=("confirm", "NORMAL: confirmation required for consequential operation"))
+    @patch("actions.computer_control.confirm.request", return_value="[CONFIRMATION_PENDING]")
     @patch("actions.computer_control._recover_process")
-    def test_permission_gate_blocks_direct_process_restart_until_confirmed(self, recover, decision):
+    def test_permission_gate_queues_process_restart_for_confirmation(self, recover, request, decision):
         result = computer_control.computer_control({
             "action": "process_recover",
             "process_name": "notepad",
             "restart": True,
         })
-        self.assertIn("Confirmation required", result)
+        self.assertIn("CONFIRMATION_PENDING", result)
+        request.assert_called_once()
         recover.assert_not_called()
         decision.assert_called_once()
 
