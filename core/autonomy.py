@@ -114,6 +114,23 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             return None
         return Plan(goal=goal, steps=steps, summary=str(data.get("summary") or ""))
 
+    def _persist_plan(self, plan: Plan) -> None:
+        """Store the exact local plan so restart recovery does not need Gemini."""
+        if not self.task_id:
+            return
+        self.tasks.set_plan(
+            self.task_id,
+            [
+                {
+                    "action": step.action,
+                    "parameters": step.parameters,
+                    "reason": step.reason,
+                    "verify": step.verify,
+                }
+                for step in plan.steps
+            ],
+        )
+
     def _result_ok(self, result: Any, expectation: str = "") -> bool:
         return verify_text(result, expectation)
 
@@ -228,6 +245,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
             recovery = self._plan(goal, failure=failure)
             if recovery and recovery.steps:
                 self.logger(f"[Autonomy] Recovery plan: {recovery.summary}")
+                self._persist_plan(recovery)
                 return self._execute_steps(
                     recovery, 0, goal, history, replan_count + 1
                 )
@@ -270,6 +288,7 @@ Rules: use only listed actions; inspect before changes; destructive actions use 
                 )
 
             self.logger(f"[Autonomy] Plan {attempt + 1}: {plan.summary}")
+            self._persist_plan(plan)
             return self._execute_steps(plan, 0, goal, history)
 
         return "I could not complete the goal safely."
