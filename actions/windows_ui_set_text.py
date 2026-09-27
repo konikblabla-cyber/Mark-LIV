@@ -17,7 +17,7 @@ def windows_ui_set_text(parameters=None,**kwargs):
         matches=[]
         for w in Desktop(backend="uia").windows(visible_only=True):
             for c in w.descendants():
-    if c.window_text().strip().lower()==name.lower() and hasattr(c,"set_edit_text"): matches.append(c)
+                if c.window_text().strip().lower()==name.lower() and hasattr(c,"set_edit_text"): matches.append(c)
         if len(matches)!=1:return f"Expected exactly one editable control, found {len(matches)}."
         matches[0].set_edit_text(value); return f"Text set in control: {name}"
     except Exception as e:return f"UI text entry failed: {e}"
