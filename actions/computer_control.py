@@ -16,6 +16,9 @@ import random
 from pathlib import Path
 
 from core.permissions import permission_decision
+from core import confirm
+
+_CONFIRMATION_TOKEN = object()
 
 try:
     import pyautogui
@@ -761,6 +764,8 @@ def computer_control(
     response=None,
     player=None,
     session_memory=None,
+    *,
+    _confirmation_token=None,
 ) -> str:
     """
     Dispatch table for all computer control actions.
@@ -832,8 +837,19 @@ def computer_control(
     decision, reason = permission_decision(action, policy_params)
     if decision == "deny":
         return f"Permission denied: {reason}"
-    if decision == "confirm":
-        return f"Confirmation required: {reason}"
+    if decision == "confirm" and _confirmation_token is not _CONFIRMATION_TOKEN:
+        return confirm.request(
+            key=f"computer-{action}",
+            title=f"Computer control: {action}",
+            detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+            run=lambda: computer_control(
+                dict(params),
+                response=response,
+                player=player,
+                session_memory=session_memory,
+                _confirmation_token=_CONFIRMATION_TOKEN,
+            ),
+        )
 
     if player:
         player.write_log(f"[Computer] {action}")
@@ -998,122 +1014,3 @@ def computer_control(
         if action == "random_data":
             dt     = params.get("type", "name")
             result = _random_data(dt)
-            print(f"[ComputerControl] 🎲 random {dt} → {result}")
-            return result
-
-        if action == "user_data":
-            field = str(params.get("field", "name")).strip()
-            profile = _user_profile()
-            value = profile.get(field, "")
-            if not value:
-                return f"No '{field}' found in memory."
-            return str(value)
-
-        return f"Unknown action: '{action}'"
-
-    except Exception as e:
-        print(f"[ComputerControl] {action} failed: {e}")
-        return f"computer_control '{action}' failed: {e}"
-
-
-# ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
-TOOL = {
-    "name": "computer_control",
-    "description": "Direct Windows computer control with UI Automation, verification, retry/recovery for transient UI failures, screen finding/clicking, keyboard/mouse, clipboard, screenshots and window focus.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "action": {
-                "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | open_browser | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls | process_health | process_recover"
-            },
-            "text": {
-                "type": "STRING",
-                "description": "Text to type or paste"
-            },
-            "x": {
-                "type": "INTEGER",
-                "description": "X coordinate"
-            },
-            "y": {
-                "type": "INTEGER",
-                "description": "Y coordinate"
-            },
-            "x1": {"type": "INTEGER", "description": "Drag start X coordinate"},
-            "y1": {"type": "INTEGER", "description": "Drag start Y coordinate"},
-            "x2": {"type": "INTEGER", "description": "Drag end X coordinate"},
-            "y2": {"type": "INTEGER", "description": "Drag end Y coordinate"},
-            "keys": {
-                "type": "STRING",
-                "description": "Key combination e.g. 'ctrl+c'"
-            },
-            "key": {
-                "type": "STRING",
-                "description": "Single key e.g. 'enter'"
-            },
-            "direction": {
-                "type": "STRING",
-                "description": "up | down | left | right"
-            },
-            "amount": {
-                "type": "INTEGER",
-                "description": "Scroll amount (default: 3)"
-            },
-            "seconds": {
-                "type": "NUMBER",
-                "description": "Seconds to wait"
-            },
-            "duration": {
-                "type": "NUMBER",
-                "description": "Mouse move/drag duration in seconds (0-5)"
-            },
-            "title": {
-                "type": "STRING",
-                "description": "Window title for focus_window or UI Automation"
-            },
-            "url": {"type": "STRING", "description": "URL to open in a browser"},
-            "browser": {"type": "STRING", "description": "Browser name: chrome | edge | firefox | opera gx"},
-            "auto_id": {"type": "STRING", "description": "Windows UI Automation ID"},
-            "control_title": {"type": "STRING", "description": "Exact UI Automation control title"},
-            "control_type": {"type": "STRING", "description": "UI Automation control type, e.g. Button or Edit"},
-            "button": {
-                "type": "STRING",
-                "description": "Mouse button: left | right | middle"
-            },
-            "description": {
-                "type": "STRING",
-                "description": "Element description for screen_find/screen_click"
-            },
-            "type": {
-                "type": "STRING",
-                "description": "Data type for random_data"
-            },
-            "field": {
-                "type": "STRING",
-                "description": "Field for user_data: name|email|city"
-            },
-            "clear_first": {
-                "type": "BOOLEAN",
-                "description": "Clear field before typing (default: true)"
-            },
-            "path": {
-                "type": "STRING",
-                "description": "Save path for screenshot"
-            },
-            "timeout": {"type": "NUMBER", "description": "Maximum seconds to wait for a screen element"},
-            "interval": {"type": "NUMBER", "description": "Typing interval or delay between retries/screen checks"},
-            "attempts": {"type": "INTEGER", "description": "Number of retry attempts"},
-            "process_name": {"type": "STRING", "description": "Windows process name for health/recovery"},
-            "restart": {"type": "BOOLEAN", "description": "Explicitly restart the process; requires confirmation"}
-        },
-        "required": [
-            "action"
-        ]
-    },
-    "handler": computer_control,
-}
-
-
-# Windows-only capability guard for direct execution.
-if __name__ == "__main__" and platform.system() != "Windows":
-    raise SystemExit("Mark-LIV computer control is Windows-only.")
