@@ -1,5 +1,7 @@
 """Show Windows desktop."""
 import platform,pyautogui
+from core.permissions import permission_decision
+from core import confirm
 def windows_desktop_show(parameters=None,**kwargs):
  if platform.system()!="Windows": return "Windows-only action."
  if not kwargs.get("_permission_token"):
