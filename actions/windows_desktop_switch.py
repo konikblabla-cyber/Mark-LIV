@@ -2,6 +2,10 @@
 import platform,pyautogui
 def windows_desktop_switch(parameters=None,**kwargs):
  if platform.system()!="Windows": return "Windows-only action."
+ if not kwargs.get("_permission_token"):
+  decision,reason=permission_decision("windows_desktop_switch",parameters or {})
+  if decision=="deny":return f"Permission denied: {reason}"
+  if decision=="confirm":return confirm.request(key="windows_desktop_switch",title="Allow JARVIS: windows_desktop_switch?",detail=f"{reason}. Waiting for your confirmation.",run=lambda:windows_desktop_switch(parameters or {},_permission_token=True))
  p=parameters or {}; direction=str(p.get("direction","right")).lower()
  if direction not in ("left","right"): return "Direction must be left or right."
  pyautogui.hotkey("win","ctrl","right" if direction=="right" else "left")
