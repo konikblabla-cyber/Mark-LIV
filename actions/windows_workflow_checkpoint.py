@@ -1,13 +1,29 @@
 """Persist and inspect lightweight Windows workflow checkpoints."""
 import json,platform
 from pathlib import Path
+from core.permissions import permission_decision
+from core import confirm
+_TOKEN = object()
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 BASE=Path(__file__).resolve().parent.parent/"memory"; PATH=BASE/"workflow_checkpoints.json"
 def _load():
  try:return json.loads(PATH.read_text(encoding="utf-8"))
  except Exception:return {}
 def windows_workflow_checkpoint(parameters=None,**kwargs):
- p=parameters or {}; action=str(p.get("action","list")).lower(); data=_load()
+ p=parameters or {}
+ action=str(p.get("action","list")).lower()
+ if kwargs.get("_permission_token") is not _TOKEN and action in ("save","remove"):
+  decision,reason=permission_decision(f"windows_workflow_checkpoint_{action}",dict(p))
+  if decision=="deny": return f"Permission denied: {reason}"
+  if decision=="confirm":
+   if confirm.pending_title(): return "There is already a confirmation waiting. Ask the user to answer it first."
+   return confirm.request(
+    key=f"windows_workflow_checkpoint:{action}",
+    title=f"Allow JARVIS: workflow checkpoint {action}?",
+    detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+    run=lambda: windows_workflow_checkpoint(dict(p),_permission_token=_TOKEN),
+   )
+ data=_load()
  if action=="list": return json.dumps(data,ensure_ascii=False)
  name=str(p.get("name") or "").strip()
  if not name:return "Missing checkpoint name."
