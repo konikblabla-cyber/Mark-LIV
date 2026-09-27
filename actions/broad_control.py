@@ -26,6 +26,8 @@ def _ps(command: str, timeout: int = 15):
     return subprocess.run(["powershell","-NoProfile","-NonInteractive","-Command",command],capture_output=True,text=True,timeout=max(1,min(timeout,60)),**_HIDDEN)
 
 def _execute(op: str, value: str = "") -> str:
+    if op=="admin_status":
+        return "JARVIS is running with administrator privileges." if is_admin() else "JARVIS is running without administrator privileges."
     try:
         if op=="launch":
             args=shlex.split(value,posix=False)
