@@ -32,6 +32,17 @@ class ComputerControlTests(unittest.TestCase):
         uia_type.assert_called_once()
         self.assertTrue(result.get("ok", False))
 
+    @patch("actions.computer_control._open_browser_target", return_value="Browser window reused: https://example.com")
+    def test_open_browser_dispatches(self, open_browser):
+        result = computer_control.handle({
+            "action": "open_browser",
+            "url": "https://example.com",
+            "browser": "opera gx",
+        })
+        open_browser.assert_called_once_with("https://example.com", "opera gx")
+        self.assertTrue(result.get("ok", False))
+        self.assertIn("Browser window reused", result.get("result", ""))
+
     def test_invalid_click_button_is_rejected(self):
         result = computer_control.handle({"action": "click", "x": 10, "y": 10, "button": "invalid"})
         self.assertIsInstance(result, dict)
@@ -49,7 +60,6 @@ class ComputerControlTests(unittest.TestCase):
         click.assert_called_once_with(1919, 1079, button="left", clicks=1, interval=0.0)
         self.assertTrue(result.get("ok", False))
 
-
     @patch("actions.computer_control.pyautogui.moveTo")
     @patch("actions.computer_control._virtual_screen_geometry", return_value=(0, 0, 1920, 1080))
     def test_move_coordinates_are_clamped(self, _geometry, move_to):
@@ -64,14 +74,3 @@ class ComputerControlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-    @patch("actions.computer_control._open_browser_target", return_value="Browser window reused: https://example.com")
-    def test_open_browser_dispatches(self, open_browser):
-        result = computer_control.handle({
-            "action": "open_browser",
-            "url": "https://example.com",
-            "browser": "opera gx",
-        })
-        open_browser.assert_called_once_with("https://example.com", "opera gx")
-        self.assertTrue(result.get("ok", False))
-        self.assertIn("Browser window reused", result.get("result", ""))
