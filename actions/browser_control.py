@@ -923,11 +923,15 @@ class _SessionRegistry:
 
 _registry = _SessionRegistry()
 
+_BROWSER_CONTROL_TOKEN = object()
+
 def browser_control(
     parameters: dict = None,
     response=None,
     player=None,
     session_memory=None,
+    *,
+    _permission_token=None,
 ) -> str:
     if _OS != "Windows":
         return "This action is Windows-only."
