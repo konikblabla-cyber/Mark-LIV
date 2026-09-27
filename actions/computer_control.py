@@ -772,6 +772,40 @@ def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
     return f"Found and clicked '{description}' at {coords}"
 
 
+def _click_visual_change(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
+    """Click and locally verify a small screen region; never calls Gemini."""
+    _require_pyautogui()
+    x, y = _validate_coords(x, y)
+    pyautogui.moveTo(x, y, duration=0.08)
+    actual = tuple(map(int, pyautogui.position()))
+    if abs(actual[0] - x) > 2 or abs(actual[1] - y) > 2:
+        raise RuntimeError(f"Mouse coordinate mismatch: requested=({x},{y}) actual={actual}")
+    before = after = None
+    try:
+        import mss
+        with mss.mss() as sct:
+            mon = sct.monitors[0]
+            radius = 80
+            left = max(mon["left"], x - radius)
+            top = max(mon["top"], y - radius)
+            right = min(mon["left"] + mon["width"], x + radius)
+            bottom = min(mon["top"] + mon["height"], y + radius)
+            region = {"left": left, "top": top, "width": max(1, right-left), "height": max(1, bottom-top)}
+            before = bytes(sct.grab(region).rgb)
+            pyautogui.click(button=button, clicks=max(1, min(int(clicks), 10)))
+            time.sleep(0.12)
+            after = bytes(sct.grab(region).rgb)
+    except Exception:
+        pyautogui.click(button=button, clicks=max(1, min(int(clicks), 10)))
+        time.sleep(0.12)
+    changed = None
+    if before is not None and after is not None and len(before) == len(after):
+        step = max(1, len(before) // 4000)
+        changed = any(before[i] != after[i] for i in range(0, len(before), step))
+    status = "screen changed" if changed is True else ("no visible change" if changed is False else "click sent")
+    return f"Clicked ({x}, {y}); {status}"
+
+
 def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8) -> str:
     _require_pyautogui()
     desc = str(description or "").strip()
