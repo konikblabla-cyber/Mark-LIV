@@ -250,7 +250,13 @@ def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
         if button not in ("left", "right", "middle"):
             raise ValueError("Invalid mouse button")
         clicks = max(1, min(int(clicks), 10))
-        pyautogui.click(x, y, button=button, clicks=clicks)
+        # Move first, then click: this makes the final physical cursor position explicit
+        # and keeps vision coordinates aligned with the actual Windows mouse.
+        pyautogui.moveTo(x, y, duration=0.08)
+        actual_x, actual_y = map(int, pyautogui.position())
+        if abs(actual_x - x) > 2 or abs(actual_y - y) > 2:
+            raise RuntimeError(f"Mouse coordinate mismatch: requested=({x},{y}) actual=({actual_x},{actual_y})")
+        pyautogui.click(button=button, clicks=clicks)
         return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
     pyautogui.click(button=button, clicks=clicks)
     return f"Clicked at current position [{button}]"
@@ -297,8 +303,7 @@ def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     x1, y1 = _validate_coords(x1, y1)
     x2, y2 = _validate_coords(x2, y2)
     duration = max(0.0, min(float(duration), 5.0))
-    pyautogui.moveTo(x1, y1, duration=0.2)
-    pyautogui.dragTo(x2, y2, duration=duration, button="left")
+    pyautogui.moveTo(x1, y1, duration=0.2)    pyautogui.dragTo(x2, y2, duration=duration, button="left")
     return f"Dragged ({x1},{y1}) → ({x2},{y2})"
 
 
@@ -599,7 +604,6 @@ def _uia_text(params: dict) -> str:
     except Exception:
         return str(control.element_info.name or "")
 
-
 def _uia_controls(params: dict) -> str:
     window = _uia_connect(params.get("title", ""))
     rows = []
@@ -656,7 +660,7 @@ def _screen_dpi() -> str:
         raise RuntimeError("Mark-LIV computer control is Windows-only.")
     import ctypes
     try:
-        ctypes.windll.user32.SetProcessDPIAware()
+        # Do not downgrade the process from Per-Monitor DPI V2 here.
         dpi = ctypes.windll.user32.GetDpiForSystem()
         return f"dpi={int(dpi) if dpi else 96}"
     except Exception:
@@ -668,8 +672,14 @@ def _screen_find_candidates(description: str):
     if first is None:
         return []
     x, y = first
-    w, h = _screen_size()
-    return [(x, y), (max(0, x-8), y), (min(w-1, x+8), y), (x, max(0, y-8)), (x, min(h-1, y+8))]
+    left, top, w, h = _virtual_screen_geometry()
+    return [
+        (x, y),
+        (_validate_coords(x-8, y)),
+        (_validate_coords(x+8, y)),
+        (_validate_coords(x, y-8)),
+        (_validate_coords(x, y+8)),
+    ]
 
 
 def _mouse_move_verified(x: int, y: int) -> str:
@@ -898,7 +908,6 @@ def computer_control(
 
     if player:
         player.write_log(f"[Computer] {action}")
-
     safe_log_params = dict(params)
     for _secret_key in ("text", "keys"):
         if _secret_key in safe_log_params:
