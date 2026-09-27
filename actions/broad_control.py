@@ -6,7 +6,7 @@ import subprocess
 from core import confirm
 
 try:
-    from core.permissions import command_needs_admin, is_admin, is_admin_failure, needs_confirmation
+    from core.permissions import command_needs_admin, is_admin, is_admin_failure, permission_decision
 except (ImportError, ModuleNotFoundError):
     def needs_confirmation(action: str, *, admin: bool = False) -> bool:
         return False
@@ -92,17 +92,36 @@ def broad_control(parameters=None,response=None,player=None,session_memory=None)
     if op not in _ALLOWED:return "Unsupported operation."
     if op=="admin_status":return _execute(op)
     if op in {"launch","open_file","open_folder","process_stop","run_command","run_as_admin"} and not value:return "A target is required."
-    admin_hint = op=="run_as_admin" or (op=="run_command" and command_needs_admin(value) and not is_admin())
-    if admin_hint:
+
+    policy_params = dict(p)
+    if op=="run_as_admin":
+        policy_params["admin"] = True
+    elif op=="run_command" and command_needs_admin(value):
+        policy_params["admin"] = True
+        policy_params["command"] = value
+
+    decision, reason = permission_decision(op, policy_params)
+    if decision=="deny":
+        return f"Permission denied: {reason}"
+    if decision=="confirm":
         if confirm.pending_title():return "There is already a confirmation waiting on screen."
-        return confirm.request(key=f"broad_control:admin:{op}",title="Allow JARVIS to request administrator access?",detail=f"Command: {value}",run=lambda:_execute("run_as_admin",value)) if needs_confirmation(op,admin=True) else _execute("run_as_admin",value)
-    if needs_confirmation(op):
-        if confirm.pending_title():return "There is already a confirmation waiting on screen."
-        return confirm.request(key=f"broad_control:{op}",title="Allow JARVIS to perform this computer action?",detail=f"Operation: {op}\nTarget: {value or '(current computer)'}",run=lambda:_execute(op,value))
+        privileged = bool(policy_params.get("admin"))
+        title = "Allow JARVIS to request administrator access?" if privileged else "Allow JARVIS to perform this computer action?"
+        detail = f"Command: {value}" if privileged else f"Operation: {op}\nTarget: {value or '(current computer)'}"
+        runner = (lambda:_execute("run_as_admin",value)) if privileged else (lambda:_execute(op,value))
+        return confirm.request(key=f"broad_control:{'admin:' if privileged else ''}{op}",title=title,detail=detail,run=runner)
+
     result = _execute(op,value)
     if op=="run_command" and not is_admin() and is_admin_failure(result):
-        if confirm.pending_title():return "Command failed because administrator access is required, but another confirmation is pending."
-        return confirm.request(key="broad_control:admin_retry",title="Allow JARVIS to retry the command as administrator?",detail=f"Command: {value}\\nReason: Windows reported that elevation is required.",run=lambda:_execute("run_as_admin",value)) if needs_confirmation(op,admin=True) else _execute("run_as_admin",value)
+        retry_params={"admin":True,"command":value}
+        retry_decision, retry_reason = permission_decision(op,retry_params)
+        if retry_decision=="deny":
+            return f"{result}\nAdministrator retry denied: {retry_reason}"
+        if confirm.pending_title():
+            return "Command failed because administrator access is required, but another confirmation is pending."
+        return confirm.request(key="broad_control:admin_retry",title="Allow JARVIS to retry the command as administrator?",
+                               detail=f"Command: {value}\nReason: Windows reported that elevation is required.",
+                               run=lambda:_execute("run_as_admin",value))
     return result
 
 TOOL={"name":"broad_control","description":"Windows-only direct computer control for applications, files, windows, power, processes, shell commands and administrator commands. Commands that commonly need elevation are detected automatically, and access-denied failures can trigger a UAC retry. Destructive/shell operations use the central permission gate; Full PC Control can disable confirmations but cannot silently bypass Windows UAC.","parameters":{"type":"OBJECT","properties":{"operation":{"type":"STRING"},"value":{"type":"STRING"}},"required":["operation"]},"handler":broad_control}
