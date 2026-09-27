@@ -32,3 +32,6 @@ class BroadControlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# Admin/UAC regression coverage is added in the next test pass.
