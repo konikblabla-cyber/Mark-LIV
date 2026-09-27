@@ -12,6 +12,7 @@ from pathlib import Path
 APP_NAME = "Mark-LIV JARVIS"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALUE_NAME = "Mark-LIV JARVIS"
+_AUTOSTART_TOKEN = object()
 
 
 def _startup_command() -> str:
@@ -22,7 +23,22 @@ def _startup_command() -> str:
     return f'"{interpreter.resolve()}" "{Path(__file__).resolve().parents[1] / "main.py"}" --background'
 
 
-def enable_autostart() -> bool:
+def enable_autostart(*, _permission_token=None) -> bool | str:
+    if _permission_token is not _AUTOSTART_TOKEN:
+        from core.permissions import permission_decision
+        from core import confirm
+        decision, reason = permission_decision("autostart_enable", {})
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            if confirm.pending_title():
+                return "There is already a confirmation waiting on screen."
+            return confirm.request(
+                key="autostart-enable",
+                title="Enable JARVIS autostart?",
+                detail=f"{reason}. JARVIS will add JARVIS to the current Windows user startup list.",
+                run=lambda: enable_autostart(_permission_token=_AUTOSTART_TOKEN),
+            )
     if os.name != "nt":
         return False
     try:
@@ -37,7 +53,22 @@ def enable_autostart() -> bool:
         return False
 
 
-def disable_autostart() -> bool:
+def disable_autostart(*, _permission_token=None) -> bool | str:
+    if _permission_token is not _AUTOSTART_TOKEN:
+        from core.permissions import permission_decision
+        from core import confirm
+        decision, reason = permission_decision("autostart_disable", {})
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            if confirm.pending_title():
+                return "There is already a confirmation waiting on screen."
+            return confirm.request(
+                key="autostart-disable",
+                title="Disable JARVIS autostart?",
+                detail=f"{reason}. JARVIS will remove JARVIS from the current Windows user startup list.",
+                run=lambda: disable_autostart(_permission_token=_AUTOSTART_TOKEN),
+            )
     if os.name != "nt":
         return False
     try:
