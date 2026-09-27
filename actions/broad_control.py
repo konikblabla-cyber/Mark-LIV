@@ -20,7 +20,7 @@ except (ImportError, ModuleNotFoundError):
 _HIDDEN={"creationflags":subprocess.CREATE_NO_WINDOW}
 _OS = platform.system()
 _PROTECTED={"system","registry","smss","csrss","wininit","winlogon","services","lsass","svchost","dwm","explorer"}
-_ALLOWED={"launch","open_file","open_folder","close_active","lock","sleep","shutdown","restart","logoff","task_manager","device_manager","services","settings","control_panel","network_connections","process_list","process_stop","run_command","run_as_admin"}
+_ALLOWED={"admin_status","launch","open_file","open_folder","close_active","lock","sleep","shutdown","restart","logoff","task_manager","device_manager","services","settings","control_panel","network_connections","process_list","process_stop","run_command","run_as_admin"}
 
 def _ps(command: str, timeout: int = 15):
     return subprocess.run(["powershell","-NoProfile","-NonInteractive","-Command",command],capture_output=True,text=True,timeout=max(1,min(timeout,60)),**_HIDDEN)
@@ -90,6 +90,7 @@ def broad_control(parameters=None,response=None,player=None,session_memory=None)
     if platform.system()!="Windows":return "Windows-only action."
     p=parameters or {};op=str(p.get("operation","")).strip().lower();value=str(p.get("target", p.get("value",""))).strip()
     if op not in _ALLOWED:return "Unsupported operation."
+    if op=="admin_status":return _execute(op)
     if op in {"launch","open_file","open_folder","process_stop","run_command","run_as_admin"} and not value:return "A target is required."
     admin_hint = op=="run_as_admin" or (op=="run_command" and command_needs_admin(value) and not is_admin())
     if admin_hint:
