@@ -121,6 +121,11 @@ def main() -> None:
             "    For Safari automation only: python -m playwright install webkit"
         )
 
+    try:
+        (HERE / ".jarvis_setup_done").write_text("1", encoding="utf-8")
+    except OSError:
+        pass
+
     print("\n✅ Setup complete!")
     print("   1) Launch it:  python main.py")
     print("   2) Paste your free Gemini API key when the setup screen appears.")
