@@ -452,6 +452,8 @@ def get_desktop_stats() -> str:
         f"  Path    : {desktop}"
     )
 
+_DESKTOP_CONTROL_TOKEN = object()
+
 def desktop_control(
     parameters: dict = None,
     response=None,
