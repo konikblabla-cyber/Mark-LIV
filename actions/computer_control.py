@@ -15,6 +15,8 @@ import time
 import random
 from pathlib import Path
 
+from core.permissions import permission_decision
+
 try:
     import pyautogui
     pyautogui.FAILSAFE = True
@@ -827,6 +829,17 @@ def computer_control(
 
     if not action:
         return "No action specified for computer_control."
+
+    # Every computer-control action passes through the central permission policy.
+    # Explicit process restarts are treated as privileged operations.
+    policy_params = dict(params)
+    if action == "process_recover" and bool(params.get("restart", False)):
+        policy_params["admin"] = True
+    decision, reason = permission_decision(action, policy_params)
+    if decision == "deny":
+        return f"Permission denied: {reason}"
+    if decision == "confirm":
+        return f"Confirmation required: {reason}"
 
     if player:
         player.write_log(f"[Computer] {action}")
