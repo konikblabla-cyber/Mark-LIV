@@ -416,6 +416,30 @@ def _recover_window(title: str) -> str:
         return f"Window recovery failed: {exc}"
 
 
+def _uia_retry_with_recovery(params: dict, action) -> str:
+    """Retry a UI action and optionally recover the target process between attempts."""
+    attempts = max(1, min(int(params.get("attempts", 3)), 5))
+    delay = max(0.1, min(float(params.get("interval", 0.6)), 3.0))
+    process_name = str(params.get("process_name", "")).strip()
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            _recover_window(params.get("title", ""))
+            return f"{action()} (attempt {attempt})"
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                if process_name:
+                    try:
+                        health = _process_health(process_name)
+                        if "Process not found:" in health:
+                            return f"UI action failed: target process not found ({process_name})."
+                    except Exception:
+                        pass
+                time.sleep(delay * attempt)
+    raise last_error
+
+
 def _recover_process(name: str, restart: bool = False) -> str:
     """Attempt safe process recovery; restart only when explicitly requested."""
     if not name:
@@ -730,7 +754,7 @@ def computer_control(
       uia_verify    — verify a Windows UI Automation control exists
       uia_click_retry — retry UI Automation click when a window/control is temporarily unavailable
       uia_type_retry  — retry UI Automation typing when a window/control is temporarily unavailable
-      process_health — check whether a Windows process exists and is responding
+      process_health — check whether a Windows process exists and is responding; retry actions can also use process_name for recovery diagnostics
       process_recover — inspect a process or explicitly restart it for recovery
       uia_click     — click a Windows UI Automation control
       uia_type      — type into a Windows UI Automation control
@@ -764,12 +788,10 @@ def computer_control(
             return _recover_process(params.get("process_name", ""), bool(params.get("restart", False)))
 
         if action == "uia_click_retry":
-            result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_click(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
-            return f"{result} (attempt {attempt})"
+            return _uia_retry_with_recovery(params, lambda: _uia_click(params))
 
         if action == "uia_type_retry":
-            result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_type(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
-            return f"{result} (attempt {attempt})"
+            return _uia_retry_with_recovery(params, lambda: _uia_type(params))
 
         if action == "uia_click":
             return _uia_click(params)
