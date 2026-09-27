@@ -797,8 +797,8 @@ def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
     if coords is None:
         return f"Timed out waiting for screen element: '{description}'"
     time.sleep(0.2)
-    _click(x=coords[0], y=coords[1])
-    return f"Found and clicked '{description}' at {coords}"
+    result = _click_visual_change(coords[0], coords[1])
+    return f"Found and clicked '{description}' at {coords}; {result}"
 
 
 def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8) -> str:
@@ -809,8 +809,12 @@ def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8)
     for attempt in range(1, attempts + 1):
         coords = _screen_find_and_verify(desc)
         if coords is not None:
-            time.sleep(0.15); _click(x=coords[0], y=coords[1]); actual=_mouse_position()
-            return f"Clicked '{desc}' at {coords} on attempt {attempt}; cursor={actual}"
+            time.sleep(0.15)
+            result = _click_visual_change(coords[0], coords[1])
+            if "no visible change" not in result or attempt >= attempts:
+                actual = _mouse_position()
+                return f"Clicked '{desc}' at {coords} on attempt {attempt}; {result}; cursor={actual}"
+            time.sleep(delay)
         if attempt < attempts: time.sleep(delay)
     return f"Element not found after {attempts} screen checks: '{desc}'"
 
