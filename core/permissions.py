@@ -28,7 +28,7 @@ REQUIRE_CONFIRMATION = {
     "terminate_process", "close_process", "storage_cleanup_confirmed",
     "format_drive", "change_firewall", "change_security_setting",
     "install_software", "uninstall_software", "run_as_admin",
-    "execute_admin_command",
+    "execute_admin_command", "autostart_enable", "autostart_disable",
 }
 
 REQUIRE_ADMIN_CONFIRMATION = {
