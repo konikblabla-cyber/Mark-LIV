@@ -1,7 +1,15 @@
 """Click a uniquely matched Windows UI Automation control."""
 import platform
+from core.permissions import permission_decision
+from core import confirm
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_ui_element_click(parameters=None,**kwargs):
+    if not kwargs.get("_permission_token"):
+        p=dict(parameters or {})
+        d,r=permission_decision("windows_ui_element_click",p)
+        if d=="deny": return f"Permission denied: {r}"
+        if d=="confirm":
+            return confirm.request(key="windows_ui_element_click",title="Allow JARVIS: windows_ui_element_click?",detail=f"{r}. Waiting for your confirmation.",run=lambda: windows_ui_element_click(p,_permission_token=True))
  p=parameters or {}; title=str(p.get("title") or "").strip()
  if not title:return "Missing control title."
  try:
