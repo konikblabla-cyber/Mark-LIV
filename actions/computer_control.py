@@ -642,6 +642,9 @@ def computer_control(
       field         : memory field name for user_data
       clear_first   : bool, clear field before typing (default: true)
       path          : save path for screenshot (must be inside home dir)
+      auto_id       : Windows UI Automation control ID
+      control_title : exact Windows UI Automation control title
+      control_type  : Windows UI Automation control type
 
     Actions:
       type          — type text at cursor
@@ -664,6 +667,10 @@ def computer_control(
       screen_click  — AI element finder + click
       random_data   — generate fake form data
       user_data     — pull real data from memory
+      uia_click     — click a Windows UI Automation control
+      uia_type      — type into a Windows UI Automation control
+      uia_get_text  — read a Windows UI Automation control's text
+      uia_list_controls — list named controls in a Windows UI Automation window
     """
     params = parameters or {}
     action = str(params.get("action", "")).lower().strip().replace("-", "_")
@@ -833,7 +840,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_click | uia_type | uia_get_text | uia_list_controls"
             },
             "text": {
                 "type": "STRING",
