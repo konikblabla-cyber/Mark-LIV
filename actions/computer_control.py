@@ -829,6 +829,20 @@ def computer_control(
     if not action:
         return "No action specified for computer_control."
 
+    known_actions = {
+        "open_browser", "uia_verify", "process_health", "process_recover",
+        "uia_click_retry", "uia_type_retry", "uia_click", "uia_type",
+        "uia_get_text", "uia_list_controls", "type", "smart_type",
+        "double_click", "right_click", "move", "drag", "hotkey", "press",
+        "scroll", "copy", "paste", "screenshot", "active_window_info",
+        "screen_dpi", "mouse_position", "screen_geometry", "screen_find",
+        "screen_click", "screen_click_retry", "screen_wait_for",
+        "screen_watch_click", "wait", "clear_field", "focus_window",
+        "random_data", "user_data",
+    }
+    if action not in known_actions:
+        return f"Unknown action: {action}"
+
     # Every computer-control action passes through the central permission policy.
     # Explicit process restarts are treated as privileged operations.
     policy_params = dict(params)
