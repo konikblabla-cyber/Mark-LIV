@@ -72,5 +72,34 @@ class ComputerControlTests(unittest.TestCase):
         self.assertTrue(result.get("ok", False))
 
 
+    @patch("actions.computer_control.permission_decision", return_value=("deny", "READ level allows only read/inspection operations"))
+    @patch("actions.computer_control._click")
+    def test_permission_gate_blocks_click(self, click, decision):
+        result = computer_control.computer_control({"action": "click", "x": 10, "y": 10})
+        self.assertIn("Permission denied", result)
+        click.assert_not_called()
+        decision.assert_called_once()
+
+    @patch("actions.computer_control.permission_decision", return_value=("confirm", "NORMAL: confirmation required for consequential operation"))
+    @patch("actions.computer_control._recover_process")
+    def test_permission_gate_blocks_direct_process_restart_until_confirmed(self, recover, decision):
+        result = computer_control.computer_control({
+            "action": "process_recover",
+            "process_name": "notepad",
+            "restart": True,
+        })
+        self.assertIn("Confirmation required", result)
+        recover.assert_not_called()
+        decision.assert_called_once()
+
+    @patch("actions.computer_control.permission_decision", return_value=("allow", "NORMAL: read-only operation"))
+    @patch("actions.computer_control._active_window_info", return_value="window")
+    def test_permission_gate_allows_read_action(self, active_window, decision):
+        result = computer_control.computer_control({"action": "active_window_info"})
+        self.assertEqual(result, "window")
+        active_window.assert_called_once()
+        decision.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()
