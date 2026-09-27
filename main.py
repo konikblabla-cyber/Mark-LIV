@@ -47,7 +47,6 @@ import sys
 import traceback
 from datetime import datetime
 
-from core.background_runtime import enable_autostart
 from pathlib import Path
 from collections import deque
 
@@ -2593,7 +2592,7 @@ def main():
     start_hidden = "--background" in sys.argv
     if start_hidden:
         os.environ["MARK_LIV_BACKGROUND"] = "1"
-    enable_autostart()
+    # Autostart is controlled explicitly through the permission-gated settings/action path.
     ui = JarvisUI("face.png", start_hidden=start_hidden)
 
     def runner():
