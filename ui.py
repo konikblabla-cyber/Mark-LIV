@@ -4819,18 +4819,21 @@ class MainWindow(QMainWindow):
     def _refresh_full_control_btn(self):
         if not hasattr(self, "_full_control_btn"):
             return
-        from memory.config_manager import get_full_control_enabled
-        enabled = get_full_control_enabled()
-        self._full_control_btn.setText("⚡  FULL CONTROL: ON" if enabled else "⚡  FULL CONTROL: OFF")
-        self._full_control_btn.setStyleSheet(f"""QPushButton {{ background: {"#001a08" if enabled else "transparent"}; color: {C.GREEN if enabled else C.TEXT_DIM}; border: 1px solid {C.GREEN_D if enabled else C.BORDER}; border-radius: 3px; text-align: left; padding: 0 8px; }} QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}""")
-        self._full_control_btn.setToolTip("Allow JARVIS to execute risky actions without confirmation. Turn off to restore confirmations.")
+        from memory.config_manager import get_control_level
+        level = get_control_level()
+        active = level in {"ELEVATED", "CRITICAL"}
+        self._full_control_btn.setText(f"⚡  CONTROL: {level}")
+        self._full_control_btn.setStyleSheet(f"""QPushButton {{ background: {"#001a08" if active else "transparent"}; color: {C.GREEN if active else C.TEXT_DIM}; border: 1px solid {C.GREEN_D if active else C.BORDER}; border-radius: 3px; text-align: left; padding: 0 8px; }} QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}""")
+        self._full_control_btn.setToolTip("Click to cycle JARVIS control level: READ → NORMAL → ELEVATED → CRITICAL.")
 
     def _toggle_full_control(self):
-        from memory.config_manager import get_full_control_enabled, save_full_control_enabled
-        enabled = not get_full_control_enabled()
-        save_full_control_enabled(enabled)
+        from memory.config_manager import get_control_level, save_control_level
+        levels = ("READ", "NORMAL", "ELEVATED", "CRITICAL")
+        current = get_control_level()
+        next_level = levels[(levels.index(current) + 1) % len(levels)]
+        save_control_level(next_level)
         self._refresh_full_control_btn()
-        self._log.append_log("SYS: Full control " + ("enabled." if enabled else "disabled."))
+        self._log.append_log(f"SYS: Control level changed to {next_level}.")
 
     def _refresh_sleep_after_task_btn(self):
         if not hasattr(self, "_sleep_after_task_btn"):
