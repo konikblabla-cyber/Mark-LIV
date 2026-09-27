@@ -44,7 +44,7 @@ PROTECTED_PROCESSES = {
 
 _READ_MARKERS = (
     "get_", "list", "read", "inspect", "search", "status", "show",
-    "info", "find", "query", "check", "calculate", "monitor", "snapshot",
+    "info", "find", "query", "check", "calculate", "monitor", "snapshot", "screenshot",
 )
 _WRITE_MARKERS = (
     "open", "launch", "close", "move", "resize", "minimize", "maximize",
