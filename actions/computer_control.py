@@ -815,6 +815,8 @@ def computer_control(
       uia_type      — type into a Windows UI Automation control
       uia_get_text  — read a Windows UI Automation control's text
       uia_list_controls — list named controls in a Windows UI Automation window
+      process_health — inspect whether a Windows process is running/responding
+      process_recover — inspect or explicitly restart a Windows process
     """
     params = parameters or {}
     action = str(params.get("action", "")).lower().strip().replace("-", "_")
@@ -1018,7 +1020,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | open_browser | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | open_browser | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls | process_health | process_recover"
             },
             "text": {
                 "type": "STRING",
