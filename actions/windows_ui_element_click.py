@@ -17,8 +17,8 @@ def windows_ui_element_click(parameters=None,**kwargs):
         matches=[]
         for w in Desktop(backend="uia").windows():
             try:
-    for c in w.descendants():
-     if str(c.window_text() or "")==title: matches.append(c)
+                for c in w.descendants():
+                    if str(c.window_text() or "")==title: matches.append(c)
             except Exception: pass
         if len(matches)!=1:return f"Expected one matching control, found {len(matches)}."
         matches[0].click_input()
