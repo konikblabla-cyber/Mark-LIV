@@ -8,7 +8,7 @@ class ActionLoaderDispatchTests(unittest.TestCase):
         def bad(**_kwargs):
             raise RuntimeError("boom")
         record = ActionRecord(name="read_bad", description="bad", parameters={"type":"OBJECT"}, handler=bad, file="bad.py", valid=True)
-        registry = ActionRegistry({"bad": record}, lambda _msg: None)
+        registry = ActionRegistry({"read_bad": record}, lambda _msg: None)
         result = registry.run("read_bad", {})
         self.assertIsInstance(result, str)
         self.assertIn("failed", result.lower())
