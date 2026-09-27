@@ -15,6 +15,27 @@ import time
 import random
 from pathlib import Path
 
+
+def _set_windows_dpi_awareness():
+    """Keep screenshot pixels and mouse coordinates in the same physical-pixel space."""
+    if platform.system() != "Windows":
+        return
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        return
+    except Exception:
+        pass
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+
+
+_set_windows_dpi_awareness()
+
+
 from core.permissions import permission_decision
 from core import confirm
 
@@ -674,9 +695,19 @@ def _screen_find(description: str) -> tuple[int, int] | None:
         from google.genai import types as gtypes
 
         _require_pyautogui()
-        w, h  = pyautogui.size()
-        img   = pyautogui.screenshot()
-        buf   = io.BytesIO()
+        # Capture the physical Windows desktop so vision coordinates match the mouse.
+        try:
+            import mss
+            from PIL import Image
+            with mss.mss() as sct:
+                monitor = sct.monitors[0]
+                shot = sct.grab(monitor)
+                img = Image.frombytes("RGB", shot.size, shot.rgb)
+                w, h = shot.width, shot.height
+        except Exception:
+            img = pyautogui.screenshot()
+            w, h = img.size
+        buf = io.BytesIO()
         img.save(buf, format="PNG")
         image_bytes = buf.getvalue()
 
