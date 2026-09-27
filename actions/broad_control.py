@@ -10,6 +10,12 @@ try:
 except (ImportError, ModuleNotFoundError):
     def needs_confirmation(action: str, *, admin: bool = False) -> bool:
         return False
+    def is_admin() -> bool:
+        return False
+    def command_needs_admin(command: str) -> bool:
+        return False
+    def is_admin_failure(output: str) -> bool:
+        return False
 
 _HIDDEN={"creationflags":subprocess.CREATE_NO_WINDOW}
 _OS = platform.system()
