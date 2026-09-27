@@ -185,15 +185,36 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
     return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
 
-def _screen_size() -> tuple[int, int]:
+def _virtual_screen_geometry() -> tuple[int, int, int, int]:
+    """Return the real Windows virtual desktop bounds, including negative monitors."""
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            left = int(user32.GetSystemMetrics(76))   # SM_XVIRTUALSCREEN
+            top = int(user32.GetSystemMetrics(77))    # SM_YVIRTUALSCREEN
+            width = int(user32.GetSystemMetrics(78))  # SM_CXVIRTUALSCREEN
+            height = int(user32.GetSystemMetrics(79)) # SM_CYVIRTUALSCREEN
+            if width > 0 and height > 0:
+                return left, top, width, height
+        except Exception:
+            pass
     _require_pyautogui()
     w, h = pyautogui.size()
-    return int(w), int(h)
+    return 0, 0, int(w), int(h)
+
+
+def _screen_size() -> tuple[int, int]:
+    _, _, w, h = _virtual_screen_geometry()
+    return w, h
 
 
 def _validate_coords(x: int, y: int) -> tuple[int, int]:
-    w, h = _screen_size()
-    return max(0, min(int(x), w - 1)), max(0, min(int(y), h - 1))
+    left, top, width, height = _virtual_screen_geometry()
+    return (
+        max(left, min(int(x), left + width - 1)),
+        max(top, min(int(y), top + height - 1)),
+    )
 
 
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
