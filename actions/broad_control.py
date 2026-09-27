@@ -14,7 +14,7 @@ except (ImportError, ModuleNotFoundError):
 _HIDDEN={"creationflags":subprocess.CREATE_NO_WINDOW}
 _OS = platform.system()
 _PROTECTED={"system","registry","smss","csrss","wininit","winlogon","services","lsass","svchost","dwm","explorer"}
-_ALLOWED={"launch","open_file","open_folder","close_active","lock","sleep","shutdown","restart","logoff","task_manager","device_manager","services","settings","control_panel","network_connections","process_list","process_stop"}
+_ALLOWED={"launch","open_file","open_folder","close_active","lock","sleep","shutdown","restart","logoff","task_manager","device_manager","services","settings","control_panel","network_connections","process_list","process_stop","run_command","run_as_admin"}
 
 def _ps(command: str, timeout: int = 15):
     return subprocess.run(["powershell","-NoProfile","-NonInteractive","-Command",command],capture_output=True,text=True,timeout=max(1,min(timeout,60)),**_HIDDEN)
@@ -52,6 +52,19 @@ def _execute(op: str, value: str = "") -> str:
         if op=="process_list":
             r=_ps("Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 30 Id,ProcessName,@{N='RAM_MB';E={[math]::Round($_.WorkingSet64/1MB)}} | ConvertTo-Csv -NoTypeInformation")
             return r.stdout.strip() or "No process data."
+        if op=="run_command":
+            if not value:return "A command is required."
+            try:
+                r=subprocess.run(value, shell=True, capture_output=True, text=True, timeout=60, **_HIDDEN)
+                output=(r.stdout or r.stderr or "").strip()
+                return f"Command exit={r.returncode}:\n{output[:8000]}" if output else f"Command exit={r.returncode}."
+            except subprocess.TimeoutExpired:
+                return "Command timed out after 60 seconds."
+        if op=="run_as_admin":
+            if not value:return "A command is required."
+            escaped=value.replace('"','\\\"')
+            r=subprocess.run(["powershell","-NoProfile","-NonInteractive","-Command",f"Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -Command \\\"{escaped}\\\"'"],capture_output=True,text=True,timeout=15,**_HIDDEN)
+            return "Administrator command requested." if r.returncode==0 else (r.stderr.strip() or "Administrator command failed.")
         if op=="process_stop":
             try:pid=int(value)
             except (TypeError,ValueError):return "PID required."
@@ -69,10 +82,10 @@ def broad_control(parameters=None,response=None,player=None,session_memory=None)
     if platform.system()!="Windows":return "Windows-only action."
     p=parameters or {};op=str(p.get("operation","")).strip().lower();value=str(p.get("target", p.get("value",""))).strip()
     if op not in _ALLOWED:return "Unsupported operation."
-    if op in {"launch","open_file","open_folder","process_stop"} and not value:return "A target is required."
+    if op in {"launch","open_file","open_folder","process_stop","run_command","run_as_admin"} and not value:return "A target is required."
     if needs_confirmation(op):
         if confirm.pending_title():return "There is already a confirmation waiting on screen."
         return confirm.request(key=f"broad_control:{op}",title="Allow JARVIS to perform this computer action?",detail=f"Operation: {op}\nTarget: {value or '(current computer)'}",run=lambda:_execute(op,value))
     return _execute(op,value)
 
-TOOL={"name":"broad_control","description":"Windows-only direct computer control for launching/opening/closing/locking/sleeping, power actions, system tools, process listing and protected process termination.","parameters":{"type":"OBJECT","properties":{"operation":{"type":"STRING"},"value":{"type":"STRING"}},"required":["operation"]},"handler":broad_control}
+TOOL={"name":"broad_control","description":"Windows-only direct computer control for applications, files, windows, power, processes, shell commands and administrator commands. Destructive/shell operations use the central permission gate; Full PC Control can disable confirmations.","parameters":{"type":"OBJECT","properties":{"operation":{"type":"STRING"},"value":{"type":"STRING"}},"required":["operation"]},"handler":broad_control}
