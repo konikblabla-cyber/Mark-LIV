@@ -747,9 +747,10 @@ def handle(parameters: dict):
         params = parameters or {}
         result = computer_control(params)
         text_result = str(result)
+        lowered = text_result.lower()
         return {
-            "ok": not text_result.lower().startswith(("unknown action", "permission denied", "confirmation required"))
-            and " failed:" not in text_result.lower(),
+            "ok": not lowered.startswith(("unknown action", "permission denied", "confirmation required"))
+            and " failed:" not in lowered,
             "result": result,
         }
     except Exception as e:
