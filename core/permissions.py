@@ -15,10 +15,8 @@ import re
 CONTROL_LEVELS = ("READ", "NORMAL", "ELEVATED", "CRITICAL")
 DEFAULT_CONTROL_LEVEL = "NORMAL"
 
-# Compatibility switch: old FULL CONTROL setting maps to CRITICAL.
 FULL_CONTROL = os.environ.get("JARVIS_FULL_CONTROL", "0").strip().lower() in {"1", "true", "yes", "on"}
 
-# These must NEVER become silent, even in CRITICAL mode.
 HARD_CONFIRM_ACTIONS = {
     "format_drive", "change_security_setting", "execute_admin_command",
     "run_as_admin", "change_firewall",
@@ -62,7 +60,6 @@ _HIGH_MARKERS = (
 
 
 def get_control_level() -> str:
-    """Read the persistent access level; legacy FULL CONTROL maps to CRITICAL."""
     try:
         from memory.config_manager import get_control_level as _get
         value = str(_get() or DEFAULT_CONTROL_LEVEL).strip().upper()
@@ -111,7 +108,6 @@ def permission_decision(action: str, parameters: dict | None = None) -> tuple[st
     level = get_control_level()
     risk = _risk(name)
 
-    # Explicit privileged requests always require confirmation.
     admin_requested = bool(params.get("admin") or params.get("elevated"))
     command = params.get("command")
     if isinstance(command, str) and command_needs_admin(command):
@@ -127,15 +123,6 @@ def permission_decision(action: str, parameters: dict | None = None) -> tuple[st
     if level == "READ":
         return "deny", "READ level allows only read/inspection operations"
 
-    admin_requested = bool(params.get("admin") or params.get("elevated"))
-    command = params.get("command")
-    if isinstance(command, str) and command_needs_admin(command):
-        admin_requested = True
-
-    if admin_requested and level not in {"ELEVATED", "CRITICAL"}:
-        return "deny", "ELEVATED or CRITICAL access is required for privileged operations"
-
-    # Hard-dangerous actions always require a real user confirmation.
     if name in HARD_CONFIRM_ACTIONS or risk == "high":
         return "confirm", f"{level}: confirmation required for consequential operation"
 
@@ -143,12 +130,20 @@ def permission_decision(action: str, parameters: dict | None = None) -> tuple[st
 
 
 def needs_confirmation(action: str, *, admin: bool = False) -> bool:
-    decision, _ = permission_decision(action, {"admin": admin})
+    """Return whether execution must pass through a confirmation boundary.
+
+    An explicit admin request always requires confirmation, even when the
+    current access level would ultimately deny the operation.  This keeps the
+    confirmation predicate faithful to the requested privilege while
+    permission_decision remains the final execution gate.
+    """
+    if admin:
+        return True
+    decision, _ = permission_decision(action)
     return decision == "confirm"
 
 
 def is_admin() -> bool:
-    """Return whether this JARVIS process is already elevated on Windows."""
     if os.name != "nt":
         return False
     try:
@@ -159,7 +154,6 @@ def is_admin() -> bool:
 
 
 def command_needs_admin(command: str) -> bool:
-    """Conservative deterministic hint for commands that commonly need elevation."""
     raw = str(command or "").strip()
     if not raw or os.name != "nt":
         return False
@@ -168,7 +162,6 @@ def command_needs_admin(command: str) -> bool:
     executable = ntpath.basename(first)
     if executable.endswith(".exe"):
         executable = executable[:-4]
-
     if executable in {"bcdedit", "dism", "diskpart", "takeown", "manage-bde"}:
         return True
     if executable == "sc":
@@ -185,7 +178,6 @@ def command_needs_admin(command: str) -> bool:
 
 
 def is_admin_failure(output: str) -> bool:
-    """Detect common Windows access-denied/elevation failures in command output."""
     text = str(output or "").lower()
     markers = (
         "access is denied", "access denied", "requested operation requires elevation",
@@ -199,6 +191,6 @@ def is_protected_process(name: str) -> bool:
     raw = str(name or "").strip().lower()
     if not raw:
         return False
-    basename = ntpath.basename(raw.rstrip("\/"))
+    basename = ntpath.basename(raw.rstrip("\\/"))
     protected = {p.lower() for p in PROTECTED_PROCESSES}
     return raw in protected or basename in protected
