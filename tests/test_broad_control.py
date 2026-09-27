@@ -33,7 +33,8 @@ class BroadControlTests(unittest.TestCase):
     @patch("actions.broad_control.needs_confirmation", side_effect=lambda action, admin=False: admin)
     @patch("actions.broad_control.is_admin", return_value=False)
     @patch("actions.broad_control.is_admin_failure", return_value=True)
-    def test_access_denied_can_retry_as_admin(self, admin_failure, is_admin, needs, execute):
+    @patch("actions.broad_control.confirm.request", side_effect=lambda **kwargs: kwargs["run"]())
+    def test_access_denied_can_retry_as_admin(self, admin_failure, is_admin, needs, execute, confirm_request):
         result = broad_control.broad_control({"operation": "run_command", "target": "some-command"})
         self.assertIn("Access is denied", result)
         self.assertTrue(execute.called)
