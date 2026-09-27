@@ -1,7 +1,8 @@
 """Type text followed by an optional normal Windows hotkey."""
 import platform
 from core.permissions import permission_decision
-from core import confirm,pyautogui
+from core import confirm
+import pyautogui
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_text_hotkey(parameters=None,**kwargs):
     if not kwargs.get("_permission_token"):
