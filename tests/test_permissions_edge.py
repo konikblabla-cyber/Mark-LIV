@@ -12,9 +12,12 @@ class PermissionEdgeTests(unittest.TestCase):
         self.assertFalse(is_protected_process(""))
         self.assertFalse(is_protected_process("example-app.exe"))
 
-    def test_confirmation_is_false_for_unknown_safe_action(self):
+    def test_confirmation_is_false_for_known_read_actions(self):
         self.assertFalse(needs_confirmation("read_screen"))
         self.assertFalse(needs_confirmation("get_volume"))
+
+    def test_unknown_action_requires_confirmation(self):
+        self.assertTrue(needs_confirmation("unclassified_side_effect"))
 
 
     def test_admin_flag_requires_confirmation_for_any_action(self):
