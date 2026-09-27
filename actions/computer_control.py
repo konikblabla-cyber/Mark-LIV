@@ -839,6 +839,9 @@ def computer_control(
 
     try:
 
+        if action == "open_browser":
+            return _open_browser_target(params.get("url", ""), params.get("browser", ""))
+
         if action == "uia_verify":
             return _uia_verify(params)
 
