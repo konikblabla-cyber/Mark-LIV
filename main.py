@@ -306,7 +306,7 @@ def _clean_transcript(text: str) -> str:
     text = re.sub(r"[\x00-\x08\x0b-\x1f]", "", text)
     return text.strip()
 
-def _compact_tool_result(result, max_chars: int = 7000) -> str:
+def _sanitize_live_tool_schema(schema, path="root"):\n    """Make action/plugin JSON schemas acceptable to Gemini Live.\n\n    Gemini Live rejects an ARRAY schema when its required items schema is\n    missing. File-backed actions or plugins can contain such a declaration;\n    one malformed tool must never prevent the whole assistant from connecting.\n    Valid schemas are returned unchanged apart from recursively sanitized\n    children. Missing array item schemas default to strings.\n    """\n    if isinstance(schema, list):\n        return [_sanitize_live_tool_schema(x, f"{path}[{i}]") for i, x in enumerate(schema)]\n    if not isinstance(schema, dict):\n        return schema\n    out = {k: _sanitize_live_tool_schema(v, f"{path}.{k}") for k, v in schema.items()}\n    typ = str(out.get("type", "")).upper()\n    if typ == "ARRAY" and not isinstance(out.get("items"), dict):\n        print(f"[Gemini] Sanitizing malformed array schema at {path}: missing items -> STRING")\n        out["items"] = {"type": "STRING"}\n    return out\n\n\ndef _compact_tool_result(result, max_chars: int = 7000) -> str:
     """Keep large tool payloads from consuming the Live context window."""
     text = str(result if result is not None else "")
     if len(text) <= max_chars:
@@ -1101,6 +1101,11 @@ class JarvisLive:
         _all_decls = (TOOL_DECLARATIONS
                       + self._action_registry.get_tool_declarations()
                       + self._plugin_registry.get_tool_declarations())
+        # Gemini Live validates every function declaration during the websocket
+        # handshake. Sanitize file/plugin schemas before sending them so one
+        # malformed ARRAY declaration cannot make the API key/session appear
+        # broken with a 1007 setup error.
+        _all_decls = _sanitize_live_tool_schema(_all_decls, "tools")
         _names = {(d.get("name") if isinstance(d, dict) else getattr(d, "name", ""))
                   for d in _all_decls}
         sys_prompt = _render_prompt(sys_prompt, {
