@@ -332,6 +332,9 @@ def _open_browser_target(url: str, browser: str = "") -> str:
         "edge": ("msedge.exe", "Microsoft Edge"),
         "microsoft edge": ("msedge.exe", "Microsoft Edge"),
         "firefox": ("firefox.exe", "Mozilla Firefox"),
+        "opera gx": ("opera.exe", "Opera GX"),
+        "operagx": ("opera.exe", "Opera GX"),
+        "opera": ("opera.exe", "Opera GX"),
     }
     names = [candidates[wanted]] if wanted in candidates else list(candidates.values())
     ps_names = ",".join("'" + exe.replace("'", "''") + "'" for exe, _ in names)
