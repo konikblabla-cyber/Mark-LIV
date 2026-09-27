@@ -10,21 +10,73 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
+
       - name: Compile sources
         run: python -m compileall -q .
-      - name: Create package
+
+      - name: Verify package entrypoint
+        run: python -c "import ast, pathlib; ast.parse(pathlib.Path('main.py').read_text(encoding='utf-8')); ast.parse(pathlib.Path('ui.py').read_text(encoding='utf-8')); print('entrypoint OK')"
+
+      - name: Create runnable package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist/JARVIS | Out-Null
-          Copy-Item -Recurse actions,core,memory,plugins,tests dist/JARVIS
-          Copy-Item main.py,requirements.txt,README.md dist/JARVIS -ErrorAction SilentlyContinue
-          Compress-Archive -Path dist/JARVIS/* -DestinationPath dist/JARVIS-Windows.zip -Force
+          $root = "dist/JARVIS"
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          New-Item -ItemType Directory -Force -Path "$root/config" | Out-Null
+          Copy-Item -Recurse actions,core,memory,plugins,tests,dashboard "$root"
+          Copy-Item main.py,ui.py,setup.py,requirements.txt,readme.md,LICENSE "$root" -ErrorAction Stop
+          if (Test-Path config) { Copy-Item -Recurse config/* "$root/config" -ErrorAction SilentlyContinue }
+          @'
+          @echo off
+          cd /d "%~dp0"
+          if not exist ".venv\Scripts\python.exe" (
+            echo [JARVIS] Creating local Python environment...
+            py -3.12 -m venv .venv 2>nul
+            if errorlevel 1 python -m venv .venv
+            if errorlevel 1 (
+              echo [JARVIS] Python 3.12 is required.
+              pause
+              exit /b 1
+            )
+          )
+          call ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+          if errorlevel 1 (
+            echo [JARVIS] Dependency installation failed.
+            pause
+            exit /b 1
+          )
+          call ".venv\Scripts\python.exe" -m playwright install chromium firefox
+          ".venv\Scripts\python.exe" main.py
+          if errorlevel 1 pause
+          '@ | Set-Content -Encoding ASCII "$root/START_JARVIS.bat"
+          @'
+          @echo off
+          cd /d "%~dp0"
+          py -3.12 setup.py
+          if errorlevel 1 pause
+          '@ | Set-Content -Encoding ASCII "$root/INSTALL_JARVIS.bat"
+          @'
+          JARVIS WINDOWS PACKAGE
+          1. Double-click START_JARVIS.bat.
+          2. The first start creates a private .venv and installs dependencies.
+          3. Enter your Gemini API key in JARVIS when asked.
+          4. Later starts only reuse the existing .venv.
+          '@ | Set-Content -Encoding UTF8 "$root/START_HERE.txt"
+          Compress-Archive -Path "$root/*" -DestinationPath "dist/JARVIS-Windows.zip" -Force
+
+      - name: Test packaged entrypoint
+        shell: pwsh
+        run: |
+          python -c "import ast, pathlib; ast.parse(pathlib.Path('dist/JARVIS/main.py').read_text(encoding='utf-8')); ast.parse(pathlib.Path('dist/JARVIS/ui.py').read_text(encoding='utf-8')); if (!(Test-Path 'dist/JARVIS/core/face_model.obj')) { throw 'face_model.obj missing from package' }; if (!(Test-Path 'dist/JARVIS/START_JARVIS.bat')) { throw 'launcher missing' }; Write-Host 'packaged entrypoint OK'"
+
       - name: Upload JARVIS package
         uses: actions/upload-artifact@v4
         with:
