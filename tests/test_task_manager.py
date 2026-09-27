@@ -7,7 +7,10 @@ def test_task_plan_persists_and_recovers(tmp_path):
     path = tmp_path / "tasks.json"
     manager = TaskManager(str(path))
     task_id = manager.create("test goal")
-    manager.set_plan(task_id, ["open app", "verify state"], max_retries=2)
+    manager.set_plan(task_id, [
+        {"action": "open_app", "parameters": {"app": "Opera GX"}, "verify": "opened"},
+        {"action": "verify_state", "parameters": {}, "verify": "ready"},
+    ], max_retries=2)
     manager.mark_step(task_id, 0, "completed", "opened")
     assert manager.retry_step(task_id) is True
 
@@ -19,6 +22,8 @@ def test_task_plan_persists_and_recovers(tmp_path):
     assert task["next_step"] == 1
     assert task["retry_count"] == 1
     assert restored.recoverable() and restored.recoverable()[0]["id"] == task_id
+    assert restored.get_plan(task_id)[0]["action"] == "open_app"
+    assert restored.get_plan(task_id)[0]["parameters"]["app"] == "Opera GX"
 
 
 def test_retry_is_bounded(tmp_path):
