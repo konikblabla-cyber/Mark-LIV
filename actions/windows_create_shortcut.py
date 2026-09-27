@@ -5,10 +5,16 @@ import subprocess
 from core.permissions import permission_decision
 from core import confirm
 
-def windows_create_shortcut(parameters=None, **kwargs):
+def windows_create_shortcut(parameters=None, _permission_token=None, **kwargs):
     if platform.system() != "Windows":
         return "windows_create_shortcut is Windows-only."
     p = parameters or {}
+    if not kwargs.get("_permission_token"):
+        decision, reason = permission_decision("windows_create_shortcut", p)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            return confirm.request(key="windows_create_shortcut", title="Allow JARVIS: create shortcut?", detail=f"{reason}. Waiting for your confirmation.", run=lambda: windows_create_shortcut(p, _permission_token=True))
     target = str(p.get("target", "")).strip()
     link = str(p.get("shortcut", "")).strip()
     if not target or not link:
