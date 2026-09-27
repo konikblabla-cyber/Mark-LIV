@@ -405,6 +405,17 @@ def _uia_find(params: dict):
     return control
 
 
+def _recover_window(title: str) -> str:
+    """Refocus a target window as a lightweight recovery step."""
+    if not title:
+        return ""
+    try:
+        _focus_window(title)
+        return f"Recovered focus for window: {title}"
+    except Exception as exc:
+        return f"Window recovery failed: {exc}"
+
+
 def _retry_operation(operation, attempts: int = 3, delay: float = 0.6):
     """Retry a transient computer-control operation without hiding the final error."""
     attempts = max(1, min(int(attempts), 5))
@@ -718,11 +729,11 @@ def computer_control(
             return _uia_verify(params)
 
         if action == "uia_click_retry":
-            result, attempt = _retry_operation(lambda: _uia_click(params), params.get("attempts", 3), params.get("interval", 0.6))
+            result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_click(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
             return f"{result} (attempt {attempt})"
 
         if action == "uia_type_retry":
-            result, attempt = _retry_operation(lambda: _uia_type(params), params.get("attempts", 3), params.get("interval", 0.6))
+            result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_type(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
             return f"{result} (attempt {attempt})"
 
         if action == "uia_click":
