@@ -93,19 +93,18 @@ class PluginRegistry:
         if not get_plugin_enabled(name):
             return f"The '{name}' plugin is currently disabled."
         try:
-        decision, reason = permission_decision(name, parameters or {})
-        if decision == "deny":
-            return f"Permission denied: {reason}"
-        if decision == "confirm":
-            if confirm_gate.pending_title():
-                return "There is already a confirmation waiting on screen. Please resolve it first."
-            return confirm_gate.request(
-                key=f"plugin-{name}",
-                title=f"Plugin control: {name}",
-                detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
-                run=lambda: _call_run(rec.run, parameters, player, session_memory) or "Done.",
-            )
-        try:
+            decision, reason = permission_decision(name, parameters or {})
+            if decision == "deny":
+                return f"Permission denied: {reason}"
+            if decision == "confirm":
+                if confirm_gate.pending_title():
+                    return "There is already a confirmation waiting on screen. Please resolve it first."
+                return confirm_gate.request(
+                    key=f"plugin-{name}",
+                    title=f"Plugin control: {name}",
+                    detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                    run=lambda: _call_run(rec.run, parameters, player, session_memory) or "Done.",
+                )
             return _call_run(rec.run, parameters, player, session_memory) or "Done."
         except Exception as e:
             self._logger(f"Plugin '{name}' crashed during run(): {e}")
