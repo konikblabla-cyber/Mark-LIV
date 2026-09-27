@@ -1,6 +1,16 @@
 """Bounded Windows mouse hold action."""
 import platform,time,pyautogui
+from core.permissions import permission_decision
+from core import confirm
 def windows_click_hold(parameters=None,**kwargs):
+
+    if not kwargs.get("_permission_token"):
+        p = dict(parameters or {})
+        decision, reason = permission_decision("windows_click_hold", p)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            return confirm.request(key="windows_click_hold", title="Allow JARVIS: windows_click_hold?", detail=f"{reason}. Waiting for your confirmation.", run=lambda: windows_click_hold(p, _permission_token=True))
  if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}
  try: x=int(p.get("x",0)); y=int(p.get("y",0)); duration=max(.05,min(float(p.get("duration",.5)),10))
