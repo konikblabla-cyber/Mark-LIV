@@ -48,9 +48,28 @@ def _important_lookup(name: str) -> str:
     matches=[x for x in idx.read_text(encoding="utf-8",errors="replace").splitlines() if "\t" in x and needle in x.casefold()]
     return "\n".join(matches[:50]) or f"No indexed important file matches '{name}'."
 
+_FILE_CONTROL_TOKEN = object()
+
 def file_control(parameters=None, **kwargs):
     if not WIN: return "This action is Windows-only."
-    p=parameters or {}; a=str(p.get("action","")).lower().strip()
+    p=dict(parameters or {}); a=str(p.get("action","")).lower().strip()
+    if kwargs.get("_permission_token") is not _FILE_CONTROL_TOKEN:
+        try:
+            from core.permissions import permission_decision
+            decision, reason = permission_decision(a, p)
+            if decision == "deny":
+                return f"Permission denied: {reason}"
+            if decision == "confirm":
+                if confirm.pending_title():
+                    return "There is already a confirmation waiting. Ask the user to answer it first."
+                return confirm.request(
+                    key=f"file-control:{a}",
+                    title=f"Allow JARVIS: {a}?",
+                    detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                    run=lambda: file_control(dict(p), _permission_token=_FILE_CONTROL_TOKEN),
+                )
+        except Exception as e:
+            return f"Permission check failed: {e}"
     src=_path(p.get("source") or p.get("path")); dst=_path(p.get("destination") or p.get("target"))
     try:
         if a in ("important_files_index","index_important_files"):
