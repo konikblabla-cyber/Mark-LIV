@@ -17,7 +17,7 @@ _BEHAVIORS = ("BLOCKING", "NON_BLOCKING")
 _SCHEDULING = ("WHEN_IDLE", "SILENT", "INTERRUPT")
 
 # These handlers already implement their own parameter-aware permission gate.
-_PERMISSION_MANAGED = {"computer_control", "broad_control", "close_all_apps", "system_control"}
+_PERMISSION_MANAGED = {"computer_control", "broad_control", "close_all_apps", "system_control", "file_control"}
 
 
 def _opt_upper(value, allowed: tuple[str, ...]) -> Optional[str]:
