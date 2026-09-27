@@ -3973,6 +3973,14 @@ class MainWindow(QMainWindow):
         self._autostart_btn.clicked.connect(self._toggle_autostart)
         lay.addWidget(self._autostart_btn)
 
+        self._full_control_btn = QPushButton()
+        self._full_control_btn.setFixedHeight(26)
+        self._full_control_btn.setFont(QFont("Courier New", 7))
+        self._full_control_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._full_control_btn.clicked.connect(self._toggle_full_control)
+        lay.addWidget(self._full_control_btn)
+        self._refresh_full_control_btn()
+
         cust_btn = QPushButton("⚙  CUSTOMISE ASSISTANT")
         cust_btn.setFixedHeight(26)
         cust_btn.setFont(QFont("Courier New", 7))
@@ -4807,6 +4815,22 @@ class MainWindow(QMainWindow):
             self._wake_btn.setText("🎙  WAKE WORD: OFF")
             self._wake_btn.setStyleSheet(_off)
             self._wake_sleep_btn.hide()
+
+    def _refresh_full_control_btn(self):
+        if not hasattr(self, "_full_control_btn"):
+            return
+        from memory.config_manager import get_full_control_enabled
+        enabled = get_full_control_enabled()
+        self._full_control_btn.setText("⚡  FULL CONTROL: ON" if enabled else "⚡  FULL CONTROL: OFF")
+        self._full_control_btn.setStyleSheet(f"""QPushButton {{ background: {"#001a08" if enabled else "transparent"}; color: {C.GREEN if enabled else C.TEXT_DIM}; border: 1px solid {C.GREEN_D if enabled else C.BORDER}; border-radius: 3px; text-align: left; padding: 0 8px; }} QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}""")
+        self._full_control_btn.setToolTip("Allow JARVIS to execute risky actions without confirmation. Turn off to restore confirmations.")
+
+    def _toggle_full_control(self):
+        from memory.config_manager import get_full_control_enabled, save_full_control_enabled
+        enabled = not get_full_control_enabled()
+        save_full_control_enabled(enabled)
+        self._refresh_full_control_btn()
+        self._log.append_log("SYS: Full control " + ("enabled." if enabled else "disabled."))
 
     def _refresh_sleep_after_task_btn(self):
         if not hasattr(self, "_sleep_after_task_btn"):
