@@ -768,8 +768,8 @@ def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
     if coords is None:
         return f"Timed out waiting for screen element: '{description}'"
     time.sleep(0.2)
-    _click(x=coords[0], y=coords[1])
-    return f"Found and clicked '{description}' at {coords}"
+    result = _click_visual_change(coords[0], coords[1])
+    return f"Found and clicked '{description}' at {coords}; {result}"
 
 
 def _click_visual_change(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
