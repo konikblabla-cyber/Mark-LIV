@@ -49,7 +49,7 @@ def system_control(parameters=None,**kwargs):
                     key=f"system-control:{a}",
                     title=f"Allow JARVIS: {a}?",
                     detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
-                    run=lambda: system_control(dict(p), _permission_token=_SYSTEM_CONTROL_TOKEN),
+                    run=lambda: system_control({**p, "needs_confirmation": True}, _permission_token=_SYSTEM_CONTROL_TOKEN),
                 )
         except Exception as e:
             return f"Permission check failed: {e}"
