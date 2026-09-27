@@ -13,7 +13,7 @@ import tempfile
 import psutil
 from send2trash import send2trash
 
- _SAFE_OPTIMIZATION_TOKEN = object()
+_SAFE_OPTIMIZATION_TOKEN = object()
 
 PROTECTED = {"System", "Registry", "smss.exe", "csrss.exe", "wininit.exe",
              "winlogon.exe", "services.exe", "lsass.exe", "svchost.exe",
