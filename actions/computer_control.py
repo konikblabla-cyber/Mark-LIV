@@ -877,7 +877,7 @@ def computer_control(
             return _uia_controls(params)
 
         if action == "type":
-            return _type(params.get("text", ""))
+            return _type(params.get("text", ""), interval=params.get("interval", 0.03))
 
         if action == "smart_type":
             return _smart_type(
@@ -900,12 +900,17 @@ def computer_control(
             return _click(params.get("x"), params.get("y"), "right", 1)
 
         if action == "move":
-            return _mouse_move_verified(int(params.get("x", 0)), int(params.get("y", 0)))
+            x, y = _validate_coords(int(params.get("x", 0)), int(params.get("y", 0)))
+            duration = max(0.0, min(float(params.get("duration", 0.3)), 5.0))
+            _require_pyautogui()
+            pyautogui.moveTo(x, y, duration=duration)
+            return f"Mouse moved to {x},{y}"
 
         if action == "drag":
             return _drag(
                 int(params.get("x1", 0)), int(params.get("y1", 0)),
                 int(params.get("x2", 0)), int(params.get("y2", 0)),
+                duration=max(0.0, min(float(params.get("duration", 0.5)), 5.0)),
             )
 
         if action == "hotkey":
@@ -1058,6 +1063,10 @@ TOOL = {
                 "type": "NUMBER",
                 "description": "Seconds to wait"
             },
+            "duration": {
+                "type": "NUMBER",
+                "description": "Mouse move/drag duration in seconds (0-5)"
+            },
             "title": {
                 "type": "STRING",
                 "description": "Window title for focus_window or UI Automation"
@@ -1092,7 +1101,7 @@ TOOL = {
                 "description": "Save path for screenshot"
             },
             "timeout": {"type": "NUMBER", "description": "Maximum seconds to wait for a screen element"},
-            "interval": {"type": "NUMBER", "description": "Delay between retries or screen checks"},
+            "interval": {"type": "NUMBER", "description": "Typing interval or delay between retries/screen checks"},
             "attempts": {"type": "INTEGER", "description": "Number of retry attempts"},
             "process_name": {"type": "STRING", "description": "Windows process name for health/recovery"},
             "restart": {"type": "BOOLEAN", "description": "Explicitly restart the process; requires confirmation"}
