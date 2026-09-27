@@ -122,6 +122,21 @@ def save_wake_word_enabled(enabled: bool) -> None:
 
 
 
+def get_control_level() -> str:
+    """Return the persistent JARVIS computer-control level."""
+    value = str(load_api_keys().get("control_level", "NORMAL")).strip().upper()
+    return value if value in {"READ", "NORMAL", "ELEVATED", "CRITICAL"} else "NORMAL"
+
+
+def save_control_level(level: str) -> None:
+    """Persist the JARVIS computer-control level."""
+    value = str(level or "NORMAL").strip().upper()
+    if value not in {"READ", "NORMAL", "ELEVATED", "CRITICAL"}:
+        value = "NORMAL"
+    _save_flag("control_level", value)
+
+
+
 def get_full_control_enabled() -> bool:
     """Whether the user explicitly enabled JARVIS full-control mode."""
     return bool(load_api_keys().get("full_control_enabled", False))
