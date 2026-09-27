@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from memory.config_manager import get_plugin_enabled, get_plugin_config
+from core.permissions import permission_decision
+from core import confirm as confirm_gate
 
 _NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,63}$")
 _DEFAULT_PARAMS = {"type": "OBJECT", "properties": {}}
@@ -90,6 +92,19 @@ class PluginRegistry:
             return f"Plugin '{name}' is not available."
         if not get_plugin_enabled(name):
             return f"The '{name}' plugin is currently disabled."
+        try:
+        decision, reason = permission_decision(name, parameters or {})
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            if confirm_gate.pending_title():
+                return "There is already a confirmation waiting on screen. Please resolve it first."
+            return confirm_gate.request(
+                key=f"plugin-{name}",
+                title=f"Plugin control: {name}",
+                detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                run=lambda: _call_run(rec.run, parameters, player, session_memory) or "Done.",
+            )
         try:
             return _call_run(rec.run, parameters, player, session_memory) or "Done."
         except Exception as e:
