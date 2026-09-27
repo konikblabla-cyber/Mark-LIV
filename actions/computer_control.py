@@ -1034,6 +1034,10 @@ TOOL = {
                 "type": "INTEGER",
                 "description": "Y coordinate"
             },
+            "x1": {"type": "INTEGER", "description": "Drag start X coordinate"},
+            "y1": {"type": "INTEGER", "description": "Drag start Y coordinate"},
+            "x2": {"type": "INTEGER", "description": "Drag end X coordinate"},
+            "y2": {"type": "INTEGER", "description": "Drag end Y coordinate"},
             "keys": {
                 "type": "STRING",
                 "description": "Key combination e.g. 'ctrl+c'"
@@ -1056,8 +1060,10 @@ TOOL = {
             },
             "title": {
                 "type": "STRING",
-                "description": "Window title for focus_window"
+                "description": "Window title for focus_window or UI Automation"
             },
+            "url": {"type": "STRING", "description": "URL to open in a browser"},
+            "browser": {"type": "STRING", "description": "Browser name: chrome | edge | firefox | opera gx"},
             "auto_id": {"type": "STRING", "description": "Windows UI Automation ID"},
             "control_title": {"type": "STRING", "description": "Exact UI Automation control title"},
             "control_type": {"type": "STRING", "description": "UI Automation control type, e.g. Button or Edit"},
@@ -1084,7 +1090,12 @@ TOOL = {
             "path": {
                 "type": "STRING",
                 "description": "Save path for screenshot"
-            }
+            },
+            "timeout": {"type": "NUMBER", "description": "Maximum seconds to wait for a screen element"},
+            "interval": {"type": "NUMBER", "description": "Delay between retries or screen checks"},
+            "attempts": {"type": "INTEGER", "description": "Number of retry attempts"},
+            "process_name": {"type": "STRING", "description": "Windows process name for health/recovery"},
+            "restart": {"type": "BOOLEAN", "description": "Explicitly restart the process; requires confirmation"}
         },
         "required": [
             "action"
