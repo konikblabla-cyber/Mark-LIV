@@ -833,7 +833,7 @@ def computer_control(
         "open_browser", "uia_verify", "process_health", "process_recover",
         "uia_click_retry", "uia_type_retry", "uia_click", "uia_type",
         "uia_get_text", "uia_list_controls", "type", "smart_type",
-        "double_click", "right_click", "move", "drag", "hotkey", "press",
+        "click", "left_click", "double_click", "right_click", "move", "drag", "hotkey", "press",
         "scroll", "copy", "paste", "screenshot", "active_window_info",
         "screen_dpi", "mouse_position", "screen_geometry", "screen_find",
         "screen_click", "screen_click_retry", "screen_wait_for",
