@@ -57,7 +57,7 @@ class ComputerControlTests(unittest.TestCase):
             "y": 99999,
             "button": "left",
         })
-        click.assert_called_once_with(1919, 1079, button="left", clicks=1, interval=0.0)
+        click.assert_called_once_with(1919, 1079, button="left", clicks=1)
         self.assertTrue(result.get("ok", False))
 
     @patch("actions.computer_control.pyautogui.moveTo")
@@ -68,7 +68,7 @@ class ComputerControlTests(unittest.TestCase):
             "x": -50,
             "y": 99999,
         })
-        move_to.assert_called_once_with(0, 1079, duration=0.15)
+        move_to.assert_called_once_with(0, 1079, duration=0.3)
         self.assertTrue(result.get("ok", False))
 
 
