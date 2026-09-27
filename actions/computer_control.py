@@ -416,6 +416,20 @@ def _recover_window(title: str) -> str:
         return f"Window recovery failed: {exc}"
 
 
+def _process_health(name: str) -> str:
+    """Report whether a named Windows process is running and responding."""
+    if not name:
+        raise ValueError("process name is required")
+    if os.name != "nt":
+        return "Process health is supported on Windows only."
+    safe = name.strip().strip('"').replace("'", "''")
+    ps = f"Get-Process -Name '{safe}' -ErrorAction SilentlyContinue | Select-Object -First 1 Id,Responding,MainWindowTitle | ConvertTo-Json -Compress"
+    out = _ps(ps).strip()
+    if not out:
+        return f"Process not found: {name}"
+    return f"Process health: {out}"
+
+
 def _retry_operation(operation, attempts: int = 3, delay: float = 0.6):
     """Retry a transient computer-control operation without hiding the final error."""
     attempts = max(1, min(int(attempts), 5))
@@ -703,6 +717,7 @@ def computer_control(
       uia_verify    — verify a Windows UI Automation control exists
       uia_click_retry — retry UI Automation click when a window/control is temporarily unavailable
       uia_type_retry  — retry UI Automation typing when a window/control is temporarily unavailable
+      process_health — check whether a Windows process exists and is responding
       uia_click     — click a Windows UI Automation control
       uia_type      — type into a Windows UI Automation control
       uia_get_text  — read a Windows UI Automation control's text
@@ -727,6 +742,9 @@ def computer_control(
 
         if action == "uia_verify":
             return _uia_verify(params)
+
+        if action == "process_health":
+            return _process_health(params.get("process_name", ""))
 
         if action == "uia_click_retry":
             result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_click(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
