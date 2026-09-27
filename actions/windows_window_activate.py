@@ -1,7 +1,13 @@
 """Activate a uniquely matched visible Windows window."""
 import ctypes,platform
+from core.permissions import permission_decision
+from core import confirm
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_window_activate(parameters=None,**kwargs):
+ if not kwargs.get("_permission_token"):
+  p=dict(parameters or {});d,r=permission_decision("windows_window_activate",p)
+  if d=="deny":return f"Permission denied: {r}"
+  if d=="confirm":return confirm.request(key="windows_window_activate",title="Allow JARVIS: windows_window_activate?",detail=f"{r}. Waiting for your confirmation.",run=lambda:windows_window_activate(p,_permission_token=True))
  p=parameters or {}; needle=str(p.get("contains") or "").strip().lower()
  if not needle:return "Missing window title text."
  u=ctypes.windll.user32; matches=[]
