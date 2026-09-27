@@ -313,6 +313,64 @@ def _clear_field() -> str:
     pyautogui.press("delete")
     return "Field cleared"
 
+def _open_browser_target(url: str, browser: str = "") -> str:
+    """Open a URL in an existing browser window when possible; otherwise launch the browser with it."""
+    url = str(url or "").strip()
+    if not url:
+        raise ValueError("URL is required")
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", url):
+        url = "https://" + url
+    if platform.system() != "Windows":
+        import webbrowser
+        webbrowser.open(url)
+        return f"Opened in browser: {url}"
+
+    wanted = str(browser or "").strip().lower()
+    candidates = {
+        "chrome": ("chrome.exe", "Chrome"),
+        "google chrome": ("chrome.exe", "Chrome"),
+        "edge": ("msedge.exe", "Microsoft Edge"),
+        "microsoft edge": ("msedge.exe", "Microsoft Edge"),
+        "firefox": ("firefox.exe", "Mozilla Firefox"),
+    }
+    names = [candidates[wanted]] if wanted in candidates else list(candidates.values())
+    ps_names = ",".join("'" + exe.replace("'", "''") + "'" for exe, _ in names)
+    script = f"@(Get-Process | Where-Object {{$_.ProcessName -in @({','.join(chr(39)+exe.rsplit('.',1)[0]+chr(39) for exe,_ in names)}) -and $_.MainWindowHandle -ne 0}} | Select-Object -First 1 Id,ProcessName,MainWindowHandle) | ConvertTo-Json -Compress"
+    try:
+        r = _ps(script, timeout=5)
+        raw = (r.stdout or "").strip()
+        if raw:
+            data = json.loads(raw)
+            if isinstance(data, list): data = data[0] if data else None
+            if isinstance(data, dict) and data.get("MainWindowHandle"):
+                hwnd = int(data["MainWindowHandle"])
+                import ctypes
+                ctypes.windll.user32.ShowWindow(hwnd, 9)
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                time.sleep(0.25)
+                _require_pyautogui()
+                pyautogui.hotkey("ctrl", "l")
+                time.sleep(0.1)
+                if _PYPERCLIP:
+                    pyperclip.copy(url); pyautogui.hotkey("ctrl", "v")
+                else:
+                    pyautogui.write(url, interval=0.01)
+                pyautogui.press("enter")
+                return f"Browser window reused: {url}"
+    except Exception as exc:
+        print(f"[ComputerControl] browser reuse failed: {exc}")
+
+    import webbrowser
+    if wanted in candidates:
+        exe = candidates[wanted][0]
+        try:
+            subprocess.Popen([exe, url], **_WIN_HIDE)
+            return f"Browser launched with: {url}"
+        except Exception:
+            pass
+    webbrowser.open(url)
+    return f"Browser launched with: {url}"
+
 def _focus_window(title: str) -> str:
     os_name = _get_os()
 
@@ -944,7 +1002,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | open_browser | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls"
             },
             "text": {
                 "type": "STRING",
