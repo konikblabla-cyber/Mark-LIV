@@ -2,6 +2,8 @@
 import os
 import platform
 import subprocess
+from core.permissions import permission_decision
+from core import confirm
 
 def windows_create_shortcut(parameters=None, **kwargs):
     if platform.system() != "Windows":
