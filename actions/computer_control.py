@@ -1,3 +1,684 @@
+#computer_control.py
+import io
+import json
+import platform
+import re
+import string
+import subprocess
+import sys
+
+if platform.system() == "Windows":
+    _WIN_HIDE: dict = {"creationflags": subprocess.CREATE_NO_WINDOW}
+else:
+    _WIN_HIDE: dict = {}
+import time
+import random
+from pathlib import Path
+
+
+def _set_windows_dpi_awareness():
+    """Keep screenshot pixels and mouse coordinates in the same physical-pixel space."""
+    if platform.system() != "Windows":
+        return
+    try:
+        import ctypes
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
+        return
+    except Exception:
+        pass
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+
+
+_set_windows_dpi_awareness()
+
+
+from core.permissions import permission_decision
+from core import confirm
+
+_CONFIRMATION_TOKEN = object()
+
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = True
+    pyautogui.PAUSE    = 0.05
+    _PYAUTOGUI = True
+except ImportError:
+    _PYAUTOGUI = False
+
+try:
+    import pyperclip
+    _PYPERCLIP = True
+except ImportError:
+    _PYPERCLIP = False
+
+def _base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+
+_BASE         = _base_dir()
+_CONFIG_PATH  = _BASE / "config" / "api_keys.json"
+_MEMORY_PATH  = _BASE / "memory" / "long_term.json"
+
+def _load_config() -> dict:
+    try:
+        return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+def _platform_os() -> str:
+    return {"Windows": "windows", "Darwin": "mac", "Linux": "linux"}.get(
+        platform.system(), "linux"
+    )
+
+def _get_os() -> str:
+    return _load_config().get("os_system", _platform_os()).lower()
+
+
+def _get_api_key() -> str:
+    return _load_config().get("gemini_api_key", "")
+
+_SAFE_SCREENSHOT_ROOTS = (
+    Path.home(),
+)
+
+def _safe_screenshot_path(requested: str | None) -> Path:
+    fallback = Path.home() / "Desktop" / "jarvis_screenshot.png"
+    if not requested:
+        return fallback
+    try:
+        p = Path(requested).expanduser().resolve()
+        for root in _SAFE_SCREENSHOT_ROOTS:
+            if p.is_relative_to(root.resolve()):
+                p.parent.mkdir(parents=True, exist_ok=True)
+                return p
+    except Exception:
+        pass
+    return fallback
+
+def _require_pyautogui():
+    if not _PYAUTOGUI:
+        raise RuntimeError("PyAutoGUI not installed. Run: pip install pyautogui")
+
+_FIRST_NAMES = [
+    "Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Drew", "Quinn",
+    "Avery", "Blake", "Cameron", "Dakota", "Emerson", "Finley", "Harper",
+]
+_LAST_NAMES = [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
+    "Davis", "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Jackson",
+]
+_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "proton.me", "mail.com"]
+
+
+def _random_data(data_type: str) -> str:
+    dt = data_type.lower().strip()
+
+    if dt == "first_name":
+        return random.choice(_FIRST_NAMES)
+
+    if dt == "last_name":
+        return random.choice(_LAST_NAMES)
+
+    if dt == "name":
+        return f"{random.choice(_FIRST_NAMES)} {random.choice(_LAST_NAMES)}"
+
+    if dt == "email":
+        first = random.choice(_FIRST_NAMES).lower()
+        last  = random.choice(_LAST_NAMES).lower()
+        num   = random.randint(10, 999)
+        return f"{first}.{last}{num}@{random.choice(_DOMAINS)}"
+
+    if dt == "username":
+        return f"{random.choice(_FIRST_NAMES).lower()}{random.randint(100, 9999)}"
+
+    if dt == "password":
+        chars = string.ascii_letters + string.digits + "!@#$%"
+        raw   = (
+            random.choice(string.ascii_uppercase)
+            + random.choice(string.digits)
+            + random.choice("!@#$%")
+            + "".join(random.choices(chars, k=9))
+        )
+        return "".join(random.sample(raw, len(raw)))
+
+    if dt == "phone":
+        return f"+1{random.randint(200,999)}{random.randint(1_000_000, 9_999_999)}"
+
+    if dt == "birthday":
+        y = random.randint(1980, 2000)
+        m = random.randint(1, 12)
+        d = random.randint(1, 28)
+        return f"{m:02d}/{d:02d}/{y}"
+
+    if dt == "address":
+        num    = random.randint(100, 9999)
+        street = random.choice(["Main St", "Oak Ave", "Park Blvd", "Elm St", "Cedar Ln"])
+        return f"{num} {street}"
+
+    if dt == "zip_code":
+        return str(random.randint(10000, 99999))
+
+    if dt == "city":
+        return random.choice(["New York", "Los Angeles", "Chicago", "Houston", "Phoenix"])
+
+    return f"random_{data_type}_{random.randint(1000, 9999)}"
+
+def _user_profile() -> dict:
+    """Read identity fields from long-term memory."""
+    try:
+        if _MEMORY_PATH.exists():
+            data     = json.loads(_MEMORY_PATH.read_text(encoding="utf-8"))
+            identity = data.get("identity", {})
+            return {k: v.get("value", "") for k, v in identity.items()}
+    except Exception:
+        pass
+    return {}
+
+def _type(text: str, interval: float = 0.03) -> str:
+    _require_pyautogui()
+    if not isinstance(text, str):
+        raise ValueError("Text must be a string")
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    interval = max(0.0, min(float(interval), 1.0))
+    time.sleep(0.3)
+    pyautogui.typewrite(text, interval=interval)
+    return f"Typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+
+
+def _smart_type(text: str, clear_first: bool = True) -> str:
+    _require_pyautogui()
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    if clear_first:
+        _clear_field()
+        time.sleep(0.1)
+
+    if len(text) > 20 and _PYPERCLIP:
+        pyperclip.copy(text)
+        time.sleep(0.1)
+        paste_key = "command" if _get_os() == "mac" else "ctrl"
+        pyautogui.hotkey(paste_key, "v")
+        return f"Smart-typed (clipboard): {text[:60]}{'…' if len(text) > 60 else ''}"
+
+    pyautogui.typewrite(text, interval=0.04)
+    return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
+
+
+def _virtual_screen_geometry() -> tuple[int, int, int, int]:
+    """Return the real Windows virtual desktop bounds, including negative monitors."""
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            left = int(user32.GetSystemMetrics(76))   # SM_XVIRTUALSCREEN
+            top = int(user32.GetSystemMetrics(77))    # SM_YVIRTUALSCREEN
+            width = int(user32.GetSystemMetrics(78))  # SM_CXVIRTUALSCREEN
+            height = int(user32.GetSystemMetrics(79)) # SM_CYVIRTUALSCREEN
+            if width > 0 and height > 0:
+                return left, top, width, height
+        except Exception:
+            pass
+    _require_pyautogui()
+    w, h = pyautogui.size()
+    return 0, 0, int(w), int(h)
+
+
+def _screen_size() -> tuple[int, int]:
+    _, _, w, h = _virtual_screen_geometry()
+    return w, h
+
+
+def _validate_coords(x: int, y: int) -> tuple[int, int]:
+    left, top, width, height = _virtual_screen_geometry()
+    return (
+        max(left, min(int(x), left + width - 1)),
+        max(top, min(int(y), top + height - 1)),
+    )
+
+
+def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
+    _require_pyautogui()
+    if x is not None and y is not None:
+        x, y = _validate_coords(x, y)
+        if button not in ("left", "right", "middle"):
+            raise ValueError("Invalid mouse button")
+        clicks = max(1, min(int(clicks), 10))
+        # Move first, then click: this makes the final physical cursor position explicit
+        # and keeps vision coordinates aligned with the actual Windows mouse.
+        pyautogui.moveTo(x, y, duration=0.08)
+        actual_x, actual_y = map(int, pyautogui.position())
+        if abs(actual_x - x) > 2 or abs(actual_y - y) > 2:
+            raise RuntimeError(f"Mouse coordinate mismatch: requested=({x},{y}) actual=({actual_x},{actual_y})")
+        pyautogui.click(button=button, clicks=clicks)
+        return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
+    pyautogui.click(button=button, clicks=clicks)
+    return f"Clicked at current position [{button}]"
+
+
+def _hotkey(*keys) -> str:
+    _require_pyautogui()
+    if not keys or len(keys) > 6:
+        raise ValueError("Hotkey must contain 1-6 keys")
+    pyautogui.hotkey(*keys)
+    return f"Hotkey: {'+'.join(keys)}"
+
+
+def _press(key: str) -> str:
+    _require_pyautogui()
+    if not isinstance(key, str) or not key.strip() or len(key) > 50:
+        raise ValueError("Invalid key")
+    pyautogui.press(key)
+    return f"Pressed: {key}"
+
+
+def _scroll(direction: str = "down", amount: int = 3) -> str:
+    _require_pyautogui()
+    direction = str(direction).lower()
+    if direction not in ("up", "down", "left", "right"):
+        raise ValueError("Invalid scroll direction")
+    amount = max(1, min(abs(int(amount)), 100))
+    vertical   = direction in ("up", "down")
+    clicks     = amount if direction in ("up", "right") else -amount
+    pyautogui.scroll(clicks) if vertical else pyautogui.hscroll(clicks)
+    return f"Scrolled {direction} ×{amount}"
+
+
+def _move(x: int, y: int, duration: float = 0.3) -> str:
+    _require_pyautogui()
+    x, y = _validate_coords(x, y)
+    duration = max(0.0, min(float(duration), 5.0))
+    pyautogui.moveTo(x, y, duration=duration)
+    return f"Mouse → ({x}, {y})"
+
+
+def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
+    _require_pyautogui()
+    x1, y1 = _validate_coords(x1, y1)
+    x2, y2 = _validate_coords(x2, y2)
+    duration = max(0.0, min(float(duration), 5.0))
+    pyautogui.moveTo(x1, y1, duration=0.2)    pyautogui.dragTo(x2, y2, duration=duration, button="left")
+    return f"Dragged ({x1},{y1}) → ({x2},{y2})"
+
+
+def _clipboard_get() -> str:
+    if _PYPERCLIP:
+        return pyperclip.paste()
+    _hotkey("ctrl", "c")
+    time.sleep(0.2)
+    return "(copied — pyperclip unavailable for read)"
+
+
+def _clipboard_paste(text: str) -> str:
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    if _PYPERCLIP:
+        pyperclip.copy(text)
+        time.sleep(0.1)
+        _require_pyautogui()
+        paste_key = "command" if _get_os() == "mac" else "ctrl"
+        pyautogui.hotkey(paste_key, "v")
+        return f"Pasted: {text[:60]}{'…' if len(text) > 60 else ''}"
+    return "pyperclip not available"
+
+
+def _screenshot(save_path: str | None = None) -> str:
+    _require_pyautogui()
+    path = _safe_screenshot_path(save_path)
+    img  = pyautogui.screenshot()
+    img.save(str(path))
+    return f"Screenshot saved: {path}"
+
+
+def _clear_field() -> str:
+    _require_pyautogui()
+    select_key = "command" if _get_os() == "mac" else "ctrl"
+    pyautogui.hotkey(select_key, "a")
+    time.sleep(0.1)
+    pyautogui.press("delete")
+    return "Field cleared"
+
+def _open_browser_target(url: str, browser: str = "") -> str:
+    """Open a URL in an existing browser window when possible; otherwise launch the browser with it."""
+    url = str(url or "").strip()
+    if not url:
+        raise ValueError("URL is required")
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", url):
+        url = "https://" + url
+    if platform.system() != "Windows":
+        import webbrowser
+        webbrowser.open(url)
+        return f"Opened in browser: {url}"
+
+    wanted = str(browser or "").strip().lower()
+    candidates = {
+        "chrome": ("chrome.exe", "Chrome"),
+        "google chrome": ("chrome.exe", "Chrome"),
+        "edge": ("msedge.exe", "Microsoft Edge"),
+        "microsoft edge": ("msedge.exe", "Microsoft Edge"),
+        "firefox": ("firefox.exe", "Mozilla Firefox"),
+        "opera gx": ("opera.exe", "Opera GX"),
+        "operagx": ("opera.exe", "Opera GX"),
+        "opera": ("opera.exe", "Opera GX"),
+    }
+    names = [candidates[wanted]] if wanted in candidates else list(candidates.values())
+    ps_names = ",".join("'" + exe.replace("'", "''") + "'" for exe, _ in names)
+    script = f"@(Get-Process | Where-Object {{$_.ProcessName -in @({','.join(chr(39)+exe.rsplit('.',1)[0]+chr(39) for exe,_ in names)}) -and $_.MainWindowHandle -ne 0}} | Select-Object -First 1 Id,ProcessName,MainWindowHandle) | ConvertTo-Json -Compress"
+    try:
+        r = _ps(script, timeout=5)
+        raw = (r.stdout or "").strip()
+        if raw:
+            data = json.loads(raw)
+            if isinstance(data, list): data = data[0] if data else None
+            if isinstance(data, dict) and data.get("MainWindowHandle"):
+                hwnd = int(data["MainWindowHandle"])
+                import ctypes
+                ctypes.windll.user32.ShowWindow(hwnd, 9)
+                ctypes.windll.user32.SetForegroundWindow(hwnd)
+                time.sleep(0.25)
+                _require_pyautogui()
+                pyautogui.hotkey("ctrl", "l")
+                time.sleep(0.1)
+                if _PYPERCLIP:
+                    pyperclip.copy(url); pyautogui.hotkey("ctrl", "v")
+                else:
+                    pyautogui.write(url, interval=0.01)
+                pyautogui.press("enter")
+                return f"Browser window reused: {url}"
+    except Exception as exc:
+        print(f"[ComputerControl] browser reuse failed: {exc}")
+
+    import webbrowser
+    if wanted in candidates:
+        exe = candidates[wanted][0]
+        try:
+            subprocess.Popen([exe, url], **_WIN_HIDE)
+            return f"Browser launched with: {url}"
+        except Exception:
+            pass
+    webbrowser.open(url)
+    return f"Browser launched with: {url}"
+
+def _focus_window(title: str) -> str:
+    os_name = _get_os()
+
+    if os_name == "windows":
+        try:
+            safe_title = str(title).replace("'", "''")
+            script = f"(New-Object -ComObject WScript.Shell).AppActivate('{safe_title}')"
+            subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                capture_output=True, timeout=5, **_WIN_HIDE,
+            )
+            time.sleep(0.3)
+            return f"Focused window: {title}"
+        except Exception as e:
+            return f"focus_window (Windows) failed: {e}"
+
+    if os_name == "mac":
+        safe_title = str(title).replace("\\", "\\\\").replace('"', '\\"')
+        script = (
+            f'tell application "System Events" to '
+            f'set frontmost of (first process whose name contains "{safe_title}") to true'
+        )
+        try:
+            subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, timeout=5,
+            )
+            time.sleep(0.3)
+            return f"Focused window: {title}"
+        except Exception as e:
+            return f"focus_window (macOS) failed: {e}"
+
+    if os_name == "linux":
+        try:
+            result = subprocess.run(
+                ["wmctrl", "-a", title],
+                capture_output=True, timeout=5,
+            )
+            if result.returncode == 0:
+                time.sleep(0.3)
+                return f"Focused window: {title}"
+        except FileNotFoundError:
+            pass
+        try:
+            result = subprocess.run(
+                ["xdotool", "search", "--name", title, "windowactivate"],
+                capture_output=True, timeout=5,
+            )
+            time.sleep(0.3)
+            return f"Focused window: {title}"
+        except FileNotFoundError:
+            return "focus_window (Linux) requires wmctrl or xdotool"
+        except Exception as e:
+            return f"focus_window (Linux) failed: {e}"
+
+    return f"focus_window: unknown OS '{os_name}'"
+
+def _uia_connect(title: str):
+    """Connect to a visible Windows window through UI Automation, not screen coordinates."""
+    if platform.system() != "Windows":
+        raise RuntimeError("UI Automation is Windows-only.")
+    try:
+        from pywinauto import Desktop
+    except ImportError as exc:
+        raise RuntimeError("pywinauto is required for UI Automation.") from exc
+    title = str(title or "").strip()
+    if not title:
+        raise ValueError("Window title is required.")
+    window = Desktop(backend="uia").window(title_re=f".*{re.escape(title)}.*")
+    window.wait("visible", timeout=5)
+    window.set_focus()
+    return window
+
+
+def _uia_find(params: dict):
+    window = _uia_connect(params.get("title", ""))
+    control = window
+    auto_id = str(params.get("auto_id", "")).strip()
+    control_title = str(params.get("control_title", "")).strip()
+    control_type = str(params.get("control_type", "")).strip()
+    if auto_id:
+        control = control.child_window(auto_id=auto_id)
+    elif control_title:
+        control = control.child_window(title=control_title)
+    elif control_type:
+        control = control.child_window(control_type=control_type)
+    else:
+        raise ValueError("Provide auto_id, control_title, or control_type.")
+    control.wait("visible", timeout=5)
+    return control
+
+
+def _recover_window(title: str) -> str:
+    """Refocus a target window as a lightweight recovery step."""
+    if not title:
+        return ""
+    try:
+        _focus_window(title)
+        return f"Recovered focus for window: {title}"
+    except Exception as exc:
+        return f"Window recovery failed: {exc}"
+
+
+def _uia_retry_with_recovery(params: dict, action) -> str:
+    """Retry a UI action and optionally recover the target process between attempts."""
+    attempts = max(1, min(int(params.get("attempts", 3)), 5))
+    delay = max(0.1, min(float(params.get("interval", 0.6)), 3.0))
+    process_name = str(params.get("process_name", "")).strip()
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            _recover_window(params.get("title", ""))
+            return f"{action()} (attempt {attempt})"
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                if process_name:
+                    try:
+                        health = _process_health(process_name)
+                        if "Process not found:" in health:
+                            return f"UI action failed: target process not found ({process_name})."
+                    except Exception:
+                        pass
+                time.sleep(delay * attempt)
+    raise last_error
+
+
+def _recover_process(name: str, restart: bool = False) -> str:
+    """Attempt safe process recovery; restart only when explicitly requested."""
+    if not name:
+        raise ValueError("process name is required")
+    if os.name != "nt":
+        return "Process recovery is supported on Windows only."
+    safe = name.strip().replace("'", "''")
+    if not restart:
+        return _process_health(name)
+    cmd = f"$p=Get-Process -Name '{safe}' -ErrorAction SilentlyContinue | Select-Object -First 1; if($p){{Stop-Process -Id $p.Id -Force -ErrorAction Stop}}; Start-Process '{safe}' -ErrorAction Stop; 'Process restarted.'"
+    return _ps(cmd).strip() or "Process restart requested."
+
+
+def _process_health(name: str) -> str:
+    """Report whether a named Windows process is running and responding."""
+    if not name:
+        raise ValueError("process name is required")
+    if os.name != "nt":
+        return "Process health is supported on Windows only."
+    safe = name.strip().strip('"').replace("'", "''")
+    ps = f"Get-Process -Name '{safe}' -ErrorAction SilentlyContinue | Select-Object -First 1 Id,Responding,MainWindowTitle | ConvertTo-Json -Compress"
+    out = _ps(ps).strip()
+    if not out:
+        return f"Process not found: {name}"
+    return f"Process health: {out}"
+
+
+def _retry_operation(operation, attempts: int = 3, delay: float = 0.6):
+    """Retry a transient computer-control operation without hiding the final error."""
+    attempts = max(1, min(int(attempts), 5))
+    delay = max(0.1, min(float(delay), 3.0))
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation(), attempt
+        except Exception as exc:
+            last_error = exc
+            if attempt < attempts:
+                time.sleep(delay * attempt)
+    raise last_error
+
+
+def _uia_verify(params: dict) -> str:
+    """Verify that a UI Automation control exists and is visible without changing it."""
+    control = _uia_find(params)
+    info = control.element_info
+    return f"UI element verified: type={info.control_type}; name={info.name or ''}; auto_id={info.automation_id or ''}"
+
+
+def _uia_click(params: dict) -> str:
+    control = _uia_find(params)
+    control.click_input()
+    return f"UI element clicked in '{params.get('title', '')}'."
+
+
+def _uia_type(params: dict) -> str:
+    control = _uia_find(params)
+    text = str(params.get("text", ""))
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    control.set_focus()
+    control.type_keys(text, with_spaces=True, set_foreground=True)
+    return f"UI text entered in '{params.get('title', '')}'."
+
+
+def _uia_text(params: dict) -> str:
+    control = _uia_find(params)
+    try:
+        return str(control.window_text())
+    except Exception:
+        return str(control.element_info.name or "")
+
+def _uia_controls(params: dict) -> str:
+    window = _uia_connect(params.get("title", ""))
+    rows = []
+    for control in window.descendants():
+        try:
+            info = control.element_info
+            name = str(info.name or "").strip()
+            ctype = str(info.control_type or "").strip()
+            auto_id = str(info.automation_id or "").strip()
+            if name or auto_id:
+                rows.append(f"{ctype} | {name} | auto_id={auto_id}")
+        except Exception:
+            continue
+        if len(rows) >= 80:
+            break
+    return "\n".join(rows) if rows else "No named UI controls found."
+
+
+def _mouse_position() -> tuple[int, int]:
+    _require_pyautogui()
+    x, y = pyautogui.position()
+    return _validate_coords(x, y)
+
+
+def _screen_geometry() -> str:
+    w, h = _screen_size()
+    x, y = _mouse_position()
+    return f"screen={w}x{h}; mouse={x},{y}; origin=top-left; coordinates=physical screen pixels"
+
+
+
+
+
+
+def _active_window_info() -> str:
+    if platform.system() != "Windows":
+        raise RuntimeError("Mark-LIV computer control is Windows-only.")
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return "window=unknown; hwnd=0"
+    title = ctypes.create_unicode_buffer(512)
+    user32.GetWindowTextW(hwnd, title, len(title))
+    rect = wintypes.RECT()
+    if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+        return f"window={title.value or 'untitled'}; hwnd={hwnd}"
+    return f"window={title.value or 'untitled'}; hwnd={hwnd}; rect={rect.left},{rect.top},{rect.right},{rect.bottom}"
+
+
+def _screen_dpi() -> str:
+    if platform.system() != "Windows":
+        raise RuntimeError("Mark-LIV computer control is Windows-only.")
+    import ctypes
+    try:
+        # Do not downgrade the process from Per-Monitor DPI V2 here.
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+        return f"dpi={int(dpi) if dpi else 96}"
+    except Exception:
+        return "dpi=96; source=fallback"
+
+def _screen_find_candidates(description: str):
+    """Return a small set of candidate centers so the caller can avoid one bad coordinate."""
+    first = _screen_find(description)
+    if first is None:
+        return []
+    x, y = first
+    left, top, w, h = _virtual_screen_geometry()
+    return [
+        (x, y),
+        (_validate_coords(x-8, y)),
+        (_validate_coords(x+8, y)),
+        (_validate_coords(x, y-8)),
+        (_validate_coords(x, y+8)),
     ]
 
 
@@ -5,42 +686,6 @@ def _mouse_move_verified(x: int, y: int) -> str:
     x, y = _validate_coords(x, y)
     pyautogui.moveTo(x, y, duration=0.3)
     return f"Mouse moved to {x},{y}"
-
-def _click_visual_change(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
-    """Click and check a small local screen region; never calls Gemini."""
-    _require_pyautogui()
-    x, y = _validate_coords(x, y)
-    pyautogui.moveTo(x, y, duration=0.08)
-    actual = tuple(map(int, pyautogui.position()))
-    if abs(actual[0] - x) > 2 or abs(actual[1] - y) > 2:
-        raise RuntimeError(f"Mouse coordinate mismatch: requested=({x},{y}) actual={actual}")
-
-    before = after = None
-    try:
-        import mss
-        with mss.mss() as sct:
-            mon = sct.monitors[0]
-            radius = 80
-            left = max(mon["left"], x - radius)
-            top = max(mon["top"], y - radius)
-            right = min(mon["left"] + mon["width"], x + radius)
-            bottom = min(mon["top"] + mon["height"], y + radius)
-            region = {"left": left, "top": top, "width": max(1, right-left), "height": max(1, bottom-top)}
-            before = bytes(sct.grab(region).rgb)
-            pyautogui.click(button=button, clicks=max(1, min(int(clicks), 10)))
-            time.sleep(0.12)
-            after = bytes(sct.grab(region).rgb)
-    except Exception:
-        pyautogui.click(button=button, clicks=max(1, min(int(clicks), 10)))
-        time.sleep(0.12)
-
-    changed = None
-    if before is not None and after is not None and len(before) == len(after):
-        step = max(1, len(before) // 4000)
-        changed = any(before[i] != after[i] for i in range(0, len(before), step))
-    status = "screen changed" if changed is True else ("no visible change" if changed is False else "click sent")
-    return f"Clicked ({x}, {y}); {status}"
-
 
 def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
@@ -58,3 +703,487 @@ def _screen_find(description: str) -> tuple[int, int] | None:
     try:
         from google import genai
         from google.genai import types as gtypes
+
+        _require_pyautogui()
+        # Capture the physical Windows desktop so vision coordinates match the mouse.
+        try:
+            import mss
+            from PIL import Image
+            with mss.mss() as sct:
+                monitor = sct.monitors[0]
+                shot = sct.grab(monitor)
+                img = Image.frombytes("RGB", shot.size, shot.rgb)
+                w, h = shot.width, shot.height
+        except Exception:
+            img = pyautogui.screenshot()
+            w, h = img.size
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        image_bytes = buf.getvalue()
+
+        prompt = (
+            f"This is a screenshot of a {w}×{h} pixel screen. "
+            f"Locate the UI element described as: '{description}'. "
+            f"Reply with ONLY the center coordinates as: x,y "
+            f"If the element is not visible, reply: NOT_FOUND"
+        )
+
+        from core import gemini
+        response = gemini.call(
+            [gtypes.Part.from_bytes(data=image_bytes, mime_type="image/png"), prompt],
+            tier=gemini.FAST, timeout_ms=20_000,
+        )
+        if response is None:
+            return None
+
+        text = (response.text or "").strip()
+        if "NOT_FOUND" in text.upper():
+            return None
+
+        match = re.search(r"(\d+)\s*,\s*(\d+)", text)
+        if match:
+            return _validate_coords(int(match.group(1)), int(match.group(2)))
+
+    except Exception as e:
+        print(f"[ComputerControl] screen_find failed: {e}")
+
+    return None
+
+def _screen_wait_for(description: str, timeout: float = 30.0, interval: float = 1.0) -> tuple[int, int] | None:
+    """Repeatedly inspect the live Windows screen until an element appears."""
+    _require_pyautogui()
+    end = time.monotonic() + max(1.0, min(float(timeout), 120.0))
+    delay = max(0.25, min(float(interval), 5.0))
+    while time.monotonic() < end:
+        coords = _screen_find_and_verify(description)
+        if coords is not None:
+            return coords
+        time.sleep(delay)
+    return None
+
+
+def _screen_watch_click(description: str, timeout: float = 60.0) -> str:
+    """Watch the live screen and click the requested element when it appears."""
+    coords = _screen_wait_for(description, timeout=timeout, interval=0.8)
+    if coords is None:
+        return f"Timed out waiting for screen element: '{description}'"
+    time.sleep(0.2)
+    _click(x=coords[0], y=coords[1])
+    return f"Found and clicked '{description}' at {coords}"
+
+
+def _screen_click_retry(description: str, attempts: int = 5, delay: float = 0.8) -> str:
+    _require_pyautogui()
+    desc = str(description or "").strip()
+    if not desc: return "Element description is required."
+    attempts = max(1, min(int(attempts), 12)); delay = max(0.2, min(float(delay), 5.0))
+    for attempt in range(1, attempts + 1):
+        coords = _screen_find_and_verify(desc)
+        if coords is not None:
+            time.sleep(0.15); _click(x=coords[0], y=coords[1]); actual=_mouse_position()
+            return f"Clicked '{desc}' at {coords} on attempt {attempt}; cursor={actual}"
+        if attempt < attempts: time.sleep(delay)
+    return f"Element not found after {attempts} screen checks: '{desc}'"
+
+def handle(parameters: dict):
+    """Backward-compatible wrapper used by legacy callers/tests."""
+    try:
+        params = parameters or {}
+        result = computer_control(params)
+        text_result = str(result)
+        lowered = text_result.lower()
+        return {
+            "ok": not lowered.startswith(("unknown action", "permission denied", "confirmation required"))
+            and " failed:" not in lowered,
+            "result": result,
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+def computer_control(
+    parameters: dict,
+    response=None,
+    player=None,
+    session_memory=None,
+    *,
+    _confirmation_token=None,
+) -> str:
+    """
+    Dispatch table for all computer control actions.
+
+    parameters keys (all optional unless noted):
+      action        : (required) one of the actions listed below
+      text          : text to type or paste
+      x, y          : screen coordinates
+      button        : 'left' | 'right' (default: left)
+      keys          : hotkey string, e.g. 'ctrl+c'
+      key           : single key name, e.g. 'enter'
+      direction     : 'up' | 'down' | 'left' | 'right'
+      amount        : scroll amount (default: 3)
+      seconds       : wait duration
+      title         : window title fragment for focus_window
+      description   : natural-language element description for screen_find/click\n      x/y            : physical screen-pixel coordinates; origin is top-left
+      type          : data type for random_data
+      field         : memory field name for user_data
+      clear_first   : bool, clear field before typing (default: true)
+      path          : save path for screenshot (must be inside home dir)
+      auto_id       : Windows UI Automation control ID
+      control_title : exact Windows UI Automation control title
+      control_type  : Windows UI Automation control type
+
+    Actions:
+      type          — type text at cursor
+      smart_type    — clear field + type (clipboard-backed)
+      click         — left click
+      double_click  — double left click
+      right_click   — right click
+      move          — move mouse
+      drag          — click-drag between two points
+      hotkey        — key combination
+      press         — single key
+      scroll        — scroll the wheel
+      copy          — read clipboard
+      paste         — write + paste clipboard
+      screenshot    — capture screen (safe path only)
+      wait          — sleep N seconds
+      clear_field   — select-all + delete
+      focus_window  — bring window to foreground
+      screen_find   — AI element finder (returns x,y)
+      screen_click  — AI element finder + click
+      random_data   — generate fake form data
+      user_data     — pull real data from memory
+      uia_verify    — verify a Windows UI Automation control exists
+      uia_click_retry — retry UI Automation click when a window/control is temporarily unavailable
+      uia_type_retry  — retry UI Automation typing when a window/control is temporarily unavailable
+      process_health — check whether a Windows process exists and is responding; retry actions can also use process_name for recovery diagnostics
+      process_recover — inspect a process or explicitly restart it for recovery
+      uia_click     — click a Windows UI Automation control
+      uia_type      — type into a Windows UI Automation control
+      uia_get_text  — read a Windows UI Automation control's text
+      uia_list_controls — list named controls in a Windows UI Automation window
+      process_health — inspect whether a Windows process is running/responding
+      process_recover — inspect or explicitly restart a Windows process
+    """
+    params = parameters or {}
+    action = str(params.get("action", "")).lower().strip().replace("-", "_")
+
+    if not action:
+        return "No action specified for computer_control."
+
+    known_actions = {
+        "open_browser", "uia_verify", "process_health", "process_recover",
+        "uia_click_retry", "uia_type_retry", "uia_click", "uia_type",
+        "uia_get_text", "uia_list_controls", "type", "smart_type",
+        "click", "left_click", "double_click", "right_click", "move", "drag", "hotkey", "press",
+        "scroll", "copy", "paste", "screenshot", "active_window_info",
+        "screen_dpi", "mouse_position", "screen_geometry", "screen_find",
+        "screen_click", "screen_click_retry", "screen_wait_for",
+        "screen_watch_click", "wait", "clear_field", "focus_window",
+        "random_data", "user_data",
+    }
+    if action not in known_actions:
+        return f"Unknown action: {action}"
+
+    # Every computer-control action passes through the central permission policy.
+    # Explicit process restarts are treated as privileged operations.
+    policy_params = dict(params)
+    if action == "process_recover" and bool(params.get("restart", False)):
+        policy_params["admin"] = True
+    decision, reason = permission_decision(action, policy_params)
+    if decision == "deny":
+        return f"Permission denied: {reason}"
+    if decision == "confirm" and _confirmation_token is not _CONFIRMATION_TOKEN:
+        return confirm.request(
+            key=f"computer-{action}",
+            title=f"Computer control: {action}",
+            detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+            run=lambda: computer_control(
+                dict(params),
+                response=response,
+                player=player,
+                session_memory=session_memory,
+                _confirmation_token=_CONFIRMATION_TOKEN,
+            ),
+        )
+
+    if player:
+        player.write_log(f"[Computer] {action}")
+    safe_log_params = dict(params)
+    for _secret_key in ("text", "keys"):
+        if _secret_key in safe_log_params:
+            safe_log_params[_secret_key] = "[REDACTED]"
+    print(f"[ComputerControl] {action}  {safe_log_params}")
+
+    try:
+
+        if action == "open_browser":
+            return _open_browser_target(params.get("url", ""), params.get("browser", ""))
+
+        if action == "uia_verify":
+            return _uia_verify(params)
+
+        if action == "process_health":
+            return _process_health(params.get("process_name", ""))
+
+        if action == "process_recover":
+            return _recover_process(params.get("process_name", ""), bool(params.get("restart", False)))
+
+        if action == "uia_click_retry":
+            return _uia_retry_with_recovery(params, lambda: _uia_click(params))
+
+        if action == "uia_type_retry":
+            return _uia_retry_with_recovery(params, lambda: _uia_type(params))
+
+        if action == "uia_click":
+            return _uia_click(params)
+
+        if action == "uia_type":
+            return _uia_type(params)
+
+        if action == "uia_get_text":
+            return _uia_text(params)
+
+        if action == "uia_list_controls":
+            return _uia_controls(params)
+
+        if action == "type":
+            return _type(params.get("text", ""), interval=params.get("interval", 0.03))
+
+        if action == "smart_type":
+            return _smart_type(
+                params.get("text", ""),
+                clear_first=params.get("clear_first", True),
+            )
+
+        if action in ("click", "left_click"):
+            return _click(
+                params.get("x"),
+                params.get("y"),
+                str(params.get("button", "left")).lower().strip(),
+                1,
+            )
+
+        if action == "double_click":
+            return _click(params.get("x"), params.get("y"), "left", 2)
+
+        if action == "right_click":
+            return _click(params.get("x"), params.get("y"), "right", 1)
+
+        if action == "move":
+            x, y = _validate_coords(int(params.get("x", 0)), int(params.get("y", 0)))
+            duration = max(0.0, min(float(params.get("duration", 0.3)), 5.0))
+            _require_pyautogui()
+            pyautogui.moveTo(x, y, duration=duration)
+            return f"Mouse moved to {x},{y}"
+
+        if action == "drag":
+            return _drag(
+                int(params.get("x1", 0)), int(params.get("y1", 0)),
+                int(params.get("x2", 0)), int(params.get("y2", 0)),
+                duration=max(0.0, min(float(params.get("duration", 0.5)), 5.0)),
+            )
+
+        if action == "hotkey":
+            raw  = params.get("keys", "")
+            keys = [k.strip() for k in raw.split("+")] if isinstance(raw, str) else raw
+            return _hotkey(*keys)
+
+        if action == "press":
+            return _press(params.get("key", "enter"))
+
+        if action == "scroll":
+            return _scroll(
+                direction=params.get("direction", "down"),
+                amount=max(1, min(abs(int(params.get("amount", 3))), 100)),
+            )
+
+        if action == "copy":
+            return _clipboard_get()
+
+        if action == "paste":
+            return _clipboard_paste(params.get("text", ""))
+
+        if action == "screenshot":
+            return _screenshot(params.get("path"))
+
+        if action == "active_window_info":
+            return _active_window_info()
+
+        if action == "screen_dpi":
+            return _screen_dpi()
+
+        if action == "mouse_position":
+            x, y = _mouse_position()
+            return f"{x},{y}"
+
+        if action == "screen_geometry":
+            return _screen_geometry()
+
+        if action == "screen_find":
+            coords = _screen_find_and_verify(params.get("description", ""))
+            return f"{coords[0]},{coords[1]}" if coords else "NOT_FOUND"
+
+        if action == "screen_click":
+            desc   = params.get("description", "")
+            coords = _screen_find_and_verify(desc)
+            if coords:
+                time.sleep(0.2)
+                _click(x=coords[0], y=coords[1])
+                return f"Clicked '{desc}' at {coords}"
+            return f"Element not found on screen: '{desc}'"
+
+        if action == "screen_click_retry":
+            return _screen_click_retry(params.get("description",""), params.get("attempts",5), params.get("interval",0.8))
+
+        if action == "screen_wait_for":
+            desc = str(params.get("description", "")).strip()
+            if not desc:
+                return "Screen element description is required."
+            coords = _screen_wait_for(desc, params.get("timeout", 30), params.get("interval", 1))
+            return f"Found '{desc}' at {coords}" if coords else f"Timed out waiting for '{desc}'"
+
+        if action == "screen_watch_click":
+            desc = str(params.get("description", "")).strip()
+            if not desc:
+                return "Screen element description is required."
+            return _screen_watch_click(desc, params.get("timeout", 60))
+
+        if action == "wait":
+            try:
+                secs = float(params.get("seconds", 1.0))
+            except (TypeError, ValueError):
+                return "Invalid wait duration."
+            if secs < 0:
+                return "Wait duration cannot be negative."
+            secs = min(secs, 30.0)
+            time.sleep(secs)
+            return f"Waited {secs}s"
+
+        if action == "clear_field":
+            return _clear_field()
+
+        if action == "focus_window":
+            return _focus_window(params.get("title", ""))
+
+        if action == "random_data":
+            dt     = params.get("type", "name")
+            result = _random_data(dt)
+            print(f"[ComputerControl] 🎲 random {dt} → {result}")
+            return result
+
+        if action == "user_data":
+            field = str(params.get("field", "name")).strip()
+            profile = _user_profile()
+            value = profile.get(field, "")
+            if not value:
+                return f"No '{field}' found in memory."
+            return str(value)
+
+        return f"Unknown action: '{action}'"
+
+    except Exception as e:
+        print(f"[ComputerControl] {action} failed: {e}")
+        return f"computer_control '{action}' failed: {e}"
+
+
+# ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
+TOOL = {
+    "name": "computer_control",
+    "description": "Direct Windows computer control with UI Automation, verification, retry/recovery for transient UI failures, screen finding/clicking, keyboard/mouse, clipboard, screenshots and window focus.",
+    "parameters": {
+        "type": "OBJECT",
+        "properties": {
+            "action": {
+                "type": "STRING",
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | open_browser | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click_retry | uia_type_retry | uia_click | uia_type | uia_get_text | uia_list_controls | process_health | process_recover"
+            },
+            "text": {
+                "type": "STRING",
+                "description": "Text to type or paste"
+            },
+            "x": {
+                "type": "INTEGER",
+                "description": "X coordinate"
+            },
+            "y": {
+                "type": "INTEGER",
+                "description": "Y coordinate"
+            },
+            "x1": {"type": "INTEGER", "description": "Drag start X coordinate"},
+            "y1": {"type": "INTEGER", "description": "Drag start Y coordinate"},
+            "x2": {"type": "INTEGER", "description": "Drag end X coordinate"},
+            "y2": {"type": "INTEGER", "description": "Drag end Y coordinate"},
+            "keys": {
+                "type": "STRING",
+                "description": "Key combination e.g. 'ctrl+c'"
+            },
+            "key": {
+                "type": "STRING",
+                "description": "Single key e.g. 'enter'"
+            },
+            "direction": {
+                "type": "STRING",
+                "description": "up | down | left | right"
+            },
+            "amount": {
+                "type": "INTEGER",
+                "description": "Scroll amount (default: 3)"
+            },
+            "seconds": {
+                "type": "NUMBER",
+                "description": "Seconds to wait"
+            },
+            "duration": {
+                "type": "NUMBER",
+                "description": "Mouse move/drag duration in seconds (0-5)"
+            },
+            "title": {
+                "type": "STRING",
+                "description": "Window title for focus_window or UI Automation"
+            },
+            "url": {"type": "STRING", "description": "URL to open in a browser"},
+            "browser": {"type": "STRING", "description": "Browser name: chrome | edge | firefox | opera gx"},
+            "auto_id": {"type": "STRING", "description": "Windows UI Automation ID"},
+            "control_title": {"type": "STRING", "description": "Exact UI Automation control title"},
+            "control_type": {"type": "STRING", "description": "UI Automation control type, e.g. Button or Edit"},
+            "button": {
+                "type": "STRING",
+                "description": "Mouse button: left | right | middle"
+            },
+            "description": {
+                "type": "STRING",
+                "description": "Element description for screen_find/screen_click"
+            },
+            "type": {
+                "type": "STRING",
+                "description": "Data type for random_data"
+            },
+            "field": {
+                "type": "STRING",
+                "description": "Field for user_data: name|email|city"
+            },
+            "clear_first": {
+                "type": "BOOLEAN",
+                "description": "Clear field before typing (default: true)"
+            },
+            "path": {
+                "type": "STRING",
+                "description": "Save path for screenshot"
+            },
+            "timeout": {"type": "NUMBER", "description": "Maximum seconds to wait for a screen element"},
+            "interval": {"type": "NUMBER", "description": "Typing interval or delay between retries/screen checks"},
+            "attempts": {"type": "INTEGER", "description": "Number of retry attempts"},
+            "process_name": {"type": "STRING", "description": "Windows process name for health/recovery"},
+            "restart": {"type": "BOOLEAN", "description": "Explicitly restart the process; requires confirmation"}
+        },
+        "required": [
+            "action"
+        ]
+    },
+    "handler": computer_control,
+}
+
+
+# Windows-only capability guard for direct execution.
+if __name__ == "__main__" and platform.system() != "Windows":
+    raise SystemExit("Mark-LIV computer control is Windows-only.")
