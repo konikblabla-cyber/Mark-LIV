@@ -51,7 +51,7 @@ _WRITE_MARKERS = (
     "restore", "focus", "click", "type", "press", "write", "create",
     "edit", "copy", "rename", "install", "toggle", "set_", "save",
     "download", "upload", "send", "volume", "audio", "wifi", "route",
-    "arp", "dns", "service", "registry",
+    "arp", "dns", "service", "registry", "lock",
 )
 _HIGH_MARKERS = (
     "delete", "remove", "uninstall", "format", "shutdown", "restart",
