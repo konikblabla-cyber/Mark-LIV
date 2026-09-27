@@ -306,7 +306,28 @@ def _clean_transcript(text: str) -> str:
     text = re.sub(r"[\x00-\x08\x0b-\x1f]", "", text)
     return text.strip()
 
-def _sanitize_live_tool_schema(schema, path="root"):\n    """Make action/plugin JSON schemas acceptable to Gemini Live.\n\n    Gemini Live rejects an ARRAY schema when its required items schema is\n    missing. File-backed actions or plugins can contain such a declaration;\n    one malformed tool must never prevent the whole assistant from connecting.\n    Valid schemas are returned unchanged apart from recursively sanitized\n    children. Missing array item schemas default to strings.\n    """\n    if isinstance(schema, list):\n        return [_sanitize_live_tool_schema(x, f"{path}[{i}]") for i, x in enumerate(schema)]\n    if not isinstance(schema, dict):\n        return schema\n    out = {k: _sanitize_live_tool_schema(v, f"{path}.{k}") for k, v in schema.items()}\n    typ = str(out.get("type", "")).upper()\n    if typ == "ARRAY" and not isinstance(out.get("items"), dict):\n        print(f"[Gemini] Sanitizing malformed array schema at {path}: missing items -> STRING")\n        out["items"] = {"type": "STRING"}\n    return out\n\n\ndef _compact_tool_result(result, max_chars: int = 7000) -> str:
+def _sanitize_live_tool_schema(schema, path="root"):
+    """Make action/plugin JSON schemas acceptable to Gemini Live.
+
+    Gemini Live rejects an ARRAY schema when its required items schema is
+    missing. File-backed actions or plugins can contain such a declaration;
+    one malformed tool must never prevent the whole assistant from connecting.
+    Valid schemas are returned unchanged apart from recursively sanitized
+    children. Missing array item schemas default to strings.
+    """
+    if isinstance(schema, list):
+        return [_sanitize_live_tool_schema(x, f"{path}[{i}]") for i, x in enumerate(schema)]
+    if not isinstance(schema, dict):
+        return schema
+    out = {k: _sanitize_live_tool_schema(v, f"{path}.{k}") for k, v in schema.items()}
+    typ = str(out.get("type", "")).upper()
+    if typ == "ARRAY" and not isinstance(out.get("items"), dict):
+        print(f"[Gemini] Sanitizing malformed array schema at {path}: missing items -> STRING")
+        out["items"] = {"type": "STRING"}
+    return out
+
+
+def _compact_tool_result(result, max_chars: int = 7000) -> str:
     """Keep large tool payloads from consuming the Live context window."""
     text = str(result if result is not None else "")
     if len(text) <= max_chars:
