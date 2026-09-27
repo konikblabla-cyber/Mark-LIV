@@ -1,6 +1,16 @@
 """Bounded Windows mouse drag path."""
 import platform,pyautogui
+from core.permissions import permission_decision
+from core import confirm
 def windows_drag_path(parameters=None,**kwargs):
+
+    if not kwargs.get("_permission_token"):
+        p = dict(parameters or {})
+        decision, reason = permission_decision("windows_drag_path", p)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            return confirm.request(key="windows_drag_path", title="Allow JARVIS: windows_drag_path?", detail=f"{reason}. Waiting for your confirmation.", run=lambda: windows_drag_path(p, _permission_token=True))
  if platform.system()!="Windows": return "Windows-only action."
  p=parameters or {}; start=p.get("start");end=p.get("end")
  if not isinstance(start,list) or len(start)!=2 or not isinstance(end,list) or len(end)!=2:return "start/end must be [x,y]."
