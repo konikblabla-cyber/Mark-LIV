@@ -416,6 +416,19 @@ def _recover_window(title: str) -> str:
         return f"Window recovery failed: {exc}"
 
 
+def _recover_process(name: str, restart: bool = False) -> str:
+    """Attempt safe process recovery; restart only when explicitly requested."""
+    if not name:
+        raise ValueError("process name is required")
+    if os.name != "nt":
+        return "Process recovery is supported on Windows only."
+    safe = name.strip().replace("'", "''")
+    if not restart:
+        return _process_health(name)
+    cmd = f"$p=Get-Process -Name '{safe}' -ErrorAction SilentlyContinue | Select-Object -First 1; if($p){{Stop-Process -Id $p.Id -Force -ErrorAction Stop}}; Start-Process '{safe}' -ErrorAction Stop; 'Process restarted.'"
+    return _ps(cmd).strip() or "Process restart requested."
+
+
 def _process_health(name: str) -> str:
     """Report whether a named Windows process is running and responding."""
     if not name:
@@ -718,6 +731,7 @@ def computer_control(
       uia_click_retry — retry UI Automation click when a window/control is temporarily unavailable
       uia_type_retry  — retry UI Automation typing when a window/control is temporarily unavailable
       process_health — check whether a Windows process exists and is responding
+      process_recover — inspect a process or explicitly restart it for recovery
       uia_click     — click a Windows UI Automation control
       uia_type      — type into a Windows UI Automation control
       uia_get_text  — read a Windows UI Automation control's text
@@ -745,6 +759,9 @@ def computer_control(
 
         if action == "process_health":
             return _process_health(params.get("process_name", ""))
+
+        if action == "process_recover":
+            return _recover_process(params.get("process_name", ""), bool(params.get("restart", False)))
 
         if action == "uia_click_retry":
             result, attempt = _retry_operation(lambda: (_recover_window(params.get("title", "")), _uia_click(params))[1], params.get("attempts", 3), params.get("interval", 0.6))
