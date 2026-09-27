@@ -10,6 +10,28 @@ class ComputerControlTests(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertFalse(result.get("ok", True))
 
+    @patch("actions.computer_control._uia_click", return_value="UI element clicked.")
+    def test_uia_click_dispatches(self, uia_click):
+        result = computer_control.handle({
+            "action": "uia_click",
+            "title": "Notepad",
+            "auto_id": "123",
+        })
+        uia_click.assert_called_once()
+        self.assertTrue(result.get("ok", False))
+        self.assertEqual(result.get("result"), "UI element clicked.")
+
+    @patch("actions.computer_control._uia_type", return_value="UI text entered.")
+    def test_uia_type_dispatches(self, uia_type):
+        result = computer_control.handle({
+            "action": "uia_type",
+            "title": "Notepad",
+            "control_title": "Editor",
+            "text": "hello",
+        })
+        uia_type.assert_called_once()
+        self.assertTrue(result.get("ok", False))
+
     def test_invalid_click_button_is_rejected(self):
         result = computer_control.handle({"action": "click", "x": 10, "y": 10, "button": "invalid"})
         self.assertIsInstance(result, dict)
