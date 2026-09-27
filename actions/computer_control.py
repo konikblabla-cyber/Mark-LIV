@@ -884,7 +884,12 @@ def computer_control(
             )
 
         if action in ("click", "left_click"):
-            return _click(params.get("x"), params.get("y"), "left", 1)
+            return _click(
+                params.get("x"),
+                params.get("y"),
+                str(params.get("button", "left")).lower().strip(),
+                1,
+            )
 
         if action == "double_click":
             return _click(params.get("x"), params.get("y"), "left", 2)
@@ -1054,6 +1059,10 @@ TOOL = {
             "auto_id": {"type": "STRING", "description": "Windows UI Automation ID"},
             "control_title": {"type": "STRING", "description": "Exact UI Automation control title"},
             "control_type": {"type": "STRING", "description": "UI Automation control type, e.g. Button or Edit"},
+            "button": {
+                "type": "STRING",
+                "description": "Mouse button: left | right | middle"
+            },
             "description": {
                 "type": "STRING",
                 "description": "Element description for screen_find/screen_click"
