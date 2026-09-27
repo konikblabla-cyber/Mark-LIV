@@ -1,6 +1,6 @@
 import unittest
 
-from core.permissions import is_protected_process, needs_confirmation
+from core.permissions import admin_requirement_reason, is_protected_process, needs_confirmation
 
 
 class PermissionsTests(unittest.TestCase):
@@ -20,6 +20,14 @@ class PermissionsTests(unittest.TestCase):
     def test_launch_and_open_file_require_confirmation(self):
         self.assertTrue(needs_confirmation("launch"))
         self.assertTrue(needs_confirmation("open_file"))
+
+    def test_admin_requirement_is_detected_from_command(self):
+        self.assertIsNotNone(admin_requirement_reason("netsh advfirewall set allprofiles state on"))
+        self.assertIsNone(admin_requirement_reason("echo hello"))
+
+    def test_admin_failure_is_detected_from_output(self):
+        self.assertIsNotNone(admin_requirement_reason(output="Access is denied."))
+        self.assertIsNone(admin_requirement_reason(output="completed successfully"))
 
     def test_protected_processes_are_detected(self):
         self.assertTrue(is_protected_process("lsass.exe"))
