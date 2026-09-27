@@ -71,6 +71,21 @@ class ComputerControlTests(unittest.TestCase):
         move_to.assert_called_once_with(0, 1079, duration=0.3)
         self.assertTrue(result.get("ok", False))
 
+    @patch("actions.computer_control.pyautogui.moveTo")
+    @patch("actions.computer_control._virtual_screen_geometry", return_value=(0, 0, 1920, 1080))
+    def test_move_uses_schema_duration(self, _geometry, move_to):
+        result = computer_control.handle({
+            "action": "move", "x": 100, "y": 200, "duration": 1.25,
+        })
+        move_to.assert_called_once_with(100, 200, duration=1.25)
+        self.assertTrue(result.get("ok", False))
+
+    def test_tool_schema_exposes_timing_parameters(self):
+        props = computer_control.TOOL["parameters"]["properties"]
+        self.assertIn("duration", props)
+        self.assertIn("interval", props)
+        self.assertEqual(props["duration"]["type"], "NUMBER")
+
 
     @patch("actions.computer_control.permission_decision", return_value=("deny", "READ level allows only read/inspection operations"))
     @patch("actions.computer_control._click")
