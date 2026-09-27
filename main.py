@@ -2388,6 +2388,7 @@ class JarvisLive:
                     tg.create_task(self._run_background_monitor())
                     tg.create_task(self._run_proactive_mode())
                     tg.create_task(self._run_daily_task_monitor())
+                    tg.create_task(self._run_automation_scheduler())
                     tg.create_task(self._resume_recoverable_tasks())
                     tg.create_task(self._run_sleep_watch())
                     if self._dashboard:
