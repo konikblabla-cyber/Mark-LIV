@@ -38,8 +38,8 @@ class ComputerControlTests(unittest.TestCase):
         self.assertFalse(result.get("ok", True))
 
     @patch("actions.computer_control.pyautogui.click")
-    @patch("actions.computer_control._screen_size", return_value=(1920, 1080))
-    def test_click_coordinates_are_clamped(self, _size, click):
+    @patch("actions.computer_control._virtual_screen_geometry", return_value=(0, 0, 1920, 1080))
+    def test_click_coordinates_are_clamped(self, _geometry, click):
         result = computer_control.handle({
             "action": "click",
             "x": 99999,
@@ -51,8 +51,8 @@ class ComputerControlTests(unittest.TestCase):
 
 
     @patch("actions.computer_control.pyautogui.moveTo")
-    @patch("actions.computer_control._screen_size", return_value=(1920, 1080))
-    def test_move_coordinates_are_clamped(self, _size, move_to):
+    @patch("actions.computer_control._virtual_screen_geometry", return_value=(0, 0, 1920, 1080))
+    def test_move_coordinates_are_clamped(self, _geometry, move_to):
         result = computer_control.handle({
             "action": "move",
             "x": -50,
@@ -64,3 +64,14 @@ class ComputerControlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    @patch("actions.computer_control._open_browser_target", return_value="Browser window reused: https://example.com")
+    def test_open_browser_dispatches(self, open_browser):
+        result = computer_control.handle({
+            "action": "open_browser",
+            "url": "https://example.com",
+            "browser": "opera gx",
+        })
+        open_browser.assert_called_once_with("https://example.com", "opera gx")
+        self.assertTrue(result.get("ok", False))
+        self.assertIn("Browser window reused", result.get("result", ""))
