@@ -1,5 +1,7 @@
 """Focus the Windows desktop shell."""
 import ctypes,platform,pyautogui
+from core.permissions import permission_decision
+from core import confirm
 def windows_desktop_focus(parameters=None,**kwargs):
  if platform.system()!="Windows": return "Windows-only action."
  if not kwargs.get("_permission_token"):
