@@ -58,9 +58,14 @@ def finish_claimed(item_id, result, success):
         return False
     for item in items:
         if str(item.get("id")) == str(item_id):
-            item["status"] = "completed" if success else "failed"
             item["updated_at"] = time.time()
             item["result"] = str(result or "")[:1800]
+            repeat = float(item.get("repeat_seconds") or 0)
+            if success and repeat > 0:
+                item["status"] = "queued"
+                item["run_after"] = time.time() + min(repeat, 365 * 24 * 3600)
+            else:
+                item["status"] = "completed" if success else "failed"
             break
     tmp = _STATE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
@@ -93,6 +98,7 @@ def automation_queue(parameters=None, **kwargs):
             "created_at": time.time(),
             "run_after": float(p.get("run_after") or time.time()),
             "status": "queued",
+            "repeat_seconds": max(0, float(p.get("repeat_seconds") or 0)),
         }
         items.append(item)
     elif action in {"cancel", "complete"}:
@@ -121,6 +127,7 @@ TOOL = {
             "goal": {"type": "STRING"},
             "id": {"type": "STRING"},
             "run_after": {"type": "NUMBER"},
+            "repeat_seconds": {"type": "NUMBER"},
         },
         "required": [],
     },
