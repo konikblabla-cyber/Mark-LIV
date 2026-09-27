@@ -297,7 +297,6 @@ def _move(x: int, y: int, duration: float = 0.3) -> str:
     pyautogui.moveTo(x, y, duration=duration)
     return f"Mouse → ({x}, {y})"
 
-
 def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     _require_pyautogui()
     x1, y1 = _validate_coords(x1, y1)
@@ -597,8 +596,7 @@ def _uia_type(params: dict) -> str:
     return f"UI text entered in '{params.get('title', '')}'."
 
 
-def _uia_text(params: dict) -> str:
-    control = _uia_find(params)
+def _uia_text(params: dict) -> str:    control = _uia_find(params)
     try:
         return str(control.window_text())
     except Exception:
@@ -686,6 +684,37 @@ def _mouse_move_verified(x: int, y: int) -> str:
     x, y = _validate_coords(x, y)
     pyautogui.moveTo(x, y, duration=0.3)
     return f"Mouse moved to {x},{y}"
+
+def _click_visual_change(x: int, y: int, button: str = "left", clicks: int = 1) -> str:
+    """Click and cheaply check whether the screen changed; never calls Gemini."""
+    _require_pyautogui()
+    x, y = _validate_coords(x, y)
+    pyautogui.moveTo(x, y, duration=0.08)
+    actual = tuple(map(int, pyautogui.position()))
+    if abs(actual[0] - x) > 2 or abs(actual[1] - y) > 2:
+        raise RuntimeError(f"Mouse coordinate mismatch: requested=({x},{y}) actual={actual}")
+    before = None
+    try:
+        import mss
+        with mss.mss() as sct:
+            before = bytes(sct.grab(sct.monitors[0]).rgb)
+    except Exception:
+        pass
+    pyautogui.click(button=button, clicks=max(1, min(int(clicks), 10)))
+    time.sleep(0.12)
+    changed = None
+    try:
+        import mss
+        with mss.mss() as sct:
+            after = bytes(sct.grab(sct.monitors[0]).rgb)
+        if before is not None and len(before) == len(after):
+            step = max(1, len(before) // 20000)
+            changed = any(before[i] != after[i] for i in range(0, len(before), step))
+    except Exception:
+        pass
+    status = "screen changed" if changed is True else ("no visible change" if changed is False else "click sent")
+    return f"Clicked ({x}, {y}); {status}"
+
 
 def _screen_find_and_verify(description: str) -> tuple[int, int] | None:
     coords = _screen_find(description)
@@ -897,8 +926,7 @@ def computer_control(
             key=f"computer-{action}",
             title=f"Computer control: {action}",
             detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
-            run=lambda: computer_control(
-                dict(params),
+            run=lambda: computer_control(                dict(params),
                 response=response,
                 player=player,
                 session_memory=session_memory,
@@ -1028,8 +1056,8 @@ def computer_control(
             coords = _screen_find_and_verify(desc)
             if coords:
                 time.sleep(0.2)
-                _click(x=coords[0], y=coords[1])
-                return f"Clicked '{desc}' at {coords}"
+                _click_visual_change(coords[0], coords[1])
+                return f"Clicked '{desc}' at {coords} (verified cursor; visual change check performed)"
             return f"Element not found on screen: '{desc}'"
 
         if action == "screen_click_retry":
