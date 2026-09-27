@@ -8,6 +8,14 @@ import os
 # confirmation dialog. This is deliberately opt-in at the environment level.
 FULL_CONTROL = os.environ.get("JARVIS_FULL_CONTROL", "0").strip().lower() in {"1", "true", "yes", "on"}
 
+
+def full_control_enabled() -> bool:
+    try:
+        from memory.config_manager import get_full_control_enabled
+        return bool(get_full_control_enabled()) or FULL_CONTROL
+    except Exception:
+        return FULL_CONTROL
+
 REQUIRE_CONFIRMATION = {
     "shutdown", "restart", "toggle_wifi", "close_all_apps", "close_active",
     "launch", "open_file", "delete_file", "delete_folder", "kill_process",
@@ -30,7 +38,7 @@ PROTECTED_PROCESSES = {
 
 
 def needs_confirmation(action: str, *, admin: bool = False) -> bool:
-    if FULL_CONTROL:
+    if full_control_enabled():
         return False
     name = str(action or "").strip().lower()
     if admin or name in REQUIRE_CONFIRMATION or name in REQUIRE_ADMIN_CONFIRMATION:
