@@ -2,6 +2,10 @@
 import platform,ctypes
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_window_close(parameters=None,**kwargs):
+ if not kwargs.get("_permission_token"):
+  p=dict(parameters or {});d,r=permission_decision("windows_window_close",p)
+  if d=="deny":return f"Permission denied: {r}"
+  if d=="confirm":return confirm.request(key="windows_window_close",title="Allow JARVIS: windows_window_close?",detail=f"{r}. Waiting for your confirmation.",run=lambda:windows_window_close(p,_permission_token=True))
  p=parameters or {}; title=str(p.get("title","")).strip().lower()
  if not title:return "Window title is required."
  u=ctypes.windll.user32; found=[]
