@@ -1,7 +1,13 @@
 """Move and resize a uniquely matched Windows window."""
 import ctypes,platform
+from core.permissions import permission_decision
+from core import confirm
 if platform.system()!="Windows": raise RuntimeError("Windows-only.")
 def windows_window_move(parameters=None,**kwargs):
+ if not kwargs.get("_permission_token"):
+  p=dict(parameters or {});d,r=permission_decision("windows_window_move",p)
+  if d=="deny":return f"Permission denied: {r}"
+  if d=="confirm":return confirm.request(key="windows_window_move",title="Allow JARVIS: windows_window_move?",detail=f"{r}. Waiting for your confirmation.",run=lambda:windows_window_move(p,_permission_token=True))
  p=parameters or {}; needle=str(p.get("contains") or "").strip().lower()
  try:x=int(p.get("x",0));y=int(p.get("y",0));w=int(p.get("width",800));h=int(p.get("height",600))
  except ValueError:return "Invalid geometry."
