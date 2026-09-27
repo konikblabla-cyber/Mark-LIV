@@ -1,28 +1,4 @@
-"""
-Action discovery, validation, and dispatch — the built-in twin of plugin_loader.
-
-Every actions/*.py that exposes a module-level ``TOOL`` dict is auto-discovered
-here, exactly like a drop-in plugin, so main.py never has to hardcode a tool
-declaration or a dispatch branch for it. Adding a new bundled action is then the
-same one-file operation as writing a plugin: define ``TOOL`` and a handler.
-
-``TOOL`` shape (see actions/open_app.py for a live example):
-
-    TOOL = {
-        "name":        "open_app",              # unique, ^[a-zA-Z_][a-zA-Z0-9_]{0,63}$
-        "description":  "...",                   # what Gemini reads to route the call
-        "parameters":  {"type": "OBJECT", ...}, # Gemini function-declaration schema
-        "handler":      open_app,                # the callable to run
-    }
-
-The handler is invoked through signature introspection: it receives ``parameters``
-plus whichever of ``player`` / ``speak`` / ``response`` / ``session_memory`` it
-actually declares — so existing action signatures work unchanged.
-
-Discovery runs once at startup; import errors, validation errors, and name
-collisions are logged and the offending file is skipped — they NEVER raise out
-of discover_actions() and never abort the scan of the remaining files.
-"""
+"""Central action discovery and dispatch with a final permission boundary."""
 from __future__ import annotations
 
 import importlib.util
@@ -37,16 +13,11 @@ from typing import Callable, Optional
 _NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,63}$")
 _DEFAULT_PARAMS = {"type": "OBJECT", "properties": {}}
 _CTX_KEYS = ("player", "speak", "response", "session_memory", "action_registry")
-
-
-# A tool may declare that the model should NOT be held up waiting for it.
-# `behavior` goes to the API with the declaration; `scheduling` decides when the
-# eventual result is allowed back into the conversation:
-#   WHEN_IDLE  — wait for a gap in the speech (the sane default)
-#   SILENT     — record it, do not prompt a reply (the tool already announced)
-#   INTERRUPT  — cut in immediately (only when the answer cannot wait)
 _BEHAVIORS = ("BLOCKING", "NON_BLOCKING")
 _SCHEDULING = ("WHEN_IDLE", "SILENT", "INTERRUPT")
+
+# These handlers already implement their own parameter-aware permission gate.
+_PERMISSION_MANAGED = {"computer_control", "broad_control", "close_all_apps"}
 
 
 def _opt_upper(value, allowed: tuple[str, ...]) -> Optional[str]:
@@ -63,21 +34,17 @@ class ActionRecord:
     file: str = ""
     valid: bool = False
     error: str = ""
-    behavior: Optional[str] = None     # None = the API's default (blocking)
-    scheduling: Optional[str] = None   # None = the API's default (WHEN_IDLE)
+    behavior: Optional[str] = None
+    scheduling: Optional[str] = None
 
 
 class ActionRegistry:
     def __init__(self, actions: dict[str, ActionRecord], logger: Callable[[str], None]):
-        self._actions = actions          # name -> ActionRecord, VALID entries only
+        self._actions = actions
         self._all_records: list[ActionRecord] = []
         self._logger = logger
 
-    # -- called by main.py at LiveConnectConfig build time --
     def get_tool_declarations(self) -> list[dict]:
-        # Put frequently successful local actions first. This costs no extra
-        # Gemini call or prompt text and lets learned usage patterns influence
-        # tool selection without forcing a specific action.
         try:
             from core.preference_learner import top_actions
             weights = dict(top_actions(100))
@@ -100,20 +67,41 @@ class ActionRegistry:
         return name in self._actions
 
     def scheduling(self, name: str) -> Optional[str]:
-        """How this action's result should re-enter the conversation, if it said."""
         rec = self._actions.get(name)
         return rec.scheduling if rec else None
 
     def names(self) -> set[str]:
         return set(self._actions.keys())
 
-    # -- called by main.py from _execute_tool --
     def run(self, name: str, parameters: dict, ctx: dict | None = None) -> str:
         rec = self._actions.get(name)
         if rec is None or not rec.valid:
             return f"Action '{name}' is not available."
+
+        context = ctx or {}
         try:
-            result = _call_handler(rec.handler, parameters, ctx or {}) or "Done."
+            if name not in _PERMISSION_MANAGED:
+                from core.permissions import permission_decision
+                from core import confirm
+
+                decision, reason = permission_decision(name, parameters or {})
+                if decision == "deny":
+                    return f"Permission denied: {reason}"
+                if decision == "confirm":
+                    if confirm.pending_title():
+                        return "There is already a confirmation waiting on screen. Ask the user to answer it first."
+
+                    def _confirmed_run() -> str:
+                        return _call_handler(rec.handler, parameters, context) or "Done."
+
+                    return confirm.request(
+                        key=f"action-{name}",
+                        title=f"Allow JARVIS to run: {name}?",
+                        detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                        run=_confirmed_run,
+                    )
+
+            result = _call_handler(rec.handler, parameters, context) or "Done."
             try:
                 from core.preference_learner import record_action
                 record_action(name)
@@ -128,8 +116,6 @@ class ActionRegistry:
                 record("action_error", message, level="error")
             except Exception:
                 pass
-            # Attempt only bounded runtime repair; never retry the failed action
-            # automatically, because its side effects may be unknown.
             try:
                 from actions.jarvis_self_repair import jarvis_self_repair
                 repair = jarvis_self_repair({})
@@ -141,9 +127,6 @@ class ActionRegistry:
 
 
 def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> str:
-    """Invoke the handler passing only the context kwargs it actually declares
-    (or all of them if it has **kwargs), so each action's existing signature
-    works unchanged."""
     sig = inspect.signature(fn)
     has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
     kwargs = {}
@@ -154,7 +137,6 @@ def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> str:
 
 
 def _validate_tool(tool, filename: str, fallback_name: str) -> ActionRecord:
-    """Validate one TOOL declaration without raising."""
     if not isinstance(tool, dict):
         return ActionRecord(name=fallback_name, file=filename,
                             error="TOOL entry must be a dict.")
@@ -172,46 +154,38 @@ def _validate_tool(tool, filename: str, fallback_name: str) -> ActionRecord:
     parameters = tool.get("parameters", _DEFAULT_PARAMS)
     if not isinstance(parameters, dict) or parameters.get("type") != "OBJECT":
         return ActionRecord(name=name, file=filename,
-                            error="TOOL['parameters'] must be a dict with \"type\": \"OBJECT\".")
+                            error='TOOL parameters must be an OBJECT schema.')
 
     handler = tool.get("handler")
     if not callable(handler):
         return ActionRecord(name=name, file=filename,
-                            error="TOOL['handler'] missing or not callable.")
+                            error="TOOL handler missing or not callable.")
 
     return ActionRecord(name=name, description=description.strip(), parameters=parameters,
-                        handler=handler, file=filename, valid=True, error="",
+                        handler=handler, file=filename, valid=True,
                         behavior=_opt_upper(tool.get("behavior"), _BEHAVIORS),
                         scheduling=_opt_upper(tool.get("scheduling"), _SCHEDULING))
 
 
 def _validate(module, filename: str) -> list[ActionRecord]:
-    """Validate a module TOOL dict or list of TOOL dicts."""
     tool = getattr(module, "TOOL", None)
     if tool is None:
         return []
     entries = tool if isinstance(tool, list) else [tool]
     return [_validate_tool(entry, filename, Path(filename).stem) for entry in entries]
 
+
 def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
                      logger: Callable[[str], None] = print) -> ActionRegistry:
-    """
-    Scans actions_dir for *.py files (skips files starting with '_'). A file is
-    only treated as an action if it exposes a module-level TOOL dict; files
-    without one (shared helpers, capture-only modules) are silently ignored.
-    Import/validation errors and name collisions are logged and the file is
-    skipped — they NEVER raise out of this function.
-    """
     reserved = reserved_names or set()
     actions_dir.mkdir(parents=True, exist_ok=True)
     valid: dict[str, ActionRecord] = {}
     all_records: list[ActionRecord] = []
 
-    files = sorted(actions_dir.glob("*.py"), key=lambda p: p.name)  # deterministic order
+    files = sorted(actions_dir.glob("*.py"), key=lambda p: p.name)
     for path in files:
         if path.name.startswith("_"):
             continue
-
         try:
             module_name = f"actions.{path.stem}"
             module = sys.modules.get(module_name)
@@ -233,16 +207,12 @@ def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,
             records = _validate(module, path.name)
             for rec in records:
                 if rec.valid and rec.name in reserved:
-                    rec = ActionRecord(
-                        name=rec.name, file=path.name,
-                        error=f"Name '{rec.name}' collides with a reserved core tool — rejected."
-                    )
+                    rec = ActionRecord(name=rec.name, file=path.name,
+                                       error=f"Name '{rec.name}' collides with a reserved core tool — rejected.")
                 elif rec.valid and rec.name in valid:
                     other = valid[rec.name].file
-                    rec = ActionRecord(
-                        name=rec.name, file=path.name,
-                        error=f"Name '{rec.name}' already used by action '{other}' — rejected."
-                    )
+                    rec = ActionRecord(name=rec.name, file=path.name,
+                                       error=f"Name '{rec.name}' already used by action '{other}' — rejected.")
 
                 all_records.append(rec)
                 if rec.valid:
