@@ -156,29 +156,57 @@ def resume_autonomous_task(parameters, action_registry=None, player=None, speak=
     task_id = str(parameters.get("task_id") or "").strip()
     if not task_id or action_registry is None:
         return "Missing task_id or action registry."
-    task = _mgr().get(task_id)
+    manager = _mgr()
+    task = manager.get(task_id)
     if not task:
         return "Task not found."
     if task.get("status") == "completed":
         return "Task is already completed."
 
-    from core.autonomy import AutonomyEngine
-    history = [(x.get("action", ""), x.get("result", ""))
-               for x in task.get("history", [])]
-    recent = history[-3:]
+    from core.autonomy import AutonomyEngine, Plan, PlanStep
     ctx = {
         "player": player, "speak": speak, "response": response,
         "session_memory": session_memory, "action_registry": action_registry,
     }
-    engine = AutonomyEngine(action_registry, ctx=ctx, task_manager=_mgr(), task_id=task_id)
-    plan = engine._plan(task.get("goal", ""), failure=(
-        "Resuming interrupted task. Inspect current state; do not blindly repeat completed steps. Recent history: " + str(recent)[-1500:]
-    ))
-    if not plan or not plan.steps:
-        _mgr().update(task_id, status="paused")
-        return "Could not safely rebuild the task plan."
-    _mgr().update(task_id, status="running")
-    return engine._execute_steps(plan, 0, task.get("goal", ""), history)
+    engine = AutonomyEngine(action_registry, ctx=ctx, task_manager=manager, task_id=task_id)
+
+    history = [(x.get("action", ""), x.get("result", ""))
+               for x in task.get("history", []) if isinstance(x, dict)]
+    plan_data = manager.get_plan(task_id)
+    plan = None
+    if plan_data:
+        steps = [
+            PlanStep(
+                action=str(item.get("action") or ""),
+                parameters=item.get("parameters") if isinstance(item.get("parameters"), dict) else {},
+                reason=str(item.get("reason") or ""),
+                verify=str(item.get("verify") or ""),
+            )
+            for item in plan_data
+            if action_registry.has(str(item.get("action") or ""))
+        ]
+        if steps:
+            plan = Plan(goal=str(task.get("goal") or ""), steps=steps, summary="Resumed persisted plan.")
+
+    # Older tasks have no structured plan. Rebuild once, persist it, and all
+    # future restarts resume locally without another Gemini planning call.
+    if plan is None:
+        recent = history[-3:]
+        plan = engine._plan(task.get("goal", ""), failure=(
+            "Rebuilding an older interrupted task. Inspect current state; "
+            "do not blindly repeat completed steps. Recent history: " + str(recent)[-1500:]
+        ))
+        if not plan or not plan.steps:
+            manager.update(task_id, status="paused")
+            return "Could not safely rebuild the task plan."
+        engine._persist_plan(plan)
+
+    try:
+        start = max(0, min(int(task.get("next_step", 0)), len(plan.steps)))
+    except (TypeError, ValueError):
+        start = 0
+    manager.update(task_id, status="running", next_step=start)
+    return engine._execute_steps(plan, start, str(task.get("goal") or ""), history)
 
 
 TOOL = [
