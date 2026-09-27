@@ -405,6 +405,13 @@ def _uia_find(params: dict):
     return control
 
 
+def _uia_verify(params: dict) -> str:
+    """Verify that a UI Automation control exists and is visible without changing it."""
+    control = _uia_find(params)
+    info = control.element_info
+    return f"UI element verified: type={info.control_type}; name={info.name or ''}; auto_id={info.automation_id or ''}"
+
+
 def _uia_click(params: dict) -> str:
     control = _uia_find(params)
     control.click_input()
@@ -667,6 +674,7 @@ def computer_control(
       screen_click  — AI element finder + click
       random_data   — generate fake form data
       user_data     — pull real data from memory
+      uia_verify    — verify a Windows UI Automation control exists
       uia_click     — click a Windows UI Automation control
       uia_type      — type into a Windows UI Automation control
       uia_get_text  — read a Windows UI Automation control's text
@@ -688,6 +696,9 @@ def computer_control(
     print(f"[ComputerControl] {action}  {safe_log_params}")
 
     try:
+
+        if action == "uia_verify":
+            return _uia_verify(params)
 
         if action == "uia_click":
             return _uia_click(params)
@@ -840,7 +851,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_click | uia_type | uia_get_text | uia_list_controls"
+                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | screen_click_retry | screen_wait_for | screen_watch_click | active_window_info | screen_dpi | mouse_position | screen_geometry | random_data | user_data | uia_verify | uia_click | uia_type | uia_get_text | uia_list_controls"
             },
             "text": {
                 "type": "STRING",
