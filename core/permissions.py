@@ -98,7 +98,9 @@ def _risk(action: str) -> str:
         return "medium"
     if any(name.startswith(marker) for marker in _READ_MARKERS):
         return "low"
-    return "low"
+    # Unknown actions are conservative: they may have side effects even when
+    # their name does not match a known read/write marker.
+    return "high"
 
 
 def permission_decision(action: str, parameters: dict | None = None) -> tuple[str, str]:
