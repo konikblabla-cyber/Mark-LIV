@@ -22,7 +22,9 @@ except ImportError:
     _PYPERCLIP = False
 
 from core import confirm
-from core.undo import push_undo\n\n_SETTINGS_CONTROL_TOKEN = object()
+from core.undo import push_undo
+
+_SETTINGS_CONTROL_TOKEN = object()
 
 _OS = platform.system()  # "Windows" | "Darwin" | "Linux"
 
@@ -825,7 +827,27 @@ def computer_settings(
     if not action:
         return _suggest(description or raw_action)
 
-    # Central permission boundary for every computer-settings action.\n    if _permission_token is not _SETTINGS_CONTROL_TOKEN:\n        from core.permissions import permission_decision\n        decision, reason = permission_decision(action, params)\n        if decision == "deny":\n            return f"Permission denied: {reason}"\n        if decision == "confirm":\n            if confirm.pending_title():\n                return "There is already a confirmation waiting on screen. Ask the user to answer it first."\n            return confirm.request(\n                key=f"computer-settings-{action}",\n                title=f"Computer control: {action}",\n                detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",\n                run=lambda: computer_settings(\n                    dict(params), response=response, player=player,\n                    session_memory=session_memory,\n                    _permission_token=_SETTINGS_CONTROL_TOKEN,\n                ),\n            )\n\n    print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
+    # Central permission boundary for every computer-settings action.
+    if _permission_token is not _SETTINGS_CONTROL_TOKEN:
+        from core.permissions import permission_decision
+        decision, reason = permission_decision(action, params)
+        if decision == "deny":
+            return f"Permission denied: {reason}"
+        if decision == "confirm":
+            if confirm.pending_title():
+                return "There is already a confirmation waiting on screen. Ask the user to answer it first."
+            return confirm.request(
+                key=f"computer-settings-{action}",
+                title=f"Computer control: {action}",
+                detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                run=lambda: computer_settings(
+                    dict(params), response=response, player=player,
+                    session_memory=session_memory,
+                    _permission_token=_SETTINGS_CONTROL_TOKEN,
+                ),
+            )
+
+    print(f"[Settings] Action: {action}  Value: {value}  OS: {_OS}")
     if player:
         player.write_log(f"[Settings] {action}")
 
