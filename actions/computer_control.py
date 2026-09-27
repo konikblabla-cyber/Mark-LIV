@@ -370,6 +370,83 @@ def _focus_window(title: str) -> str:
 
     return f"focus_window: unknown OS '{os_name}'"
 
+def _uia_connect(title: str):
+    """Connect to a visible Windows window through UI Automation, not screen coordinates."""
+    if platform.system() != "Windows":
+        raise RuntimeError("UI Automation is Windows-only.")
+    try:
+        from pywinauto import Desktop
+    except ImportError as exc:
+        raise RuntimeError("pywinauto is required for UI Automation.") from exc
+    title = str(title or "").strip()
+    if not title:
+        raise ValueError("Window title is required.")
+    window = Desktop(backend="uia").window(title_re=f".*{re.escape(title)}.*")
+    window.wait("visible", timeout=5)
+    window.set_focus()
+    return window
+
+
+def _uia_find(params: dict):
+    window = _uia_connect(params.get("title", ""))
+    control = window
+    auto_id = str(params.get("auto_id", "")).strip()
+    control_title = str(params.get("control_title", "")).strip()
+    control_type = str(params.get("control_type", "")).strip()
+    if auto_id:
+        control = control.child_window(auto_id=auto_id)
+    elif control_title:
+        control = control.child_window(title=control_title)
+    elif control_type:
+        control = control.child_window(control_type=control_type)
+    else:
+        raise ValueError("Provide auto_id, control_title, or control_type.")
+    control.wait("visible", timeout=5)
+    return control
+
+
+def _uia_click(params: dict) -> str:
+    control = _uia_find(params)
+    control.click_input()
+    return f"UI element clicked in '{params.get('title', '')}'."
+
+
+def _uia_type(params: dict) -> str:
+    control = _uia_find(params)
+    text = str(params.get("text", ""))
+    if len(text) > 10000:
+        raise ValueError("Text too long")
+    control.set_focus()
+    control.type_keys(text, with_spaces=True, set_foreground=True)
+    return f"UI text entered in '{params.get('title', '')}'."
+
+
+def _uia_text(params: dict) -> str:
+    control = _uia_find(params)
+    try:
+        return str(control.window_text())
+    except Exception:
+        return str(control.element_info.name or "")
+
+
+def _uia_controls(params: dict) -> str:
+    window = _uia_connect(params.get("title", ""))
+    rows = []
+    for control in window.descendants():
+        try:
+            info = control.element_info
+            name = str(info.name or "").strip()
+            ctype = str(info.control_type or "").strip()
+            auto_id = str(info.automation_id or "").strip()
+            if name or auto_id:
+                rows.append(f"{ctype} | {name} | auto_id={auto_id}")
+        except Exception:
+            continue
+        if len(rows) >= 80:
+            break
+    return "\n".join(rows) if rows else "No named UI controls found."
+
+
 def _mouse_position() -> tuple[int, int]:
     _require_pyautogui()
     x, y = pyautogui.position()
@@ -605,6 +682,18 @@ def computer_control(
 
     try:
 
+        if action == "uia_click":
+            return _uia_click(params)
+
+        if action == "uia_type":
+            return _uia_type(params)
+
+        if action == "uia_get_text":
+            return _uia_text(params)
+
+        if action == "uia_list_controls":
+            return _uia_controls(params)
+
         if action == "type":
             return _type(params.get("text", ""))
 
@@ -782,6 +871,9 @@ TOOL = {
                 "type": "STRING",
                 "description": "Window title for focus_window"
             },
+            "auto_id": {"type": "STRING", "description": "Windows UI Automation ID"},
+            "control_title": {"type": "STRING", "description": "Exact UI Automation control title"},
+            "control_type": {"type": "STRING", "description": "UI Automation control type, e.g. Button or Edit"},
             "description": {
                 "type": "STRING",
                 "description": "Element description for screen_find/screen_click"
