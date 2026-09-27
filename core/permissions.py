@@ -111,6 +111,16 @@ def permission_decision(action: str, parameters: dict | None = None) -> tuple[st
     level = get_control_level()
     risk = _risk(name)
 
+    # Explicit privileged requests always require confirmation.
+    admin_requested = bool(params.get("admin") or params.get("elevated"))
+    command = params.get("command")
+    if isinstance(command, str) and command_needs_admin(command):
+        admin_requested = True
+    if admin_requested:
+        if level not in {"ELEVATED", "CRITICAL"}:
+            return "deny", "ELEVATED or CRITICAL access is required for privileged operations"
+        return "confirm", f"{level}: explicit privileged operation requires confirmation"
+
     if risk == "low":
         return "allow", f"{level}: read-only operation"
 
