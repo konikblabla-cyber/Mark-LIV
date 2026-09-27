@@ -31,9 +31,28 @@ def _gaming_prepare():
     except Exception as e: results.append(f"game_mode_error={e}")
     return "Gaming preparation: " + "; ".join(results)
 
+_SYSTEM_CONTROL_TOKEN = object()
+
 def system_control(parameters=None,**kwargs):
     if not WIN:return "This action is Windows-only."
-    p=parameters or {}; a=str(p.get("action","status")).lower().strip(); v=str(p.get("value","")).strip()
+    p=dict(parameters or {}); a=str(p.get("action","status")).lower().strip(); v=str(p.get("value","")).strip()
+    if kwargs.get("_permission_token") is not _SYSTEM_CONTROL_TOKEN:
+        try:
+            from core.permissions import permission_decision
+            decision, reason = permission_decision(a, p)
+            if decision == "deny":
+                return f"Permission denied: {reason}"
+            if decision == "confirm":
+                if confirm.pending_title():
+                    return "There is already a confirmation waiting. Ask the user to answer it first."
+                return confirm.request(
+                    key=f"system-control:{a}",
+                    title=f"Allow JARVIS: {a}?",
+                    detail=f"{reason}. JARVIS will wait for your confirmation before executing it.",
+                    run=lambda: system_control(dict(p), _permission_token=_SYSTEM_CONTROL_TOKEN),
+                )
+        except Exception as e:
+            return f"Permission check failed: {e}"
     if a=="gaming_prepare":
         return _gaming_prepare()
     if a=="status":
