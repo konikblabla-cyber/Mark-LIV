@@ -727,7 +727,14 @@ class JarvisLive:
         return True
 
     def _on_wake_detected(self) -> None:
-        """Called from the detector thread when 'Hey Jarvis' is heard."""
+        """Called from the detector thread when 'Hey Jarvis' is heard.
+
+        A wake phrase is a single transition: once JARVIS is awake, further
+        detector hits from the same utterance (or from the next few seconds)
+        must not create another turn or confirmation event.
+        """
+        if self._awake:
+            return
         self.wake(reason="wake word")
         # A spoken confirmation is valid only after the local detector heard the
         # wake phrase. This prevents an isolated "yes" from another conversation
