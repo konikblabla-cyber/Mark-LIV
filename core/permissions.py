@@ -76,6 +76,10 @@ def permission_decision(action: str, parameters: dict | None = None) -> tuple[st
         admin_requested = True
     if admin_requested and level not in {"ELEVATED", "CRITICAL"}:
         return "deny", "ELEVATED or CRITICAL access is required"
+    # CRITICAL suppresses JARVIS confirmation HUDs for privileged actions.
+    # Windows UAC remains an operating-system boundary and may still appear.
+    if admin_requested and level == "CRITICAL":
+        return "allow", "CRITICAL: autonomous privileged control"
     if admin_requested:
         return "confirm", f"{level}: privileged operation"
 
